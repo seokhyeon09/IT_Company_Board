@@ -123,7 +123,7 @@
                             <field name="content" placeholder="발생한 문제 상황이나 증상을 자세히 기재해 주세요." readonly="status not in ('submitted','assigned')"/>
                         </page>
                         <page string="공식 조치 내역">
-                            <field name="resolution_note" placeholder="IT 담당자가 문제를 어떻게 해결했는지 공식 조치 내역을 기록합니다." readonly="status in ('closed','canceled')"/>
+                            <field name="resolution_note" placeholder="IT 담당자가 문제를 어떻게 해결했는지 공식 조치 내역을 기록합니다." readonly="status in ('closed', 'canceled') or not is_officer"/>
                         </page>
                     </notebook>
                 </sheet>

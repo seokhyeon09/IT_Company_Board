@@ -6,6 +6,7 @@
     "category": "Services/Helpdesk",
     "depends": ["base", "mail"],
     "data": [
+        "security/it_helpdesk_security.xml",
         "security/ir.model.access.csv",
         "views/ticket_views.xml",
     ],

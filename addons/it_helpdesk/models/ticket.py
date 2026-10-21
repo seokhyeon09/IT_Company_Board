@@ -56,6 +56,12 @@ class HelpDeskTicket(models.Model):
     resolution_note = fields.Html(
         string="조치 내용",
     )
+    
+    is_officer = fields.Boolean(compute="_compute_is_officer")
+    def _compute_is_officer(self):
+            has_group = self.env.user.has_group('it_helpdesk.group_helpdesk_officer')
+            for record in self:
+                record.is_officer = has_group
 
     def action_assign_to_me(self):
         for record in self:
@@ -88,3 +94,5 @@ class HelpDeskTicket(models.Model):
     def action_cancel(self) : 
         for record in self :
             record.status = "canceled"
+
+    
