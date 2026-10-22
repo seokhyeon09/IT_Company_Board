@@ -236,20 +236,20 @@
     <record id="action_helpdesk_ticket" model="ir.actions.act_window">
         <field name="name">전체 문의 목록</field>
         <field name="res_model">it.helpdesk.ticket</field>
-        <field name="view_mode">kanban,list,graph,pivot,form</field>
+        <field name="view_mode">list,kanban,graph,pivot,form</field>
     </record>
 
     <record id="action_helpdesk_ticket_my" model="ir.actions.act_window">
         <field name="name">내 문의 목록</field>
         <field name="res_model">it.helpdesk.ticket</field>
-        <field name="view_mode">kanban,list,graph,pivot,form</field>
+        <field name="view_mode">list,kanban,graph,pivot,form</field>
         <field name="domain">[('author_id','=',uid)]</field>
     </record>
 
     <record id="action_helpdesk_ticket_unassigned" model="ir.actions.act_window">
         <field name="name">미배정 대기</field>
         <field name="res_model">it.helpdesk.ticket</field>
-        <field name="view_mode">kanban,list,graph,pivot,form</field>
+        <field name="view_mode">list,kanban,graph,pivot,form</field>
         <field name="domain">[('assignee_id','=',False)]</field>
     </record>
 
