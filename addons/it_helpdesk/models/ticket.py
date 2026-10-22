@@ -98,7 +98,7 @@ class HelpDeskTicket(models.Model):
     
     is_officer = fields.Boolean(compute="_compute_is_officer")
     def _compute_is_officer(self):
-            has_group = self.env.user.has_group('it_helpdesk.group_helpdesk_officer')
+            has_group = self.env.is_admin() or self.env.user.has_group('it_helpdesk.group_helpdesk_officer')
             for record in self:
                 record.is_officer = has_group
 
@@ -180,7 +180,7 @@ class HelpDeskTicket(models.Model):
 
     def action_reopen(self):
         for record in self:
-            if self.env.user.has_group('it_helpdesk.group_helpdesk_officer') :
+            if self.env.is_admin() or self.env.user.has_group('it_helpdesk.group_helpdesk_officer'):
                 record.status="in_progress"
                 record.message_post(body="티켓이 IT 담당자에 의해 재오픈되었습니다.")
             else :
@@ -198,7 +198,7 @@ class HelpDeskTicket(models.Model):
     def action_toggle_faq(self):
         """IT 담당자가 해결된 유용한 티켓을 FAQ 지식베이스로 등록/해제"""
         for record in self:
-            if not self.env.user.has_group('it_helpdesk.group_helpdesk_officer'):
+            if not (self.env.is_admin() or self.env.user.has_group('it_helpdesk.group_helpdesk_officer')):
                 raise UserError("FAQ 등록 및 관리는 IT 담당자만 수행할 수 있습니다.")
             if not record.resolution_note:
                 raise UserError("FAQ로 등록하려면 먼저 공식 조치 내역을 작성해야 합니다.")
