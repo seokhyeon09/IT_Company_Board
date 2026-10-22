@@ -344,12 +344,12 @@ class HelpDeskTicket(models.Model):
                 record.activity_ids.action_done()
 
     def action_reopen(self):
-        """IT 담당자의 티켓 재오픈"""
+        """IT 담당자의 티켓 재오픈 (해결완료, 종결, 취소 건 재개)"""
         for record in self:
             if not (self.env.is_admin() or self.env.user.has_group('it_helpdesk.group_helpdesk_officer')):
                 raise UserError("티켓 재오픈은 IT 담당자만 수행할 수 있습니다.")
-            if record.status not in ('closed', 'resolved'):
-                raise UserError("해결 완료 또는 종결된 티켓만 재오픈할 수 있습니다.")
+            if record.status not in ('closed', 'resolved', 'canceled'):
+                raise UserError("해결 완료, 종결 또는 취소된 티켓만 재오픈할 수 있습니다.")
 
             # RC-08: 이전 만족도 평가 Chatter 박제 보존 및 재평가 활성화
             if record.rating:

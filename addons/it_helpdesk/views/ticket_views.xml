@@ -1,16 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- 게시글 칸반(보드) 뷰 -->
+    <!-- 게시글 칸반(보드) 뷰 (IT 담당자 이상 전용) -->
     <record id="view_helpdesk_ticket_kanban" model="ir.ui.view">
         <field name="name">it.helpdesk.ticket.kanban</field>
         <field name="model">it.helpdesk.ticket</field>
+        <field name="groups_id" eval="[(4, ref('it_helpdesk.group_helpdesk_officer'))]"/>
         <field name="arch" type="xml">
             <kanban default_group_by="status" sample="1">
                 <field name="status"/>
                 <field name="priority"/>
                 <field name="author_id"/>
                 <field name="assignee_id"/>
+                <field name="category"/>
                 <field name="is_officer"/>
                 <field name="is_overdue"/>
                 <templates>
@@ -83,66 +85,69 @@
 
                     <button
                         name="action_assign_to_me"
-                        string = "담당 접수"
-                        type = "object"
-                        class = "oe_highlight"
-                        invisible = "status != 'submitted'"
+                        string="담당 접수"
+                        type="object"
+                        class="oe_highlight"
+                        invisible="status != 'submitted'"
                     />
 
                     <button
-                        name = "action_start_progress"
-                        string = "처리 시작"
-                        type = "object"
-                        class = "oe_highlight"
-                        invisible = "status != 'assigned'"
+                        name="action_start_progress"
+                        string="처리 시작"
+                        type="object"
+                        class="oe_highlight"
+                        invisible="status != 'assigned'"
                     />
 
                     <button
                         name="action_pending"
-                        string = "답변 대기"
+                        string="답변 대기"
                         type="object"
                         class="oe_highlight"
-                        invisible="status!='in_progress'"
+                        invisible="status != 'in_progress'"
                     />
 
                     <button
-                        name = "action_restart_ticket"
-                        string = "재문의"
-                        type = "object"
-                        class = "oe_highlight"
-                        invisible = "status not in ('pending', 'resolved')"
+                        name="action_restart_ticket"
+                        string="재문의"
+                        type="object"
+                        class="oe_highlight"
+                        invisible="status not in ('pending', 'resolved')"
                     />
 
                     <button
                         name="action_resolve"
-                        string = "해결 완료"
+                        string="해결 완료"
                         type="object"
                         class="oe_highlight"
                         invisible="status not in ('in_progress', 'pending')"
                     />
 
+                    <!-- UI-02: 담당자 전용 종결 처리 -->
                     <button
                         name="action_close"
-                        string = "문의 종결"
+                        string="문의 종결"
                         type="object"
                         class="oe_highlight"
-                        invisible="status != 'resolved'"
+                        invisible="status != 'resolved' or not is_officer"
                     />
                     
+                    <!-- UI-08: 본인 또는 담당자만 취소 가능 -->
                     <button
                         name="action_cancel"
-                        string = "문의 취소"
+                        string="문의 취소"
                         type="object"
                         class="btn-secondary"
-                        invisible="status in ('pending','resolved', 'closed', 'canceled')"
+                        invisible="status in ('pending', 'resolved', 'closed', 'canceled') or (not is_officer and author_id != uid)"
                     />
 
+                    <!-- UI-03 & 사용자 요구: 해결완료, 종결, 취소 건 모두 재오픈 가능 -->
                     <button
                         name="action_reopen"
                         string="문의 재오픈"
                         type="object"
                         class="btn-secondary"
-                        invisible = "status not in ('closed', 'canceled') or not is_officer"
+                        invisible="status not in ('resolved', 'closed', 'canceled') or not is_officer"
                     />
 
                     <button
@@ -154,8 +159,8 @@
                     />
 
                     <field name="status"
-                    widget="statusbar"
-                    statusbar_visible="submitted,assigned,in_progress,pending,resolved,closed"/>
+                        widget="statusbar"
+                        statusbar_visible="submitted,assigned,in_progress,pending,resolved,closed"/>
 
                 </header>
                 <sheet class="mx-auto">
@@ -172,7 +177,8 @@
                     <div class="oe_title">
                         <span class="o_form_label">IT 문의 타이틀</span>
                         <h1>
-                            <field name="title" placeholder="문의 제목 입력하세요" readonly="status not in ('submitted','assigned')"/>
+                            <!-- UI-04: 타인 글은 접수/배정 상태라도 수정 불가 -->
+                            <field name="title" placeholder="문의 제목 입력하세요" readonly="status not in ('submitted','assigned') or (not is_officer and author_id != uid)"/>
                         </h1>
                     </div>
                     <group>
@@ -180,7 +186,8 @@
                         <group string="문의 분류">
                             <field name="category" readonly="status in ('closed','canceled') or (not is_officer and author_id != uid)"/>
                             <field name="priority" widget="priority" readonly="status in ('closed','canceled') or (not is_officer and author_id != uid)"/>
-                            <field name="deadline" readonly="status in ('closed','canceled') or not is_officer"/>
+                            <!-- UI-06: onchange 자동 계산값 저장 유실 방지 force_save="1" -->
+                            <field name="deadline" readonly="status in ('closed','canceled') or not is_officer" force_save="1"/>
                         </group>
     
                         <!-- 오른쪽 열 -->
@@ -191,44 +198,25 @@
                     </group>
                     <notebook>
                         <page string="문의 상세 내용">
-                            <field name="content" placeholder="발생한 문제 상황이나 증상을 자세히 기재해 주세요." readonly="status not in ('submitted','assigned')"/>
+                            <!-- UI-04: 타인 글은 접수/배정 상태라도 내용 수정 불가 -->
+                            <field name="content" placeholder="발생한 문제 상황이나 증상을 자세히 기재해 주세요." readonly="status not in ('submitted','assigned') or (not is_officer and author_id != uid)"/>
                         </page>
                         <page string="공식 조치 내역">
                             <field name="resolution_note" placeholder="IT 담당자가 문제를 어떻게 해결했는지 공식 조치 내역을 기록합니다." readonly="status in ('closed', 'canceled') or not is_officer"/>
                         </page>
+                        <!-- UI-01: 중복 탭 제거 후 단일 탭으로 정상화 -->
                         <page string="고객 만족도 평가" invisible="status not in ('resolved', 'closed')">
                             <group>
                                 <group string="조치 만족도">
-                                    <field name="rating" widget="priority" readonly="author_id != uid"/>
-                                    <field name="rating_comment" placeholder="서비스에 대한 솔직한 의견이나 감사의 말씀을 남겨주세요." readonly="author_id != uid"/>
+                                    <field name="rating" widget="priority" readonly="author_id != uid or status == 'closed'"/>
+                                    <field name="rating_comment" placeholder="서비스에 대한 솔직한 의견이나 감사의 말씀을 남겨주세요." readonly="author_id != uid or status == 'closed'"/>
                                 </group>
                             </group>
-                            <div class="mt-2" invisible="author_id != uid">
+                            <!-- UI-05: 이미 종결(closed)된 티켓에서는 제출 버튼 숨김 -->
+                            <div class="mt-2" invisible="author_id != uid or status == 'closed'">
                                 <button name="action_submit_rating" string="만족도 평가 제출" type="object" class="btn-primary"/>
                             </div>
                         </page>
-                        <page string="고객 만족도 평가" invisible="status not in ('resolved', 'closed')">
-
-                            <group>
-
-                                <group string="조치 만족도">
-
-                                    <field name="rating" widget="priority" readonly="author_id != uid"/>
-
-                                    <field name="rating_comment" placeholder="서비스에 대한 솔직한 의견이나 감사의 말씀을 남겨주세요." readonly="author_id != uid"/>
-
-                                </group>
-
-                            </group>
-
-                            <div class="mt-2" invisible="author_id != uid">
-
-                                <button name="action_submit_rating" string="만족도 평가 제출" type="object" class="btn-primary"/>
-
-                            </div>
-
-                        </page>
-
                     </notebook>
                 </sheet>
                 <chatter/>
@@ -267,7 +255,6 @@
         </field>
     </record>
 
-
     <!-- 통계 피벗(Pivot) 분석 뷰 -->
     <record id="view_helpdesk_ticket_pivot" model="ir.ui.view">
         <field name="name">it.helpdesk.ticket.pivot</field>
@@ -293,7 +280,7 @@
         </field>
     </record>
 
-    <!--  액션 (리모컨: 메뉴를 눌렀을 때 목록과 폼 화면을 열어주는 명령) -->
+    <!-- 액션 5종 -->
     <record id="action_helpdesk_ticket" model="ir.actions.act_window">
         <field name="name">전체 문의 목록</field>
         <field name="res_model">it.helpdesk.ticket</field>
@@ -314,13 +301,11 @@
         <field name="domain">[('assignee_id','=',False)]</field>
     </record>
 
-
     <record id="action_helpdesk_ticket_analysis" model="ir.actions.act_window">
         <field name="name">문의 통계 및 분석</field>
         <field name="res_model">it.helpdesk.ticket</field>
         <field name="view_mode">graph,pivot</field>
     </record>
-
 
     <record id="action_helpdesk_ticket_faq" model="ir.actions.act_window">
         <field name="name">자주 묻는 질문 (FAQ)</field>
@@ -331,6 +316,7 @@
 
     <!-- 메인메뉴 -->
     <menuitem id="menu_helpdesk_root" name="IT 헬프데스크" sequence="10"/>
+
     <!-- 서브메뉴 -->
     <menuitem id="menu_helpdesk_ticket" 
         name="전체 문의 목록" 
