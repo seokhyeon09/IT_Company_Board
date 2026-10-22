@@ -12,6 +12,7 @@
                 <field name="author_id"/>
                 <field name="assignee_id"/>
                 <field name="is_officer"/>
+                <field name="is_overdue"/>
                 <templates>
                     <t t-name="card">
                         <div class="d-flex align-items-center mb-1">
@@ -27,6 +28,7 @@
                         </div>
                         <footer class="pt-1 mt-auto d-flex align-items-center">
                             <field name="create_date" widget="date" class="text-muted small"/>
+                            <field name="deadline" widget="remaining_days" class="ms-2 small" decoration-danger="is_overdue"/>
                             <field name="assignee_id" widget="many2one_avatar_user" class="ms-auto"/>
                         </footer>
                     </t>
@@ -42,6 +44,7 @@
         <field name="arch" type="xml">
             <list string="문의 목록" decoration-muted="status in ('closed', 'canceled')" class="container">
                 <field name="is_officer" column_invisible="True"/>
+                <field name="is_overdue" column_invisible="True"/>
                 <field name="status" 
                        widget="badge" 
                        width="110px"
@@ -62,6 +65,7 @@
                     width="130px"
                     decoration-muted="assignee_name == '배정 대기'"
                     decoration-success="assignee_name != '배정 대기'"/>
+                <field name="deadline" string="처리 기한" widget="remaining_days" width="130px" decoration-danger="is_overdue"/>
                 <field name="create_date" string="접수일시" width="160px"/>
             </list>
         </field>
@@ -145,6 +149,11 @@
 
                 </header>
                 <sheet class="mx-auto">
+                    <field name="is_overdue" invisible="True"/>
+                    <div class="alert alert-danger mb-3" role="alert" invisible="not is_overdue">
+                        <i class="fa fa-exclamation-triangle me-2" title="경고"/>
+                        <strong>SLA 처리 기한 초과:</strong> 본 문의는 약속된 처리 기한을 초과하였습니다. 신속한 조치가 필요합니다.
+                    </div>
                     <div class="oe_title">
                         <span class="o_form_label">IT 문의 타이틀</span>
                         <h1>
@@ -156,6 +165,7 @@
                         <group string="문의 분류">
                             <field name="category" readonly="status in ('closed','canceled') or (not is_officer and author_id != uid)"/>
                             <field name="priority" widget="priority" readonly="status in ('closed','canceled') or (not is_officer and author_id != uid)"/>
+                            <field name="deadline" readonly="status in ('closed','canceled') or not is_officer"/>
                         </group>
     
                         <!-- 오른쪽 열 -->
@@ -188,6 +198,7 @@
                 <field name="assignee_id" string="담당자"/>
                 <field name="category" string="카테고리"/>
 
+                <filter string="🚨 SLA 기한 초과" name="filter_overdue" domain="[('is_overdue', '=', True)]"/>
                 <filter string="내 문의" name="my_ticket" domain="[('author_id','=',uid)]"/>
                 <separator/>
                 <filter string="배정대기" name="unassigned" domain="[('assignee_id','=',False)]"/>

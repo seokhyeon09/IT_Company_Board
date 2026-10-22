@@ -1,4 +1,5 @@
-from odoo import models, fields
+from datetime import timedelta
+from odoo import models, fields, api
 from odoo.exceptions import UserError
 
 class HelpDeskTicket(models.Model):
@@ -48,6 +49,18 @@ class HelpDeskTicket(models.Model):
         tracking=True,
     )
 
+    deadline = fields.Datetime(
+        string="처리 기한(SLA)",
+        tracking=True,
+        help="약속된 조치 완료 기한입니다.",
+    )
+
+    is_overdue = fields.Boolean(
+        string="기한 초과",
+        compute="_compute_is_overdue",
+        search="_search_is_overdue",
+    )
+
     author_id = fields.Many2one(
         "res.users",
         string="요청 직원",
@@ -74,6 +87,38 @@ class HelpDeskTicket(models.Model):
             has_group = self.env.user.has_group('it_helpdesk.group_helpdesk_officer')
             for record in self:
                 record.is_officer = has_group
+
+    @api.onchange('priority')
+    def _onchange_priority_set_deadline(self):
+        """긴급도 선택에 따른 SLA 처리 기한 자동 산정"""
+        now = fields.Datetime.now()
+        hours_map = {
+            '3': 4,    # 긴급: 4시간
+            '2': 24,   # 높음: 1일 (24시간)
+            '1': 48,   # 보통: 2일 (48시간)
+            '0': 72,   # 낮음: 3일 (72시간)
+        }
+        hours = hours_map.get(self.priority, 48)
+        self.deadline = now + timedelta(hours=hours)
+
+    @api.depends('deadline', 'status')
+    def _compute_is_overdue(self):
+        """기한 초과 여부 자동 계산"""
+        now = fields.Datetime.now()
+        for record in self:
+            if record.deadline and record.status not in ('resolved', 'closed', 'canceled'):
+                record.is_overdue = record.deadline < now
+            else:
+                record.is_overdue = False
+
+    def _search_is_overdue(self, operator, value):
+        """기한 초과 건 검색 도메인 지원"""
+        now = fields.Datetime.now()
+        if (operator == '=' and value is True) or (operator == '!=' and value is False):
+            return [('deadline', '<', now), ('status', 'not in', ('resolved', 'closed', 'canceled'))]
+        else:
+            return ['|', ('deadline', '>=', now), ('status', 'in', ('resolved', 'closed', 'canceled'))]
+
 
     def action_assign_to_me(self):
         for record in self:
