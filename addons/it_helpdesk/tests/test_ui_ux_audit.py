@@ -96,10 +96,32 @@ class TestHelpdeskUIUXAudit(TransactionCase):
             ticket.with_user(self.user_other_employee).write({'status': 'canceled'})
 
     def test_05_kanban_view_permission(self):
-        """[사용자 요청 검증] 칸반 뷰는 IT 담당자(group_helpdesk_officer)에게만 그룹이 지정되어 있어야 함"""
-        kanban_view = self.env.ref('it_helpdesk.view_helpdesk_ticket_kanban')
+        """[사용자 요청 검증] 사원 게시판 액션에서 kanban/graph/pivot 제거 (list,form 전용), 칸반 메뉴는 담당자 전용 분리"""
         officer_group = self.env.ref('it_helpdesk.group_helpdesk_officer')
-        self.assertIn(officer_group, kanban_view.groups_id)
+
+        # 1. 일반 사원용 게시판 액션 3종 검증: view_mode가 오직 'list,form'만 허용되어야 함
+        action_all = self.env.ref('it_helpdesk.action_helpdesk_ticket')
+        action_my = self.env.ref('it_helpdesk.action_helpdesk_ticket_my')
+        action_faq = self.env.ref('it_helpdesk.action_helpdesk_ticket_faq')
+
+        for action in (action_all, action_my, action_faq):
+            modes = [m.strip() for m in action.view_mode.split(',')]
+            self.assertEqual(modes, ['list', 'form'], f"{action.name} 액션에 불필요한 뷰 모드가 포함되어 있습니다: {action.view_mode}")
+            self.assertNotIn('kanban', modes)
+            self.assertNotIn('graph', modes)
+            self.assertNotIn('pivot', modes)
+
+        # 2. 담당자 전용 업무 액션 및 메뉴 검증
+        action_kanban = self.env.ref('it_helpdesk.action_helpdesk_ticket_kanban_officer')
+        self.assertIn('kanban', action_kanban.view_mode.split(','))
+        menu_kanban = self.env.ref('it_helpdesk.menu_helpdesk_ticket_kanban_officer')
+        self.assertIn(officer_group, menu_kanban.groups_id)
+
+        menu_unassigned = self.env.ref('it_helpdesk.menu_helpdesk_ticket_unassigned')
+        self.assertIn(officer_group, menu_unassigned.groups_id)
+
+        menu_analysis = self.env.ref('it_helpdesk.menu_helpdesk_ticket_analysis')
+        self.assertIn(officer_group, menu_analysis.groups_id)
 
     def test_06_reopen_accumulates_rating_history(self):
         """[사용자 요청 검증] 재문의 및 재해결 시 N:1 만족도 평가 이력이 차수별(1차, 2차...)로 누적되어야 함"""
