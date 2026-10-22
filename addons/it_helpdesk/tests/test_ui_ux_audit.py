@@ -177,3 +177,39 @@ class TestHelpdeskUIUXAudit(TransactionCase):
         self.assertEqual(ratings[0].rating, '3')
         self.assertEqual(ratings[1].round, 2)
         self.assertEqual(ratings[1].rating, '5')
+
+    def test_07_rating_author_only_and_list_readonly(self):
+        """[사용자 요청 검증] 만족도는 작성자만 수정 가능하고, 게시판 목록에서는 readonly="1" 잠금"""
+        # 1. 게시판(List) 뷰에서 priority 및 rating 필드가 readonly="1"로 잠겨 있는지 확인
+        list_view = self.env.ref('it_helpdesk.view_helpdesk_ticket_list')
+        arch = list_view.arch
+        self.assertIn('name="priority" widget="priority" readonly="1"', arch)
+        self.assertIn('name="rating" widget="priority" string="만족도" optional="show" readonly="1"', arch)
+
+        # 2. 티켓 생성 (user_employee)
+        ticket = self.Ticket.with_user(self.user_employee).create({
+            'title': '모니터 화면 깜빡임',
+            'content': '<p>화면이 깜빡거립니다.</p>',
+            'author_id': self.user_employee.id,
+        })
+        ticket.with_user(self.user_officer).action_assign_to_me()
+        ticket.with_user(self.user_officer).write({
+            'status': 'in_progress',
+            'resolution_note': '<p>HDMI 케이블 재연결</p>',
+        })
+        ticket.with_user(self.user_officer).action_resolve()
+
+        # 3. 타인(다른 사원)이 만족도 별점을 수정하려고 하면 AccessError 차단
+        with self.assertRaises(AccessError):
+            ticket.with_user(self.user_other_employee).write({'rating': '5'})
+
+        # 4. IT 담당자라 하더라도 게시글 작성자가 아니면 만족도 별점을 대리 조작할 수 없어야 함 (AccessError)
+        with self.assertRaises(AccessError):
+            ticket.with_user(self.user_officer).write({'rating': '5'})
+
+        # 5. 작성자 본인은 정상적으로 별점 및 한줄평 작성 가능
+        ticket.with_user(self.user_employee).write({
+            'rating': '5',
+            'rating_comment': '선명하게 잘 나옵니다.',
+        })
+        self.assertEqual(ticket.rating, '5')

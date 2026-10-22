@@ -223,6 +223,11 @@ class HelpDeskTicket(models.Model):
                 if not allowed:
                     raise AccessError("문의 티켓의 상태 전이 권한이 없습니다. (IT 담당자만 처리 가능)")
 
+            # 만족도 평가(rating, rating_comment) 작성 및 변경은 게시글 작성자 본인만 가능 (초기화 및 시스템 제외)
+            if not is_system and record.author_id and self.env.user != record.author_id:
+                if ('rating' in vals and vals['rating']) or ('rating_comment' in vals and vals['rating_comment']):
+                    raise AccessError("고객 만족도 평가는 문의를 등록한 직원 본인만 작성하거나 수정할 수 있습니다.")
+
             # RC-01: 해결완료(resolved) 또는 종결(closed) 시 조치 내용 필수 검증 (칸반 드래그 앤 드롭 방어)
             if vals.get('status') in ('resolved', 'closed'):
                 note = vals.get('resolution_note', record.resolution_note)
@@ -362,8 +367,7 @@ class HelpDeskTicket(models.Model):
                 raise UserError("해결 완료, 종결 또는 취소된 티켓만 재오픈할 수 있습니다.")
 
             # 다음 차수 평가를 위해 현재 별점 입력값 초기화 (기존 rating_ids는 보존)
-            record.rating = False
-            record.rating_comment = False
+            record.sudo().write({'rating': False, 'rating_comment': False})
 
             record.status = "in_progress"
             record.message_post(body="티켓이 IT 담당자에 의해 재오픈되었습니다.")

@@ -19,7 +19,8 @@
                 <templates>
                     <t t-name="card">
                         <div class="d-flex align-items-center mb-1">
-                            <field name="priority" widget="priority" readonly="not is_officer and author_id != uid"/>
+                            <!-- 게시판 목록에서는 마우스를 올려도 움직이지 않도록 readonly="1" 적용 -->
+                <field name="priority" widget="priority" readonly="1"/>
                             <field name="category" class="badge text-bg-light ms-auto"/>
                         </div>
                         <div class="mb-2">
@@ -58,7 +59,8 @@
                        decoration-success="status in ('resolved', 'closed')"
                        decoration-muted="status == 'canceled'"/>
                 <field name="category" width="130px"/>
-                <field name="priority" widget="priority" readonly="not is_officer and author_id != uid"/>
+                <!-- 게시판 목록에서는 마우스를 올려도 움직이지 않도록 readonly="1" 적용 -->
+                <field name="priority" widget="priority" readonly="1"/>
                 <field name="title" class="fw-bold"/>
                 <field name="author_id" width="120px"
                     decoration-bf="author_id == uid"
@@ -71,7 +73,8 @@
                 <!-- 사용자 지시: 처리기한(SLA)은 사원도 볼 수 있도록 유지 -->
                 <field name="deadline" string="처리 기한" widget="remaining_days" width="130px" decoration-danger="is_overdue"/>
                 <field name="create_date" string="접수일시" width="160px"/>
-                <field name="rating" widget="priority" string="만족도" optional="show"/>
+                <!-- 게시판 목록에서는 마우스를 올려도 움직이지 않도록 readonly="1" 적용 -->
+                <field name="rating" widget="priority" string="만족도" optional="show" readonly="1"/>
                 <!-- FAQ 추천 컬럼은 IT 담당자에게만 노출 -->
                 <field name="is_faq" string="FAQ 추천" widget="boolean_favorite" optional="show" groups="it_helpdesk.group_helpdesk_officer"/>
             </list>
@@ -212,8 +215,8 @@
                                 </h6>
                                 <p class="text-muted small mb-2">조치 내용에 대한 만족도와 의견을 남겨주시면 최종 종결 처리됩니다.</p>
                                 <group>
-                                    <field name="rating" widget="priority"/>
-                                    <field name="rating_comment" placeholder="서비스에 대한 솔직한 의견이나 감사의 말씀을 남겨주세요."/>
+                                    <field name="rating" widget="priority" readonly="author_id != uid"/>
+                                    <field name="rating_comment" placeholder="서비스에 대한 솔직한 의견이나 감사의 말씀을 남겨주세요." readonly="author_id != uid"/>
                                 </group>
                                 <div class="mt-2">
                                     <button name="action_submit_rating" string="만족도 평가 제출 및 종결" type="object" class="btn-primary"/>
