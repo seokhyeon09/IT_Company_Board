@@ -94,6 +94,7 @@ class HelpDeskTicket(models.Model):
         tracking=True,
     )
     rating_comment = fields.Text(string="만족도 한줄평", tracking=True)
+    is_faq = fields.Boolean(string="FAQ 추천 사례", tracking=True)
     
     is_officer = fields.Boolean(compute="_compute_is_officer")
     def _compute_is_officer(self):
@@ -193,3 +194,14 @@ class HelpDeskTicket(models.Model):
             if not record.rating:
                 raise UserError("만족도 별점을 선택해 주세요.")
             record.message_post(body=f"⭐ <b>직원 만족도 평가 완료</b>: {record.rating}점<br/>한줄평: {record.rating_comment or '없음'}")
+
+    def action_toggle_faq(self):
+        """IT 담당자가 해결된 유용한 티켓을 FAQ 지식베이스로 등록/해제"""
+        for record in self:
+            if not self.env.user.has_group('it_helpdesk.group_helpdesk_officer'):
+                raise UserError("FAQ 등록 및 관리는 IT 담당자만 수행할 수 있습니다.")
+            if not record.resolution_note:
+                raise UserError("FAQ로 등록하려면 먼저 공식 조치 내역을 작성해야 합니다.")
+            record.is_faq = not record.is_faq
+            msg = "📘 <b>사내 FAQ 지식베이스로 등록되었습니다.</b> 전사 사원에게 유용한 조치 사례로 공유됩니다." if record.is_faq else "사내 FAQ 등록이 해제되었습니다."
+            record.message_post(body=msg)

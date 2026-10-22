@@ -68,6 +68,7 @@
                 <field name="deadline" string="처리 기한" widget="remaining_days" width="130px" decoration-danger="is_overdue"/>
                 <field name="create_date" string="접수일시" width="160px"/>
                 <field name="rating" widget="priority" string="만족도" optional="show"/>
+                <field name="is_faq" string="FAQ 추천" widget="boolean_favorite" optional="show" readonly="not is_officer"/>
             </list>
         </field>
     </record>
@@ -144,6 +145,14 @@
                         invisible = "status not in ('closed', 'canceled') or not is_officer"
                     />
 
+                    <button
+                        name="action_toggle_faq"
+                        string="FAQ 등록/해제"
+                        type="object"
+                        class="btn-outline-info"
+                        invisible="status not in ('resolved', 'closed') or not is_officer"
+                    />
+
                     <field name="status"
                     widget="statusbar"
                     statusbar_visible="submitted,assigned,in_progress,pending,resolved,closed"/>
@@ -154,6 +163,11 @@
                     <div class="alert alert-danger mb-3" role="alert" invisible="not is_overdue">
                         <i class="fa fa-exclamation-triangle me-2" title="경고"/>
                         <strong>SLA 처리 기한 초과:</strong> 본 문의는 약속된 처리 기한을 초과하였습니다. 신속한 조치가 필요합니다.
+                    </div>
+                    <field name="is_faq" invisible="True"/>
+                    <div class="alert alert-info mb-3" role="alert" invisible="not is_faq">
+                        <i class="fa fa-book me-2" title="지식베이스"/>
+                        <strong>사내 FAQ 지식베이스:</strong> 본 문의는 전사 사원에게 유용한 해결 사례로 선정된 공식 FAQ 게시글입니다.
                     </div>
                     <div class="oe_title">
                         <span class="o_form_label">IT 문의 타이틀</span>
@@ -193,17 +207,28 @@
                                 <button name="action_submit_rating" string="만족도 평가 제출" type="object" class="btn-primary"/>
                             </div>
                         </page>
-                        <page string="고객 만족도 평가" invisible="status not in ('resolved', 'closed')">
-                            <group>
-                                <group string="조치 만족도">
-                                    <field name="rating" widget="priority" readonly="author_id != uid"/>
-                                    <field name="rating_comment" placeholder="서비스에 대한 솔직한 의견이나 감사의 말씀을 남겨주세요." readonly="author_id != uid"/>
-                                </group>
-                            </group>
-                            <div class="mt-2" invisible="author_id != uid">
-                                <button name="action_submit_rating" string="만족도 평가 제출" type="object" class="btn-primary"/>
-                            </div>
-                        </page>
+                        <page string="고객 만족도 평가" invisible="status not in ('resolved', 'closed')">
+
+                            <group>
+
+                                <group string="조치 만족도">
+
+                                    <field name="rating" widget="priority" readonly="author_id != uid"/>
+
+                                    <field name="rating_comment" placeholder="서비스에 대한 솔직한 의견이나 감사의 말씀을 남겨주세요." readonly="author_id != uid"/>
+
+                                </group>
+
+                            </group>
+
+                            <div class="mt-2" invisible="author_id != uid">
+
+                                <button name="action_submit_rating" string="만족도 평가 제출" type="object" class="btn-primary"/>
+
+                            </div>
+
+                        </page>
+
                     </notebook>
                 </sheet>
                 <chatter/>
@@ -221,6 +246,7 @@
                 <field name="assignee_id" string="담당자"/>
                 <field name="category" string="카테고리"/>
 
+                <filter string="📘 FAQ 지식창고" name="filter_faq" domain="[('is_faq', '=', True)]"/>
                 <filter string="🚨 SLA 기한 초과" name="filter_overdue" domain="[('is_overdue', '=', True)]"/>
                 <filter string="내 문의" name="my_ticket" domain="[('author_id','=',uid)]"/>
                 <separator/>
@@ -295,6 +321,14 @@
         <field name="view_mode">graph,pivot</field>
     </record>
 
+
+    <record id="action_helpdesk_ticket_faq" model="ir.actions.act_window">
+        <field name="name">자주 묻는 질문 (FAQ)</field>
+        <field name="res_model">it.helpdesk.ticket</field>
+        <field name="view_mode">list,kanban,form</field>
+        <field name="domain">[('is_faq', '=', True)]</field>
+    </record>
+
     <!-- 메인메뉴 -->
     <menuitem id="menu_helpdesk_root" name="IT 헬프데스크" sequence="10"/>
     <!-- 서브메뉴 -->
@@ -322,6 +356,13 @@
         parent="menu_helpdesk_root" 
         action="action_helpdesk_ticket_analysis" 
         sequence="40"
+    />
+
+    <menuitem id="menu_helpdesk_ticket_faq" 
+        name="FAQ 지식창고" 
+        parent="menu_helpdesk_root" 
+        action="action_helpdesk_ticket_faq" 
+        sequence="25"
     />
 
 </odoo>
