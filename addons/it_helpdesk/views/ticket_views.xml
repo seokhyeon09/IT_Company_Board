@@ -12,6 +12,7 @@
                 <field name="priority"/>
                 <field name="author_id"/>
                 <field name="assignee_id"/>
+                <field name="assignee_name"/>
                 <field name="category"/>
                 <field name="is_officer"/>
                 <field name="is_overdue"/>
@@ -31,7 +32,8 @@
                         <footer class="pt-1 mt-auto d-flex align-items-center">
                             <field name="create_date" widget="date" class="text-muted small"/>
                             <field name="deadline" widget="remaining_days" class="ms-2 small" decoration-danger="is_overdue"/>
-                            <field name="assignee_id" widget="many2one_avatar_user" class="ms-auto"/>
+                            <!-- 이미지 아바타 대신 텍스트로 정돈 -->
+                            <field name="assignee_name" class="ms-auto small text-muted"/>
                         </footer>
                     </t>
                 </templates>
@@ -57,7 +59,6 @@
                        decoration-muted="status == 'canceled'"/>
                 <field name="category" width="130px"/>
                 <field name="priority" widget="priority" readonly="not is_officer and author_id != uid"/>
-                <!-- 제목은 width를 적지 않아야 남은 공간을 알아서 꽉 채워줍니다 -->
                 <field name="title" class="fw-bold"/>
                 <field name="author_id" width="120px"
                     decoration-bf="author_id == uid"
@@ -67,10 +68,12 @@
                     width="130px"
                     decoration-muted="assignee_name == '배정 대기'"
                     decoration-success="assignee_name != '배정 대기'"/>
+                <!-- 사용자 지시: 처리기한(SLA)은 사원도 볼 수 있도록 유지 -->
                 <field name="deadline" string="처리 기한" widget="remaining_days" width="130px" decoration-danger="is_overdue"/>
                 <field name="create_date" string="접수일시" width="160px"/>
                 <field name="rating" widget="priority" string="만족도" optional="show"/>
-                <field name="is_faq" string="FAQ 추천" widget="boolean_favorite" optional="show" readonly="not is_officer"/>
+                <!-- FAQ 추천 컬럼은 IT 담당자에게만 노출 -->
+                <field name="is_faq" string="FAQ 추천" widget="boolean_favorite" optional="show" groups="it_helpdesk.group_helpdesk_officer"/>
             </list>
         </field>
     </record>
@@ -123,7 +126,6 @@
                         invisible="status not in ('in_progress', 'pending')"
                     />
 
-                    <!-- UI-02: 담당자 전용 종결 처리 -->
                     <button
                         name="action_close"
                         string="문의 종결"
@@ -132,7 +134,6 @@
                         invisible="status != 'resolved' or not is_officer"
                     />
                     
-                    <!-- UI-08: 본인 또는 담당자만 취소 가능 -->
                     <button
                         name="action_cancel"
                         string="문의 취소"
@@ -141,7 +142,6 @@
                         invisible="status in ('pending', 'resolved', 'closed', 'canceled') or (not is_officer and author_id != uid)"
                     />
 
-                    <!-- UI-03 & 사용자 요구: 해결완료, 종결, 취소 건 모두 재오픈 가능 -->
                     <button
                         name="action_reopen"
                         string="문의 재오픈"
@@ -165,7 +165,9 @@
                 </header>
                 <sheet class="mx-auto">
                     <field name="is_overdue" invisible="True"/>
-                    <div class="alert alert-danger mb-3" role="alert" invisible="not is_overdue">
+                    <field name="is_officer" invisible="True"/>
+                    <!-- SLA 처리 기한 초과 경고 배너는 IT 담당자에게만 노출 (사원 불안 방지) -->
+                    <div class="alert alert-danger mb-3" role="alert" invisible="not is_overdue or not is_officer">
                         <i class="fa fa-exclamation-triangle me-2" title="경고"/>
                         <strong>SLA 처리 기한 초과:</strong> 본 문의는 약속된 처리 기한을 초과하였습니다. 신속한 조치가 필요합니다.
                     </div>
@@ -177,7 +179,6 @@
                     <div class="oe_title">
                         <span class="o_form_label">IT 문의 타이틀</span>
                         <h1>
-                            <!-- UI-04: 타인 글은 접수/배정 상태라도 수정 불가 -->
                             <field name="title" placeholder="문의 제목 입력하세요" readonly="status not in ('submitted','assigned') or (not is_officer and author_id != uid)"/>
                         </h1>
                     </div>
@@ -186,7 +187,7 @@
                         <group string="문의 분류">
                             <field name="category" readonly="status in ('closed','canceled') or (not is_officer and author_id != uid)"/>
                             <field name="priority" widget="priority" readonly="status in ('closed','canceled') or (not is_officer and author_id != uid)"/>
-                            <!-- UI-06: onchange 자동 계산값 저장 유실 방지 force_save="1" -->
+                            <!-- 처리기한은 사원도 볼 수 있도록 유지 -->
                             <field name="deadline" readonly="status in ('closed','canceled') or not is_officer" force_save="1"/>
                         </group>
     
@@ -198,13 +199,11 @@
                     </group>
                     <notebook>
                         <page string="문의 상세 내용">
-                            <!-- UI-04: 타인 글은 접수/배정 상태라도 내용 수정 불가 -->
                             <field name="content" placeholder="발생한 문제 상황이나 증상을 자세히 기재해 주세요." readonly="status not in ('submitted','assigned') or (not is_officer and author_id != uid)"/>
                         </page>
                         <page string="공식 조치 내역">
                             <field name="resolution_note" placeholder="IT 담당자가 문제를 어떻게 해결했는지 공식 조치 내역을 기록합니다." readonly="status in ('closed', 'canceled') or not is_officer"/>
                         </page>
-                        <!-- UI-01: 중복 탭 제거 후 단일 탭으로 정상화 -->
                         <page string="고객 만족도 평가" invisible="status not in ('resolved', 'closed')">
                             <group>
                                 <group string="조치 만족도">
@@ -212,7 +211,6 @@
                                     <field name="rating_comment" placeholder="서비스에 대한 솔직한 의견이나 감사의 말씀을 남겨주세요." readonly="author_id != uid or status == 'closed'"/>
                                 </group>
                             </group>
-                            <!-- UI-05: 이미 종결(closed)된 티켓에서는 제출 버튼 숨김 -->
                             <div class="mt-2" invisible="author_id != uid or status == 'closed'">
                                 <button name="action_submit_rating" string="만족도 평가 제출" type="object" class="btn-primary"/>
                             </div>
@@ -224,6 +222,7 @@
         </field>
     </record>
 
+    <!-- 검색 및 필터 뷰 -->
     <record id="view_helpdesk_ticket_search" model="ir.ui.view">
         <field name="name">it.helpdesk.ticket.search</field>
         <field name="model">it.helpdesk.ticket</field>
@@ -235,10 +234,11 @@
                 <field name="category" string="카테고리"/>
 
                 <filter string="📘 FAQ 지식창고" name="filter_faq" domain="[('is_faq', '=', True)]"/>
-                <filter string="🚨 SLA 기한 초과" name="filter_overdue" domain="[('is_overdue', '=', True)]"/>
+                <!-- 관리자/담당자 전용 필터 -->
+                <filter string="🚨 SLA 기한 초과" name="filter_overdue" domain="[('is_overdue', '=', True)]" groups="it_helpdesk.group_helpdesk_officer"/>
                 <filter string="내 문의" name="my_ticket" domain="[('author_id','=',uid)]"/>
                 <separator/>
-                <filter string="배정대기" name="unassigned" domain="[('assignee_id','=',False)]"/>
+                <filter string="배정대기" name="unassigned" domain="[('assignee_id','=',False)]" groups="it_helpdesk.group_helpdesk_officer"/>
                 <filter string="접수 대기" name="filter_submitted" domain="[('status','=','submitted')]"/>
                 <filter string="처리중" name="filter_in_progress" domain="[('status','in',('assigned','in_progress','pending'))]"/>
                 <filter string="긴급도건(높음/긴급)" name="filter_in_priority" domain="[('priority', 'in', ('2','3'))]"/>
@@ -246,19 +246,19 @@
                 <group expand="0" string="그룹화">
                     <filter string="상태별" name="group_status" context="{'group_by':'status'}"/>
                     <filter string="카테고리별" name="group_category" context="{'group_by':'category'}"/>
-                    <filter string="담당자별" name="group_assignee" context="{'group_by':'assignee_id'}"/>
+                    <filter string="담당자별" name="group_assignee" context="{'group_by':'assignee_id'}" groups="it_helpdesk.group_helpdesk_officer"/>
                     <filter string="긴급도별" name="group_priority" context="{'group_by':'priority'}"/>
                     <filter string="만족도별" name="group_rating" context="{'group_by':'rating'}"/>
                 </group>
             </search>
-            
         </field>
     </record>
 
-    <!-- 통계 피벗(Pivot) 분석 뷰 -->
+    <!-- 통계 피벗(Pivot) 분석 뷰 (IT 담당자 전용) -->
     <record id="view_helpdesk_ticket_pivot" model="ir.ui.view">
         <field name="name">it.helpdesk.ticket.pivot</field>
         <field name="model">it.helpdesk.ticket</field>
+        <field name="groups_id" eval="[(4, ref('it_helpdesk.group_helpdesk_officer'))]"/>
         <field name="arch" type="xml">
             <pivot string="문의 현황 피벗 분석" sample="1">
                 <field name="status" type="col"/>
@@ -268,10 +268,11 @@
         </field>
     </record>
 
-    <!-- 통계 차트(Graph) 뷰 -->
+    <!-- 통계 차트(Graph) 뷰 (IT 담당자 전용) -->
     <record id="view_helpdesk_ticket_graph" model="ir.ui.view">
         <field name="name">it.helpdesk.ticket.graph</field>
         <field name="model">it.helpdesk.ticket</field>
+        <field name="groups_id" eval="[(4, ref('it_helpdesk.group_helpdesk_officer'))]"/>
         <field name="arch" type="xml">
             <graph string="문의 현황 통계 차트" type="bar" sample="1">
                 <field name="category"/>
@@ -317,7 +318,7 @@
     <!-- 메인메뉴 -->
     <menuitem id="menu_helpdesk_root" name="IT 헬프데스크" sequence="10"/>
 
-    <!-- 서브메뉴 -->
+    <!-- 서브메뉴: 사원은 전체 문의, 내 문의, FAQ 지식창고만 노출 -->
     <menuitem id="menu_helpdesk_ticket" 
         name="전체 문의 목록" 
         parent="menu_helpdesk_root" 
@@ -330,25 +331,27 @@
         action="action_helpdesk_ticket_my" 
         sequence="20"
     />
-    <menuitem id="menu_helpdesk_ticket_unassigned" 
-        name="미배정 문의 목록" 
-        parent="menu_helpdesk_root" 
-        action="action_helpdesk_ticket_unassigned" 
-        sequence="30"
-    />
-
-    <menuitem id="menu_helpdesk_ticket_analysis" 
-        name="문의 통계 및 분석" 
-        parent="menu_helpdesk_root" 
-        action="action_helpdesk_ticket_analysis" 
-        sequence="40"
-    />
-
     <menuitem id="menu_helpdesk_ticket_faq" 
         name="FAQ 지식창고" 
         parent="menu_helpdesk_root" 
         action="action_helpdesk_ticket_faq" 
         sequence="25"
+    />
+
+    <!-- IT 담당자 전용 서브메뉴 -->
+    <menuitem id="menu_helpdesk_ticket_unassigned" 
+        name="미배정 문의 목록" 
+        parent="menu_helpdesk_root" 
+        action="action_helpdesk_ticket_unassigned" 
+        sequence="30"
+        groups="it_helpdesk.group_helpdesk_officer"
+    />
+    <menuitem id="menu_helpdesk_ticket_analysis" 
+        name="문의 통계 및 분석" 
+        parent="menu_helpdesk_root" 
+        action="action_helpdesk_ticket_analysis" 
+        sequence="40"
+        groups="it_helpdesk.group_helpdesk_officer"
     />
 
 </odoo>
