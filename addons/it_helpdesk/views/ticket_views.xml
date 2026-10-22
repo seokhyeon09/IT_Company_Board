@@ -11,10 +11,11 @@
                 <field name="priority"/>
                 <field name="author_id"/>
                 <field name="assignee_id"/>
+                <field name="is_officer"/>
                 <templates>
                     <t t-name="card">
                         <div class="d-flex align-items-center mb-1">
-                            <field name="priority" widget="priority"/>
+                            <field name="priority" widget="priority" readonly="not is_officer and author_id != uid"/>
                             <field name="category" class="badge text-bg-light ms-auto"/>
                         </div>
                         <div class="mb-2">
@@ -40,6 +41,7 @@
         <field name="model">it.helpdesk.ticket</field>
         <field name="arch" type="xml">
             <list string="문의 목록" decoration-muted="status in ('closed', 'canceled')" class="container">
+                <field name="is_officer" column_invisible="True"/>
                 <field name="status" 
                        widget="badge" 
                        width="110px"
@@ -49,7 +51,7 @@
                        decoration-success="status in ('resolved', 'closed')"
                        decoration-muted="status == 'canceled'"/>
                 <field name="category" width="130px"/>
-                <field name="priority" widget="priority"/>
+                <field name="priority" widget="priority" readonly="not is_officer and author_id != uid"/>
                 <!-- 제목은 width를 적지 않아야 남은 공간을 알아서 꽉 채워줍니다 -->
                 <field name="title" class="fw-bold"/>
                 <field name="author_id" width="120px"
@@ -152,8 +154,8 @@
                     <group>
                         <!-- 왼쪽 열 -->
                         <group string="문의 분류">
-                            <field name="category" readonly="status in ('closed','canceled')"/>
-                            <field name="priority" widget="priority"/>
+                            <field name="category" readonly="status in ('closed','canceled') or (not is_officer and author_id != uid)"/>
+                            <field name="priority" widget="priority" readonly="status in ('closed','canceled') or (not is_officer and author_id != uid)"/>
                         </group>
     
                         <!-- 오른쪽 열 -->
@@ -204,25 +206,58 @@
         </field>
     </record>
 
+
+    <!-- 통계 피벗(Pivot) 분석 뷰 -->
+    <record id="view_helpdesk_ticket_pivot" model="ir.ui.view">
+        <field name="name">it.helpdesk.ticket.pivot</field>
+        <field name="model">it.helpdesk.ticket</field>
+        <field name="arch" type="xml">
+            <pivot string="문의 현황 피벗 분석" sample="1">
+                <field name="status" type="col"/>
+                <field name="category" type="row"/>
+                <field name="priority" type="row"/>
+            </pivot>
+        </field>
+    </record>
+
+    <!-- 통계 차트(Graph) 뷰 -->
+    <record id="view_helpdesk_ticket_graph" model="ir.ui.view">
+        <field name="name">it.helpdesk.ticket.graph</field>
+        <field name="model">it.helpdesk.ticket</field>
+        <field name="arch" type="xml">
+            <graph string="문의 현황 통계 차트" type="bar" sample="1">
+                <field name="category"/>
+                <field name="status"/>
+            </graph>
+        </field>
+    </record>
+
     <!--  액션 (리모컨: 메뉴를 눌렀을 때 목록과 폼 화면을 열어주는 명령) -->
     <record id="action_helpdesk_ticket" model="ir.actions.act_window">
         <field name="name">전체 문의 목록</field>
         <field name="res_model">it.helpdesk.ticket</field>
-        <field name="view_mode">kanban,list,form</field>
+        <field name="view_mode">kanban,list,graph,pivot,form</field>
     </record>
 
     <record id="action_helpdesk_ticket_my" model="ir.actions.act_window">
         <field name="name">내 문의 목록</field>
         <field name="res_model">it.helpdesk.ticket</field>
-        <field name="view_mode">kanban,list,form</field>
+        <field name="view_mode">kanban,list,graph,pivot,form</field>
         <field name="domain">[('author_id','=',uid)]</field>
     </record>
 
     <record id="action_helpdesk_ticket_unassigned" model="ir.actions.act_window">
         <field name="name">미배정 대기</field>
         <field name="res_model">it.helpdesk.ticket</field>
-        <field name="view_mode">kanban,list,form</field>
+        <field name="view_mode">kanban,list,graph,pivot,form</field>
         <field name="domain">[('assignee_id','=',False)]</field>
+    </record>
+
+
+    <record id="action_helpdesk_ticket_analysis" model="ir.actions.act_window">
+        <field name="name">문의 통계 및 분석</field>
+        <field name="res_model">it.helpdesk.ticket</field>
+        <field name="view_mode">graph,pivot</field>
     </record>
 
     <!-- 메인메뉴 -->
@@ -245,6 +280,13 @@
         parent="menu_helpdesk_root" 
         action="action_helpdesk_ticket_unassigned" 
         sequence="30"
+    />
+
+    <menuitem id="menu_helpdesk_ticket_analysis" 
+        name="문의 통계 및 분석" 
+        parent="menu_helpdesk_root" 
+        action="action_helpdesk_ticket_analysis" 
+        sequence="40"
     />
 
 </odoo>
