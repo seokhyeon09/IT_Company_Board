@@ -24,7 +24,7 @@ class HelpDeskTicket(models.Model):
     _name = "it.helpdesk.ticket"
     _description = "IT 문의 티켓"
     _inherit = ['mail.thread', 'mail.activity.mixin']
-    _rec_name = "title"
+    _rec_name = "ticket_number"
     _order = "id desc"
 
     ticket_number = fields.Char(
@@ -41,9 +41,9 @@ class HelpDeskTicket(models.Model):
     def _compute_display_name(self):
         for record in self:
             if record.ticket_number and record.ticket_number != 'New':
-                record.display_name = f"[{record.ticket_number}] {record.title or ''}"
+                record.display_name = record.ticket_number
             else:
-                record.display_name = record.title or ''
+                record.display_name = record.title or "New"
 
     category = fields.Selection(
         [

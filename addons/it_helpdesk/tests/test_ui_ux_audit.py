@@ -304,10 +304,10 @@ class TestHelpdeskUIUXAudit(TransactionCase):
             'content': '<p>두 번째 문의 내용입니다.</p>',
         })
 
-        # _rec_name 및 display_name 검증 (접수번호 연동 포함)
-        self.assertEqual(ticket1.display_name, f"[{ticket1.ticket_number}] 첫 번째 문의 티켓")
-        self.assertEqual(ticket2.display_name, f"[{ticket2.ticket_number}] 두 번째 문의 티켓")
-        self.assertEqual(self.Ticket._rec_name, 'title')
+        # _rec_name 및 display_name 검증 (티켓 번호 단독 표기)
+        self.assertEqual(ticket1.display_name, ticket1.ticket_number)
+        self.assertEqual(ticket2.display_name, ticket2.ticket_number)
+        self.assertEqual(self.Ticket._rec_name, 'ticket_number')
 
         # _order 검증
         self.assertEqual(self.Ticket._order, 'id desc')
@@ -397,8 +397,8 @@ class TestHelpdeskUIUXAudit(TransactionCase):
         self.assertNotEqual(ticket1.ticket_number, 'New')
         self.assertTrue(ticket1.ticket_number.startswith('TKT-'))
 
-        # display_name 연동 확인 ([TKT-YYYY-XXXX] 제목)
-        self.assertEqual(ticket1.display_name, f"[{ticket1.ticket_number}] 네트워크 포트 연결 요청")
+        # display_name 연동 확인 (티켓 번호 단독 표기)
+        self.assertEqual(ticket1.display_name, ticket1.ticket_number)
 
         # 2. 두 번째 티켓 생성 시 순차 증가 확인
         ticket2 = self.Ticket.with_user(self.user_employee).create({

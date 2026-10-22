@@ -49,7 +49,7 @@
         <field name="name">it.helpdesk.ticket.list</field>
         <field name="model">it.helpdesk.ticket</field>
         <field name="arch" type="xml">
-            <list string="문의 목록" decoration-muted="status in ('closed', 'canceled')" class="container">
+            <list string="문의 목록" decoration-muted="status in ('closed', 'canceled')" class="container-fluid px-md-5 px-3">
                 <field name="is_officer" column_invisible="True"/>
                 <field name="is_overdue" column_invisible="True"/>
                 <field name="ticket_number" string="접수 번호" width="130px" decoration-bf="1"/>
