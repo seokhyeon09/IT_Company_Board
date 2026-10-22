@@ -183,10 +183,10 @@
                         <strong>사내 FAQ 지식베이스:</strong> 본 문의는 전사 사원에게 유용한 해결 사례로 선정된 공식 FAQ 게시글입니다.
                     </div>
                     <div class="oe_title">
-                        <span class="o_form_label d-flex align-items-center">
-                            IT 문의 접수
-                            <field name="ticket_number" class="text-primary fw-bold ms-2" readonly="1" invisible="ticket_number in (False, 'New')"/>
-                        </span>
+                        <div class="d-flex align-items-center text-nowrap mb-1">
+                            <span class="o_form_label mb-0 me-2">IT 문의 접수</span>
+                            <field name="ticket_number" class="text-primary fw-bold" readonly="1" invisible="ticket_number in (False, 'New')"/>
+                        </div>
                         <h1>
                             <field name="title" placeholder="문의 제목 입력하세요" readonly="status not in ('submitted','assigned') or (not is_officer and author_id != uid)"/>
                         </h1>
