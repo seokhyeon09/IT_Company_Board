@@ -94,7 +94,7 @@
                         string="담당 접수"
                         type="object"
                         class="oe_highlight"
-                        invisible="status != 'submitted'"
+                        invisible="status != 'submitted' or not is_officer"
                     />
 
                     <button
@@ -102,7 +102,7 @@
                         string="처리 시작"
                         type="object"
                         class="oe_highlight"
-                        invisible="status != 'assigned'"
+                        invisible="status != 'assigned' or not is_officer"
                     />
 
                     <button
@@ -110,7 +110,7 @@
                         string="답변 대기"
                         type="object"
                         class="oe_highlight"
-                        invisible="status != 'in_progress'"
+                        invisible="status != 'in_progress' or not is_officer"
                     />
 
                     <button
@@ -126,7 +126,7 @@
                         string="해결 완료"
                         type="object"
                         class="oe_highlight"
-                        invisible="status not in ('in_progress', 'pending')"
+                        invisible="status not in ('in_progress', 'pending') or not is_officer"
                     />
 
                     <button
@@ -196,8 +196,11 @@
     
                         <!-- 오른쪽 열 -->
                         <group string="담당 및 요청자">
-                            <group><field name="author_id"/></group>
-                            <group><field name="assignee_name"/></group>
+                            <field name="author_id"/>
+                            <!-- 일반 사원에게는 텍스트 형태의 읽기 전용 담당자명 노출 -->
+                            <field name="assignee_name" invisible="is_officer"/>
+                            <!-- IT 담당자에게는 직접 다른 담당자로 변경/이관할 수 있는 assignee_id 노출 -->
+                            <field name="assignee_id" invisible="not is_officer" readonly="status in ('closed', 'canceled')"/>
                         </group>
                     </group>
                     <notebook>

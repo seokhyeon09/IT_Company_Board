@@ -24,6 +24,8 @@ class HelpDeskTicket(models.Model):
     _name = "it.helpdesk.ticket"
     _description = "IT 문의 티켓"
     _inherit = ['mail.thread', 'mail.activity.mixin']
+    _rec_name = "title"
+    _order = "id desc"
 
     title = fields.Char(string="문의 제목", required=True)
     content = fields.Html(string="상세 내용", required=True)
@@ -53,6 +55,7 @@ class HelpDeskTicket(models.Model):
         string="상태",
         default="submitted",
         tracking=True,
+        copy=False,
     )
 
     priority = fields.Selection(
@@ -70,6 +73,7 @@ class HelpDeskTicket(models.Model):
     deadline = fields.Datetime(
         string="처리 기한(SLA)",
         tracking=True,
+        copy=False,
         help="약속된 조치 완료 기한입니다.",
     )
 
@@ -85,7 +89,7 @@ class HelpDeskTicket(models.Model):
         default=lambda self: self.env.user,
         readonly=True,
     )
-    assignee_id = fields.Many2one("res.users", string="IT 담당자", tracking=True)
+    assignee_id = fields.Many2one("res.users", string="IT 담당자 배정", tracking=True, copy=False)
 
     assignee_name = fields.Char(string="IT 담당자", compute="_compute_assignee_name")
 
@@ -98,6 +102,7 @@ class HelpDeskTicket(models.Model):
 
     resolution_note = fields.Html(
         string="조치 내용",
+        copy=False,
     )
 
     rating = fields.Selection(
@@ -112,15 +117,17 @@ class HelpDeskTicket(models.Model):
         string="최신 만족도",
         default="0",
         tracking=True,
+        copy=False,
     )
-    rating_comment = fields.Text(string="만족도 한줄평", tracking=True)
-    is_faq = fields.Boolean(string="FAQ 추천 사례", tracking=True)
+    rating_comment = fields.Text(string="만족도 한줄평", tracking=True, copy=False)
+    is_faq = fields.Boolean(string="FAQ 추천 사례", tracking=True, copy=False)
 
     # N:1 만족도 평가 이력 누적 (재문의 시 차수별 누적 관리)
     rating_ids = fields.One2many(
         "it.helpdesk.ticket.rating",
         "ticket_id",
         string="만족도 평가 이력",
+        copy=False,
     )
     current_round = fields.Integer(
         string="현재 평가 차수",
@@ -145,6 +152,13 @@ class HelpDeskTicket(models.Model):
         for record in self:
             if not record.title or not record.title.strip():
                 raise ValidationError("문의 제목은 공백만으로 작성할 수 없습니다.")
+
+    @api.constrains('content')
+    def _check_content_not_empty(self):
+        """보완 5: 문의 상세 내용 빈 줄/공백 HTML 등록 방어"""
+        for record in self:
+            if _is_html_empty(record.content):
+                raise ValidationError("문의 상세 내용을 입력해주세요.")
 
     def _calculate_deadline(self, priority, base_time=None):
         """RC-07: 변경 시각(now) 기준으로 SLA 마감 기한 산정 (초과 시 is_overdue=True 경고)"""
@@ -174,6 +188,12 @@ class HelpDeskTicket(models.Model):
             return [('deadline', '<', now), ('status', 'not in', ('resolved', 'closed', 'canceled'))]
         else:
             return ['|', ('deadline', '>=', now), ('status', 'in', ('resolved', 'closed', 'canceled'))]
+
+    def copy(self, default=None):
+        """보완 4: 티켓 복제 시 제목에 (복사본) 명시 및 초기화 상태 보장"""
+        default = dict(default or {})
+        default.setdefault('title', f"{self.title} (복사본)")
+        return super().copy(default)
 
     @api.model_create_multi
     def create(self, vals_list):

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from odoo.tests.common import TransactionCase
-from odoo.exceptions import UserError, AccessError
+from odoo.exceptions import UserError, AccessError, ValidationError
 
 
 class TestHelpdeskUIUXAudit(TransactionCase):
@@ -237,3 +237,149 @@ class TestHelpdeskUIUXAudit(TransactionCase):
         ticket2.with_user(self.user_employee).write({'rating': '1'})
         ticket2.with_user(self.user_employee).action_submit_rating()
         self.assertEqual(ticket2.status, 'closed')
+
+    def test_08_form_view_buttons_and_assignee_field(self):
+        """[보완 1 & 3 검증] 담당자 전용 버튼 4종의 사원 노출 차단 및 폼 뷰 담당자 이관 필드 검증"""
+        # 1. 폼 뷰 XML arch 검사
+        form_view = self.env.ref('it_helpdesk.view_helpdesk_ticket_form')
+        arch = form_view.arch
+
+        # 버튼 4종에 is_officer 조건이 누락 없이 들어가 있는지 확인
+        self.assertIn('name="action_assign_to_me"', arch)
+        self.assertIn('invisible="status != \'submitted\' or not is_officer"', arch)
+
+        self.assertIn('name="action_start_progress"', arch)
+        self.assertIn('invisible="status != \'assigned\' or not is_officer"', arch)
+
+        self.assertIn('name="action_pending"', arch)
+        self.assertIn('invisible="status != \'in_progress\' or not is_officer"', arch)
+
+        self.assertIn('name="action_resolve"', arch)
+        self.assertIn('invisible="status not in (\'in_progress\', \'pending\') or not is_officer"', arch)
+
+        # 폼 뷰 내 assignee_name / assignee_id 조건 검사
+        self.assertIn('name="assignee_name" invisible="is_officer"', arch)
+        self.assertIn('name="assignee_id" invisible="not is_officer"', arch)
+
+        # 2. IT 담당자가 폼에서 assignee_id를 다른 담당자로 수동 이관할 때 RC-06 자동 연동 검증
+        # 제2의 IT 담당자 생성
+        officer2 = self.env['res.users'].create({
+            'name': '2차 IT 담당자',
+            'login': 'test_officer2_ui',
+            'email': 'officer2_ui@audit.com',
+            'groups_id': [(6, 0, [
+                self.env.ref('base.group_user').id,
+                self.env.ref('it_helpdesk.group_helpdesk_officer').id,
+            ])]
+        })
+
+        ticket = self.Ticket.with_user(self.user_employee).create({
+            'title': '네트워크 접속 불가',
+            'content': '<p>인터넷 연결이 끊어졌습니다.</p>',
+            'author_id': self.user_employee.id,
+        })
+        # 1차 담당자 배정
+        ticket.with_user(self.user_officer).action_assign_to_me()
+        self.assertEqual(ticket.assignee_id, self.user_officer)
+        self.assertEqual(len(ticket.activity_ids), 1)
+        self.assertEqual(ticket.activity_ids[0].user_id, self.user_officer)
+
+        # 1차 담당자가 2차 담당자에게 수동 이관 (write 호출)
+        ticket.with_user(self.user_officer).write({'assignee_id': officer2.id})
+        self.assertEqual(ticket.assignee_id, officer2)
+        # 이전 활동 정리 및 새 담당자 활동 스케줄링 확인
+        self.assertEqual(len(ticket.activity_ids), 1)
+        self.assertEqual(ticket.activity_ids[0].user_id, officer2)
+
+    def test_09_rec_name_and_order(self):
+        """[보완 2 검증] _rec_name = 'title' 및 _order = 'id desc' 검증"""
+        ticket1 = self.Ticket.with_user(self.user_employee).create({
+            'title': '첫 번째 문의 티켓',
+            'content': '<p>첫 번째 문의 내용입니다.</p>',
+        })
+        ticket2 = self.Ticket.with_user(self.user_employee).create({
+            'title': '두 번째 문의 티켓',
+            'content': '<p>두 번째 문의 내용입니다.</p>',
+        })
+
+        # _rec_name 검증 (display_name이 title과 일치)
+        self.assertEqual(ticket1.display_name, '첫 번째 문의 티켓')
+        self.assertEqual(ticket2.display_name, '두 번째 문의 티켓')
+        self.assertEqual(self.Ticket._rec_name, 'title')
+
+        # _order 검증
+        self.assertEqual(self.Ticket._order, 'id desc')
+        tickets = self.Ticket.search([('id', 'in', [ticket1.id, ticket2.id])])
+        self.assertEqual(tickets.ids, [ticket2.id, ticket1.id])
+
+    def test_10_ticket_duplicate_resets_fields(self):
+        """[보완 4 검증] 티켓 복제(copy) 시 상태, 담당자, 조치내역, 만족도, FAQ 등 초기화 검증"""
+        ticket = self.Ticket.with_user(self.user_employee).create({
+            'title': '윈도우 정품 인증 오류',
+            'content': '<p>인증 키 만료 경고가 뜹니다.</p>',
+            'category': 'sw',
+            'priority': '2',
+            'author_id': self.user_employee.id,
+        })
+        ticket.with_user(self.user_officer).action_assign_to_me()
+        ticket.with_user(self.user_officer).write({
+            'status': 'in_progress',
+            'resolution_note': '<p>볼륨 라이선스 키 재등록 완료</p>',
+            'is_faq': True,
+        })
+        ticket.with_user(self.user_officer).action_resolve()
+        ticket.with_user(self.user_employee).write({
+            'rating': '5',
+            'rating_comment': '빠르게 해결되었습니다!',
+        })
+        ticket.with_user(self.user_employee).action_submit_rating()
+        self.assertEqual(ticket.status, 'closed')
+        self.assertTrue(ticket.is_faq)
+        self.assertEqual(len(ticket.rating_ids), 1)
+
+        # 복제 실행
+        duplicated = ticket.copy()
+
+        # 검증: 복사본 타이틀 및 초기화된 필드들
+        self.assertEqual(duplicated.title, '윈도우 정품 인증 오류 (복사본)')
+        self.assertEqual(duplicated.category, 'sw')  # 분류는 유지
+        self.assertEqual(duplicated.priority, '2')  # 긴급도는 유지
+        self.assertEqual(duplicated.status, 'submitted')  # 접수대기로 초기화
+        self.assertFalse(duplicated.assignee_id)  # 담당자 초기화
+        self.assertFalse(duplicated.resolution_note)  # 조치내역 초기화
+        self.assertEqual(duplicated.rating, '0')  # 만족도 미평가로 초기화
+        self.assertFalse(duplicated.rating_comment)  # 한줄평 초기화
+        self.assertFalse(duplicated.is_faq)  # FAQ 초기화
+        self.assertFalse(duplicated.rating_ids)  # 차수별 평가 이력 복제 방지
+        # 새 deadline이 정상 계산되었는지 확인
+        self.assertTrue(duplicated.deadline)
+
+    def test_11_empty_html_content_rejected(self):
+        """[보완 5 검증] 문의 상세 내용(content) 빈 줄/공백 HTML 등록 차단 검증"""
+        empty_contents = [
+            '',
+            '   ',
+            '<p><br></p>',
+            '<p>&nbsp;</p>',
+            '<p>&nbsp; &nbsp;</p>',
+            '<div><br></div>',
+            '<p></p>',
+        ]
+
+        for empty_val in empty_contents:
+            with self.assertRaises(ValidationError):
+                self.Ticket.with_user(self.user_employee).create({
+                    'title': '내용 누락 테스트',
+                    'content': empty_val,
+                })
+
+        # 유효한 본문은 정상 등록 확인
+        valid_ticket = self.Ticket.with_user(self.user_employee).create({
+            'title': '정상 본문 테스트',
+            'content': '<p>모니터 전원이 들어오지 않습니다.</p>',
+        })
+        self.assertTrue(valid_ticket.id)
+
+        # 수정 시 빈 본문으로 변경 시도 차단 확인
+        with self.assertRaises(ValidationError):
+            valid_ticket.with_user(self.user_employee).write({'content': '<p><br></p>'})
