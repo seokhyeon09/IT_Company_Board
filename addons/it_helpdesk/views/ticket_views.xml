@@ -110,7 +110,7 @@
                         string = "재문의"
                         type = "object"
                         class = "oe_highlight"
-                        invisible = "status != 'pending'"
+                        invisible = "status not in ('pending', 'resolved')"
                     />
 
                     <button
