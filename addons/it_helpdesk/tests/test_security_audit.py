@@ -168,7 +168,7 @@ class TestHelpdeskSecurityAudit(TransactionCase):
         self.assertEqual(len(ticket.activity_ids), 1)
         self.assertEqual(ticket.activity_ids.user_id, self.user_officer1)
         # 이전 만족도 초기화 확인 (Chatter 보존 및 2차 평가 활성화) (RC-08)
-        self.assertFalse(ticket.rating)
+        self.assertIn(ticket.rating, ('0', False))
         self.assertFalse(ticket.rating_comment)
 
         # 4. 재해결 후 직원의 재문의(action_restart_ticket) 테스트
@@ -181,7 +181,7 @@ class TestHelpdeskSecurityAudit(TransactionCase):
         self.assertEqual(ticket.status, 'in_progress')
         # 새 Activity 생성 확인
         self.assertEqual(len(ticket.activity_ids), 1)
-        self.assertFalse(ticket.rating)
+        self.assertIn(ticket.rating, ('0', False))
 
     def test_06_assignee_change_transfers_activity(self):
         """[RC-06 검증] 담당자 변경 시 이전 담당자 Activity 제거 및 새 담당자 스케줄링"""

@@ -102,6 +102,7 @@ class HelpDeskTicket(models.Model):
 
     rating = fields.Selection(
         [
+            ("0", "미평가"),
             ("1", "1점 (매우 불만)"),
             ("2", "2점 (불만)"),
             ("3", "3점 (보통)"),
@@ -109,6 +110,7 @@ class HelpDeskTicket(models.Model):
             ("5", "5점 (매우 만족)"),
         ],
         string="최신 만족도",
+        default="0",
         tracking=True,
     )
     rating_comment = fields.Text(string="만족도 한줄평", tracking=True)
@@ -309,8 +311,7 @@ class HelpDeskTicket(models.Model):
                 raise UserError("답변 대기, 해결 완료 또는 종결된 티켓에 대해서만 추가 문의를 진행할 수 있습니다.")
 
             # 다음 차수 평가를 위해 현재 별점 입력값 초기화 (기존 rating_ids는 테이블에 안전하게 보존됨)
-            record.rating = False
-            record.rating_comment = False
+            record.sudo().write({'rating': '0', 'rating_comment': False})
 
             record.status = "in_progress"
             record.message_post(body="요청 직원이 추가 문의(재문의)를 등록하여 처리가 다시 진행됩니다.")
@@ -367,7 +368,7 @@ class HelpDeskTicket(models.Model):
                 raise UserError("해결 완료, 종결 또는 취소된 티켓만 재오픈할 수 있습니다.")
 
             # 다음 차수 평가를 위해 현재 별점 입력값 초기화 (기존 rating_ids는 보존)
-            record.sudo().write({'rating': False, 'rating_comment': False})
+            record.sudo().write({'rating': '0', 'rating_comment': False})
 
             record.status = "in_progress"
             record.message_post(body="티켓이 IT 담당자에 의해 재오픈되었습니다.")
@@ -386,8 +387,8 @@ class HelpDeskTicket(models.Model):
         for record in self:
             if self.env.user != record.author_id:
                 raise UserError("만족도 평가는 문의를 등록한 본인만 작성할 수 있습니다.")
-            if not record.rating:
-                raise UserError("만족도 별점을 선택해 주세요.")
+            if not record.rating or record.rating == "0":
+                raise UserError("만족도 별점을 1점 이상 선택해 주세요. (미평가 상태로는 제출할 수 없습니다.)")
 
             next_round = len(record.rating_ids) + 1
             # N:1 만족도 평가 이력 레코드 생성
@@ -433,6 +434,7 @@ class HelpDeskTicketRating(models.Model):
     round = fields.Integer(string="차수", default=1)
     rating = fields.Selection(
         [
+            ("0", "미평가"),
             ("1", "1점 (매우 불만)"),
             ("2", "2점 (불만)"),
             ("3", "3점 (보통)"),

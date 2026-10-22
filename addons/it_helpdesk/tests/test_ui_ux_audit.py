@@ -213,3 +213,27 @@ class TestHelpdeskUIUXAudit(TransactionCase):
             'rating_comment': '선명하게 잘 나옵니다.',
         })
         self.assertEqual(ticket.rating, '5')
+
+        # 6. rating 기본값 '0'(미평가) 확인 및 0점 제출 시 UserError 차단 검증
+        ticket2 = self.Ticket.with_user(self.user_employee).create({
+            'title': '마우스 고장',
+            'content': '<p>클릭이 안 됩니다.</p>',
+            'author_id': self.user_employee.id,
+        })
+        self.assertEqual(ticket2.rating, '0')
+
+        ticket2.with_user(self.user_officer).action_assign_to_me()
+        ticket2.with_user(self.user_officer).write({
+            'status': 'in_progress',
+            'resolution_note': '<p>새 마우스 지급</p>',
+        })
+        ticket2.with_user(self.user_officer).action_resolve()
+
+        # 미평가('0') 상태에서 제출 시도 시 차단 확인
+        with self.assertRaises(UserError):
+            ticket2.with_user(self.user_employee).action_submit_rating()
+
+        # 1점 선택 후 정상 제출 확인
+        ticket2.with_user(self.user_employee).write({'rating': '1'})
+        ticket2.with_user(self.user_employee).action_submit_rating()
+        self.assertEqual(ticket2.status, 'closed')
