@@ -36,6 +36,18 @@ class HelpDeskTicket(models.Model):
         tracking=True,
     )
 
+    priority = fields.Selection(
+        [
+            ("0","낮음"),
+            ("1","보통"),
+            ("2","높음"),
+            ("3","긴급"),
+        ],
+        string="긴급도",
+        default="0",
+        tracking=True,
+    )
+
     author_id = fields.Many2one(
         "res.users",
         string="요청 직원",
@@ -95,4 +107,10 @@ class HelpDeskTicket(models.Model):
         for record in self :
             record.status = "canceled"
 
-    
+    def action_reopen(self):
+        for record in self:
+            if self.env.user.has_group('it_helpdesk.group_helpdesk_officer') :
+                record.status="in_progress"
+                record.message_post(body="티켓이 IT 담당자에 의해 재오픈되었습니다.")
+            else :
+                raise UserError("티켓 재오픈은 IT 담당자만 수행할 수 있습니다.")

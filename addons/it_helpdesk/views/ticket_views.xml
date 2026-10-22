@@ -16,6 +16,7 @@
                        decoration-success="status in ('resolved', 'closed')"
                        decoration-muted="status == 'canceled'"/>
                 <field name="category" width="130px"/>
+                <field name="priority" widget="priority"/>
                 <!-- 제목은 width를 적지 않아야 남은 공간을 알아서 꽉 채워줍니다 -->
                 <field name="title" class="fw-bold"/>
                 <field name="author_id" width="120px"
@@ -91,9 +92,18 @@
                         name="action_cancel"
                         string = "문의 취소"
                         type="object"
-                        class="oe_highlight"
+                        class="btn-secondary"
                         invisible="status in ('pending','resolved', 'closed', 'canceled')"
                     />
+
+                    <button
+                        name="action_reopen"
+                        string="문의 재오픈"
+                        type="object"
+                        class="btn-secondary"
+                        invisible = "status not in ('closed', 'canceled') or not is_officer"
+                    />
+
                     <field name="status"
                     widget="statusbar"
                     statusbar_visible="submitted,assigned,in_progress,pending,resolved,closed"/>
@@ -110,6 +120,7 @@
                         <!-- 왼쪽 열 -->
                         <group string="문의 분류">
                             <field name="category" readonly="status in ('closed','canceled')"/>
+                            <field name="priority" widget="priority"/>
                         </group>
     
                         <!-- 오른쪽 열 -->
@@ -147,11 +158,13 @@
                 <filter string="배정대기" name="unassigned" domain="[('assignee_id','=',False)]"/>
                 <filter string="접수 대기" name="filter_submitted" domain="[('status','=','submitted')]"/>
                 <filter string="처리중" name="filter_in_progress" domain="[('status','in',('assigned','in_progress','pending'))]"/>
+                <filter string="긴급도건(높음/긴급)" name="filter_in_priority" domain="[('priority', 'in', ('2','3'))]"/>
             
                 <group expand="0" string="그룹화">
                     <filter string="상태별" name="group_status" context="{'group_by':'status'}"/>
                     <filter string="카테고리별" name="group_category" context="{'group_by':'category'}"/>
                     <filter string="담당자별" name="group_assignee" context="{'group_by':'assignee_id'}"/>
+                    <filter string="긴급도별" name="group_priority" context="{'group_by':'priority'}"/>
                 </group>
             </search>
             
