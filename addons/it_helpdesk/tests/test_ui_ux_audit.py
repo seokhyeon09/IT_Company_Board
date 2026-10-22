@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from datetime import timedelta
+from odoo import fields
 from odoo.tests.common import TransactionCase
 from odoo.exceptions import UserError, AccessError, ValidationError
 
@@ -302,9 +304,9 @@ class TestHelpdeskUIUXAudit(TransactionCase):
             'content': '<p>두 번째 문의 내용입니다.</p>',
         })
 
-        # _rec_name 검증 (display_name이 title과 일치)
-        self.assertEqual(ticket1.display_name, '첫 번째 문의 티켓')
-        self.assertEqual(ticket2.display_name, '두 번째 문의 티켓')
+        # _rec_name 및 display_name 검증 (접수번호 연동 포함)
+        self.assertEqual(ticket1.display_name, f"[{ticket1.ticket_number}] 첫 번째 문의 티켓")
+        self.assertEqual(ticket2.display_name, f"[{ticket2.ticket_number}] 두 번째 문의 티켓")
         self.assertEqual(self.Ticket._rec_name, 'title')
 
         # _order 검증
@@ -383,3 +385,90 @@ class TestHelpdeskUIUXAudit(TransactionCase):
         # 수정 시 빈 본문으로 변경 시도 차단 확인
         with self.assertRaises(ValidationError):
             valid_ticket.with_user(self.user_employee).write({'content': '<p><br></p>'})
+
+    def test_12_ticket_sequence_generation(self):
+        """[확장 1 검증] 티켓 고유 접수번호 자동 채번 (ir.sequence) 및 display_name 연동 검증"""
+        # 1. 첫 번째 티켓 생성 시 번호 채번 확인
+        ticket1 = self.Ticket.with_user(self.user_employee).create({
+            'title': '네트워크 포트 연결 요청',
+            'content': '<p>자리 이동으로 LAN선 포트 활성화가 필요합니다.</p>',
+        })
+        self.assertTrue(ticket1.ticket_number)
+        self.assertNotEqual(ticket1.ticket_number, 'New')
+        self.assertTrue(ticket1.ticket_number.startswith('TKT-'))
+
+        # display_name 연동 확인 ([TKT-YYYY-XXXX] 제목)
+        self.assertEqual(ticket1.display_name, f"[{ticket1.ticket_number}] 네트워크 포트 연결 요청")
+
+        # 2. 두 번째 티켓 생성 시 순차 증가 확인
+        ticket2 = self.Ticket.with_user(self.user_employee).create({
+            'title': '모니터 추가 지급 요청',
+            'content': '<p>듀얼 모니터 사용을 희망합니다.</p>',
+        })
+        self.assertTrue(ticket2.ticket_number.startswith('TKT-'))
+        self.assertNotEqual(ticket1.ticket_number, ticket2.ticket_number)
+
+        # 3. 뷰 XML에 접수번호 필드가 배치되어 있는지 검증
+        list_view = self.env.ref('it_helpdesk.view_helpdesk_ticket_list')
+        self.assertIn('name="ticket_number"', list_view.arch)
+
+        form_view = self.env.ref('it_helpdesk.view_helpdesk_ticket_form')
+        self.assertIn('name="ticket_number"', form_view.arch)
+
+        kanban_view = self.env.ref('it_helpdesk.view_helpdesk_ticket_kanban')
+        self.assertIn('name="ticket_number"', kanban_view.arch)
+
+        search_view = self.env.ref('it_helpdesk.view_helpdesk_ticket_search')
+        self.assertIn('name="ticket_number"', search_view.arch)
+
+    def test_13_cron_auto_close_resolved_tickets(self):
+        """[확장 2 검증] 장기 미평가 해결 티켓 자동 종결 스케줄러 (ir.cron) 검증"""
+        # 1. 7일 초과 경과된 해결완료 티켓 시뮬레이션
+        ticket_old = self.Ticket.with_user(self.user_employee).create({
+            'title': '오래된 해결 티켓',
+            'content': '<p>오래 전에 해결된 문의입니다.</p>',
+            'author_id': self.user_employee.id,
+        })
+        ticket_old.with_user(self.user_officer).action_assign_to_me()
+        ticket_old.with_user(self.user_officer).write({
+            'status': 'in_progress',
+            'resolution_note': '<p>과거에 조치 완료함</p>',
+        })
+        ticket_old.with_user(self.user_officer).action_resolve()
+        self.assertEqual(ticket_old.status, 'resolved')
+
+        # SQL로 write_date를 8일 전으로 강제 변경하여 스케줄러 조건 생성
+        past_date = fields.Datetime.now() - timedelta(days=8)
+        self.env.cr.execute(
+            "UPDATE it_helpdesk_ticket SET write_date = %s WHERE id = %s",
+            (past_date, ticket_old.id)
+        )
+        ticket_old.invalidate_recordset(['write_date'])
+
+        # 2. 최근 해결된 티켓 (1일 전) 생성
+        ticket_recent = self.Ticket.with_user(self.user_employee).create({
+            'title': '최근 해결 티켓',
+            'content': '<p>어제 막 해결된 문의입니다.</p>',
+            'author_id': self.user_employee.id,
+        })
+        ticket_recent.with_user(self.user_officer).action_assign_to_me()
+        ticket_recent.with_user(self.user_officer).write({
+            'status': 'in_progress',
+            'resolution_note': '<p>방금 조치 완료함</p>',
+        })
+        ticket_recent.with_user(self.user_officer).action_resolve()
+        self.assertEqual(ticket_recent.status, 'resolved')
+
+        # 3. 자동 종결 크론 스케줄러 메서드 실행 (7일 기준)
+        closed_count = self.Ticket._cron_auto_close_resolved_tickets(days=7)
+        self.assertGreaterEqual(closed_count, 1)
+
+        # 4. 검증: 오래된 건은 closed로 자동 전이, 최근 건은 resolved 유지
+        ticket_old.invalidate_recordset(['status'])
+        ticket_recent.invalidate_recordset(['status'])
+        self.assertEqual(ticket_old.status, 'closed')
+        self.assertEqual(ticket_recent.status, 'resolved')
+
+        # 5. 오래된 건에 스케줄러 자동 종결 시스템 메시지가 Chatter에 남았는지 확인
+        messages = ticket_old.message_ids.mapped('body')
+        self.assertTrue(any('자동으로 문의가 종결되었습니다' in m for m in messages))

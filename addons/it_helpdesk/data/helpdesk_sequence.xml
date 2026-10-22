@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- IT 문의 티켓 고유 접수번호 시퀀스 채번 (TKT-YYYY-0001) -->
+        <record id="seq_helpdesk_ticket" model="ir.sequence">
+            <field name="name">IT 문의 접수 번호</field>
+            <field name="code">it.helpdesk.ticket</field>
+            <field name="prefix">TKT-%(year)s-</field>
+            <field name="padding">4</field>
+            <field name="number_next">1</field>
+            <field name="number_increment">1</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

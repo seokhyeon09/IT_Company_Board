@@ -27,8 +27,23 @@ class HelpDeskTicket(models.Model):
     _rec_name = "title"
     _order = "id desc"
 
+    ticket_number = fields.Char(
+        string="접수 번호",
+        readonly=True,
+        copy=False,
+        default="New",
+        index=True,
+    )
     title = fields.Char(string="문의 제목", required=True)
     content = fields.Html(string="상세 내용", required=True)
+
+    @api.depends('ticket_number', 'title')
+    def _compute_display_name(self):
+        for record in self:
+            if record.ticket_number and record.ticket_number != 'New':
+                record.display_name = f"[{record.ticket_number}] {record.title or ''}"
+            else:
+                record.display_name = record.title or ''
 
     category = fields.Selection(
         [
@@ -197,10 +212,13 @@ class HelpDeskTicket(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        """티켓 생성 시 초기화 및 검증"""
+        """티켓 생성 시 초기화, 고유 접수번호 채번 및 검증"""
         is_officer = self.env.is_admin() or self.env.user.has_group('it_helpdesk.group_helpdesk_officer')
         now = fields.Datetime.now()
         for vals in vals_list:
+            # 확장 1: 티켓 고유 접수번호 자동 채번 (TKT-YYYY-0001)
+            if vals.get('ticket_number', 'New') == 'New':
+                vals['ticket_number'] = self.env['ir.sequence'].next_by_code('it.helpdesk.ticket') or 'New'
             # 일반 사원이 생성 시 상태를 submitted 외의 값으로 임의 주입하는 행위 방어
             if not is_officer and not self.env.su:
                 if vals.get('status') and vals['status'] != 'submitted':
@@ -437,6 +455,25 @@ class HelpDeskTicket(models.Model):
             record.is_faq = not record.is_faq
             msg = "<b>사내 FAQ 지식베이스로 등록되었습니다.</b> 전사 사원에게 유용한 조치 사례로 공유됩니다." if record.is_faq else "사내 FAQ 등록이 해제되었습니다."
             record.message_post(body=msg)
+
+    @api.model
+    def _cron_auto_close_resolved_tickets(self, days=7):
+        """확장 2: 해결완료(resolved) 후 지정된 일수(기본 7일) 동안 추가 문의나 평가가 없는 티켓 자동 종결 스케줄러"""
+        cutoff = fields.Datetime.now() - timedelta(days=days)
+        tickets = self.search([
+            ('status', '=', 'resolved'),
+            ('write_date', '<=', cutoff),
+        ])
+        closed_count = 0
+        for ticket in tickets:
+            # 시스템 관리자 권한으로 안전하게 종결(closed) 처리 및 Chatter 기록
+            ticket.sudo().write({'status': 'closed'})
+            ticket.sudo().message_post(
+                body=f"해결 완료 상태에서 {days}일 동안 추가 문의 또는 만족도 평가가 등록되지 않아 시스템 스케줄러에 의해 자동으로 문의가 종결되었습니다.",
+                subtype_xmlid='mail.mt_note'
+            )
+            closed_count += 1
+        return closed_count
 
 
 class HelpDeskTicketRating(models.Model):

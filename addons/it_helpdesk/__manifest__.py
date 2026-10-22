@@ -8,6 +8,8 @@
     "data": [
         "security/it_helpdesk_security.xml",
         "security/ir.model.access.csv",
+        "data/helpdesk_sequence.xml",
+        "data/helpdesk_cron.xml",
         "views/ticket_views.xml",
     ],
     "installable": True,

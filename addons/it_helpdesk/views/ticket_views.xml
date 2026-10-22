@@ -8,6 +8,7 @@
         <field name="groups_id" eval="[(4, ref('it_helpdesk.group_helpdesk_officer'))]"/>
         <field name="arch" type="xml">
             <kanban default_group_by="status" sample="1">
+                <field name="ticket_number"/>
                 <field name="status"/>
                 <field name="priority"/>
                 <field name="author_id"/>
@@ -19,8 +20,9 @@
                 <templates>
                     <t t-name="card">
                         <div class="d-flex align-items-center mb-1">
+                            <field name="ticket_number" class="fw-bold small text-primary me-2"/>
                             <!-- 게시판 목록에서는 마우스를 올려도 움직이지 않도록 readonly="1" 적용 -->
-                <field name="priority" widget="priority" readonly="1"/>
+                            <field name="priority" widget="priority" readonly="1"/>
                             <field name="category" class="badge text-bg-light ms-auto"/>
                         </div>
                         <div class="mb-2">
@@ -50,6 +52,7 @@
             <list string="문의 목록" decoration-muted="status in ('closed', 'canceled')" class="container">
                 <field name="is_officer" column_invisible="True"/>
                 <field name="is_overdue" column_invisible="True"/>
+                <field name="ticket_number" string="접수 번호" width="130px" decoration-bf="1"/>
                 <field name="status" 
                        widget="badge" 
                        width="110px"
@@ -180,8 +183,9 @@
                         <strong>사내 FAQ 지식베이스:</strong> 본 문의는 전사 사원에게 유용한 해결 사례로 선정된 공식 FAQ 게시글입니다.
                     </div>
                     <div class="oe_title">
-                        <span class="o_form_label">IT 문의 타이틀</span>
-                        <h1>
+                        <span class="o_form_label">IT 문의 접수</span>
+                        <h1 class="d-flex align-items-center">
+                            <field name="ticket_number" class="text-primary me-2" readonly="1" invisible="ticket_number in (False, 'New')"/>
                             <field name="title" placeholder="문의 제목 입력하세요" readonly="status not in ('submitted','assigned') or (not is_officer and author_id != uid)"/>
                         </h1>
                     </div>
@@ -253,6 +257,7 @@
         <field name="model">it.helpdesk.ticket</field>
         <field name="arch" type="xml">
             <search string="문의 검색">
+                <field name="ticket_number" string="접수 번호"/>
                 <field name="title" string="제목"/>
                 <field name="author_id" string="작성자"/>
                 <field name="assignee_id" string="담당자"/>
