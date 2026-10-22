@@ -67,6 +67,7 @@
                     decoration-success="assignee_name != '배정 대기'"/>
                 <field name="deadline" string="처리 기한" widget="remaining_days" width="130px" decoration-danger="is_overdue"/>
                 <field name="create_date" string="접수일시" width="160px"/>
+                <field name="rating" widget="priority" string="만족도" optional="show"/>
             </list>
         </field>
     </record>
@@ -181,6 +182,28 @@
                         <page string="공식 조치 내역">
                             <field name="resolution_note" placeholder="IT 담당자가 문제를 어떻게 해결했는지 공식 조치 내역을 기록합니다." readonly="status in ('closed', 'canceled') or not is_officer"/>
                         </page>
+                        <page string="고객 만족도 평가" invisible="status not in ('resolved', 'closed')">
+                            <group>
+                                <group string="조치 만족도">
+                                    <field name="rating" widget="priority" readonly="author_id != uid"/>
+                                    <field name="rating_comment" placeholder="서비스에 대한 솔직한 의견이나 감사의 말씀을 남겨주세요." readonly="author_id != uid"/>
+                                </group>
+                            </group>
+                            <div class="mt-2" invisible="author_id != uid">
+                                <button name="action_submit_rating" string="만족도 평가 제출" type="object" class="btn-primary"/>
+                            </div>
+                        </page>
+                        <page string="고객 만족도 평가" invisible="status not in ('resolved', 'closed')">
+                            <group>
+                                <group string="조치 만족도">
+                                    <field name="rating" widget="priority" readonly="author_id != uid"/>
+                                    <field name="rating_comment" placeholder="서비스에 대한 솔직한 의견이나 감사의 말씀을 남겨주세요." readonly="author_id != uid"/>
+                                </group>
+                            </group>
+                            <div class="mt-2" invisible="author_id != uid">
+                                <button name="action_submit_rating" string="만족도 평가 제출" type="object" class="btn-primary"/>
+                            </div>
+                        </page>
                     </notebook>
                 </sheet>
                 <chatter/>
@@ -211,6 +234,7 @@
                     <filter string="카테고리별" name="group_category" context="{'group_by':'category'}"/>
                     <filter string="담당자별" name="group_assignee" context="{'group_by':'assignee_id'}"/>
                     <filter string="긴급도별" name="group_priority" context="{'group_by':'priority'}"/>
+                    <filter string="만족도별" name="group_rating" context="{'group_by':'rating'}"/>
                 </group>
             </search>
             

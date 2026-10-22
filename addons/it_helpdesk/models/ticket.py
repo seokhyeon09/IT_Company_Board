@@ -81,6 +81,19 @@ class HelpDeskTicket(models.Model):
     resolution_note = fields.Html(
         string="조치 내용",
     )
+
+    rating = fields.Selection(
+        [
+            ("1", "1점 (매우 불만)"),
+            ("2", "2점 (불만)"),
+            ("3", "3점 (보통)"),
+            ("4", "4점 (만족)"),
+            ("5", "5점 (매우 만족)"),
+        ],
+        string="만족도",
+        tracking=True,
+    )
+    rating_comment = fields.Text(string="만족도 한줄평", tracking=True)
     
     is_officer = fields.Boolean(compute="_compute_is_officer")
     def _compute_is_officer(self):
@@ -124,6 +137,13 @@ class HelpDeskTicket(models.Model):
         for record in self:
             record.assignee_id = self.env.user
             record.status = 'assigned'
+            # 담당자에게 Activity(할 일) 자동 스케줄링
+            record.activity_schedule(
+                'mail.mail_activity_data_todo',
+                summary=f"IT 문의 조치 배정: {record.title}",
+                user_id=record.assignee_id.id,
+                date_deadline=record.deadline.date() if record.deadline else fields.Date.today()
+            )
 
     def action_start_progress(self):
         for record in self :
@@ -138,19 +158,24 @@ class HelpDeskTicket(models.Model):
             record.status = "in_progress"
 
     def action_resolve(self):
-        for record in self :
-            if not record.resolution_note : 
+        for record in self:
+            if not record.resolution_note: 
                 raise UserError("해결 완료 처리를 하려면 조치 내용을 먼저 작성해야 합니다.")
-            else :
+            else:
                 record.status = "resolved"
+                # 연결된 Activity 자동 완료 처리
+                if record.activity_ids:
+                    record.activity_ids.action_done()
 
     def action_close(self):
         for record in self : 
             record.status = "closed"
 
-    def action_cancel(self) : 
-        for record in self :
+    def action_cancel(self): 
+        for record in self:
             record.status = "canceled"
+            if record.activity_ids:
+                record.activity_ids.action_done()
 
     def action_reopen(self):
         for record in self:
@@ -159,3 +184,12 @@ class HelpDeskTicket(models.Model):
                 record.message_post(body="티켓이 IT 담당자에 의해 재오픈되었습니다.")
             else :
                 raise UserError("티켓 재오픈은 IT 담당자만 수행할 수 있습니다.")
+
+    def action_submit_rating(self):
+        """요청 직원의 만족도 평가 등록"""
+        for record in self:
+            if self.env.user != record.author_id:
+                raise UserError("만족도 평가는 문의를 등록한 본인만 작성할 수 있습니다.")
+            if not record.rating:
+                raise UserError("만족도 별점을 선택해 주세요.")
+            record.message_post(body=f"⭐ <b>직원 만족도 평가 완료</b>: {record.rating}점<br/>한줄평: {record.rating_comment or '없음'}")
