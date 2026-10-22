@@ -108,11 +108,27 @@ class HelpDeskTicket(models.Model):
             ("4", "4점 (만족)"),
             ("5", "5점 (매우 만족)"),
         ],
-        string="만족도",
+        string="최신 만족도",
         tracking=True,
     )
     rating_comment = fields.Text(string="만족도 한줄평", tracking=True)
     is_faq = fields.Boolean(string="FAQ 추천 사례", tracking=True)
+
+    # N:1 만족도 평가 이력 누적 (재문의 시 차수별 누적 관리)
+    rating_ids = fields.One2many(
+        "it.helpdesk.ticket.rating",
+        "ticket_id",
+        string="만족도 평가 이력",
+    )
+    current_round = fields.Integer(
+        string="현재 평가 차수",
+        compute="_compute_current_round",
+    )
+
+    @api.depends('rating_ids')
+    def _compute_current_round(self):
+        for record in self:
+            record.current_round = len(record.rating_ids) + 1
 
     is_officer = fields.Boolean(compute="_compute_is_officer")
 
@@ -186,7 +202,7 @@ class HelpDeskTicket(models.Model):
         for record in self:
             # RC-03: 종결/취소 상태인 티켓 내용 수정 차단 (RPC 우회 방어)
             if record.status in ('closed', 'canceled') and not is_system:
-                allowed_fields = {'status', 'rating', 'rating_comment', 'is_faq', 'message_follower_ids', 'activity_ids'}
+                allowed_fields = {'status', 'rating', 'rating_comment', 'is_faq', 'message_follower_ids', 'activity_ids', 'rating_ids'}
                 if not set(vals.keys()).issubset(allowed_fields):
                     raise UserError("종결되거나 취소된 문의 티켓의 내용은 수정할 수 없습니다.")
 
@@ -199,7 +215,7 @@ class HelpDeskTicket(models.Model):
                         # 1) 본인 티켓 취소
                         (record.status in ('submitted', 'assigned', 'in_progress', 'pending') and new_status == 'canceled') or
                         # 2) 본인 티켓 재문의
-                        (record.status in ('pending', 'resolved') and new_status == 'in_progress') or
+                        (record.status in ('pending', 'resolved', 'closed') and new_status == 'in_progress') or
                         # 3) 본인 티켓 만족도 평가 완료 후 종결
                         (record.status == 'resolved' and new_status == 'closed')
                     )
@@ -279,23 +295,17 @@ class HelpDeskTicket(models.Model):
             record.status = "pending"
 
     def action_restart_ticket(self):
-        """직원의 추가 문의(재문의)"""
+        """직원의 추가 문의(재문의: 답변대기, 해결완료, 종결 건 재개)"""
         for record in self:
             is_officer = self.env.is_admin() or self.env.user.has_group('it_helpdesk.group_helpdesk_officer')
             if record.author_id != self.env.user and not is_officer:
                 raise UserError("추가 문의는 문의를 등록한 본인만 요청할 수 있습니다.")
-            if record.status not in ('pending', 'resolved'):
-                raise UserError("답변 대기 또는 해결 완료된 티켓에 대해서만 추가 문의를 진행할 수 있습니다.")
+            if record.status not in ('pending', 'resolved', 'closed'):
+                raise UserError("답변 대기, 해결 완료 또는 종결된 티켓에 대해서만 추가 문의를 진행할 수 있습니다.")
 
-            # RC-08: 이전 만족도 평가 Chatter 박제 보존 및 재평가 활성화
-            if record.rating:
-                record.message_post(
-                    body=f"📜 <b>[1차 고객 만족도 평가 이력 보존]</b><br/>"
-                         f"- 만족도 점수: {record.rating}점<br/>"
-                         f"- 한줄평: {record.rating_comment or '없음'}"
-                )
-                record.rating = False
-                record.rating_comment = False
+            # 다음 차수 평가를 위해 현재 별점 입력값 초기화 (기존 rating_ids는 테이블에 안전하게 보존됨)
+            record.rating = False
+            record.rating_comment = False
 
             record.status = "in_progress"
             record.message_post(body="요청 직원이 추가 문의(재문의)를 등록하여 처리가 다시 진행됩니다.")
@@ -351,18 +361,12 @@ class HelpDeskTicket(models.Model):
             if record.status not in ('closed', 'resolved', 'canceled'):
                 raise UserError("해결 완료, 종결 또는 취소된 티켓만 재오픈할 수 있습니다.")
 
-            # RC-08: 이전 만족도 평가 Chatter 박제 보존 및 재평가 활성화
-            if record.rating:
-                record.message_post(
-                    body=f"📜 <b>[이전 고객 만족도 평가 이력 보존]</b><br/>"
-                         f"- 만족도 점수: {record.rating}점<br/>"
-                         f"- 한줄평: {record.rating_comment or '없음'}"
-                )
-                record.rating = False
-                record.rating_comment = False
+            # 다음 차수 평가를 위해 현재 별점 입력값 초기화 (기존 rating_ids는 보존)
+            record.rating = False
+            record.rating_comment = False
 
             record.status = "in_progress"
-            record.message_post(body="티켓이 IT 담당자에 의해 재오픈되었습니다. (만족도 평가 초기화 완료)")
+            record.message_post(body="티켓이 IT 담당자에 의해 재오픈되었습니다.")
 
             # RC-05: 담당자에게 새 Activity 자동 스케줄링
             if record.assignee_id:
@@ -374,13 +378,27 @@ class HelpDeskTicket(models.Model):
                 )
 
     def action_submit_rating(self):
-        """요청 직원의 만족도 평가 등록 후 자동 종결"""
+        """요청 직원의 만족도 평가 등록 (N:1 평가 이력 누적 후 자동 종결)"""
         for record in self:
             if self.env.user != record.author_id:
                 raise UserError("만족도 평가는 문의를 등록한 본인만 작성할 수 있습니다.")
             if not record.rating:
                 raise UserError("만족도 별점을 선택해 주세요.")
-            record.message_post(body=f"⭐ <b>직원 만족도 평가 완료</b>: {record.rating}점<br/>한줄평: {record.rating_comment or '없음'}")
+
+            next_round = len(record.rating_ids) + 1
+            # N:1 만족도 평가 이력 레코드 생성
+            self.env['it.helpdesk.ticket.rating'].create({
+                'ticket_id': record.id,
+                'round': next_round,
+                'rating': record.rating,
+                'rating_comment': record.rating_comment,
+                'author_id': self.env.user.id,
+            })
+
+            record.message_post(
+                body=f"⭐ <b>직원 만족도 평가 ({next_round}차) 완료</b>: {record.rating}점<br/>"
+                     f"한줄평: {record.rating_comment or '없음'}"
+            )
             # 만족도 제출 시 종결(closed)로 안전하게 마무리
             record.status = "closed"
 
@@ -394,3 +412,37 @@ class HelpDeskTicket(models.Model):
             record.is_faq = not record.is_faq
             msg = "📘 <b>사내 FAQ 지식베이스로 등록되었습니다.</b> 전사 사원에게 유용한 조치 사례로 공유됩니다." if record.is_faq else "사내 FAQ 등록이 해제되었습니다."
             record.message_post(body=msg)
+
+
+class HelpDeskTicketRating(models.Model):
+    _name = "it.helpdesk.ticket.rating"
+    _description = "IT 문의 고객 만족도 평가 이력"
+    _order = "round asc, id asc"
+
+    ticket_id = fields.Many2one(
+        "it.helpdesk.ticket",
+        string="대상 티켓",
+        required=True,
+        ondelete="cascade",
+        index=True,
+    )
+    round = fields.Integer(string="차수", default=1)
+    rating = fields.Selection(
+        [
+            ("1", "1점 (매우 불만)"),
+            ("2", "2점 (불만)"),
+            ("3", "3점 (보통)"),
+            ("4", "4점 (만족)"),
+            ("5", "5점 (매우 만족)"),
+        ],
+        string="만족도",
+        required=True,
+    )
+    rating_comment = fields.Text(string="만족도 한줄평")
+    author_id = fields.Many2one(
+        "res.users",
+        string="평가 직원",
+        default=lambda self: self.env.user,
+        readonly=True,
+    )
+    create_date = fields.Datetime(string="평가일시", readonly=True)

@@ -100,3 +100,58 @@ class TestHelpdeskUIUXAudit(TransactionCase):
         kanban_view = self.env.ref('it_helpdesk.view_helpdesk_ticket_kanban')
         officer_group = self.env.ref('it_helpdesk.group_helpdesk_officer')
         self.assertIn(officer_group, kanban_view.groups_id)
+
+    def test_06_reopen_accumulates_rating_history(self):
+        """[사용자 요청 검증] 재문의 및 재해결 시 N:1 만족도 평가 이력이 차수별(1차, 2차...)로 누적되어야 함"""
+        ticket = self.Ticket.with_user(self.user_employee).create({
+            'title': '프린터 출력 오류',
+            'content': '<p>인쇄가 안 됩니다.</p>',
+            'author_id': self.user_employee.id,
+        })
+        # 1. 담당자 배정 및 1차 해결
+        ticket.with_user(self.user_officer).action_assign_to_me()
+        ticket.with_user(self.user_officer).write({
+            'status': 'in_progress',
+            'resolution_note': '<p>드라이버 재설치</p>',
+        })
+        ticket.with_user(self.user_officer).action_resolve()
+        self.assertEqual(ticket.status, 'resolved')
+
+        # 2. 직원의 1차 만족도 제출 (3점)
+        ticket.with_user(self.user_employee).write({
+            'rating': '3',
+            'rating_comment': '인쇄는 되는데 컬러가 안 나옵니다.',
+        })
+        ticket.with_user(self.user_employee).action_submit_rating()
+        self.assertEqual(ticket.status, 'closed')
+        # 1차 평가 레코드 생성 확인
+        self.assertEqual(len(ticket.rating_ids), 1)
+        self.assertEqual(ticket.rating_ids[0].round, 1)
+        self.assertEqual(ticket.rating_ids[0].rating, '3')
+
+        # 3. 직원의 추가 문의 (재문의)
+        ticket.with_user(self.user_employee).action_restart_ticket()
+        self.assertEqual(ticket.status, 'in_progress')
+        # 기존 평가 이력(1차)은 그대로 보존되어 있어야 함
+        self.assertEqual(len(ticket.rating_ids), 1)
+
+        # 4. 담당자의 2차 조치 및 해결
+        ticket.with_user(self.user_officer).write({'resolution_note': '<p>컬러 토너 카트리지 교체 완료</p>'})
+        ticket.with_user(self.user_officer).action_resolve()
+        self.assertEqual(ticket.status, 'resolved')
+
+        # 5. 직원의 2차 만족도 제출 (5점)
+        ticket.with_user(self.user_employee).write({
+            'rating': '5',
+            'rating_comment': '컬러도 아주 선명하게 잘 나옵니다! 완벽합니다.',
+        })
+        ticket.with_user(self.user_employee).action_submit_rating()
+        self.assertEqual(ticket.status, 'closed')
+
+        # 6. N:1 평가 이력이 2건으로 늘어났는지 검증
+        self.assertEqual(len(ticket.rating_ids), 2)
+        ratings = ticket.rating_ids.sorted('round')
+        self.assertEqual(ratings[0].round, 1)
+        self.assertEqual(ratings[0].rating, '3')
+        self.assertEqual(ratings[1].round, 2)
+        self.assertEqual(ratings[1].rating, '5')

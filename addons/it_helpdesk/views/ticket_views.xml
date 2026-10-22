@@ -115,7 +115,7 @@
                         string="재문의"
                         type="object"
                         class="oe_highlight"
-                        invisible="status not in ('pending', 'resolved')"
+                        invisible="status not in ('pending', 'resolved', 'closed') or (not is_officer and author_id != uid)"
                     />
 
                     <button
@@ -205,14 +205,33 @@
                             <field name="resolution_note" placeholder="IT 담당자가 문제를 어떻게 해결했는지 공식 조치 내역을 기록합니다." readonly="status in ('closed', 'canceled') or not is_officer"/>
                         </page>
                         <page string="고객 만족도 평가" invisible="status not in ('resolved', 'closed')">
-                            <group>
-                                <group string="조치 만족도">
-                                    <field name="rating" widget="priority" readonly="author_id != uid or status == 'closed'"/>
-                                    <field name="rating_comment" placeholder="서비스에 대한 솔직한 의견이나 감사의 말씀을 남겨주세요." readonly="author_id != uid or status == 'closed'"/>
+                            <!-- 신규 평가 작성 영역 (해결완료 상태에서 본인에게 활성화) -->
+                            <div class="alert alert-light border mb-3" invisible="status != 'resolved' or author_id != uid">
+                                <h6 class="fw-bold mb-2">
+                                    ⭐ <field name="current_round" readonly="1" class="d-inline"/>차 만족도 평가 작성
+                                </h6>
+                                <p class="text-muted small mb-2">조치 내용에 대한 만족도와 의견을 남겨주시면 최종 종결 처리됩니다.</p>
+                                <group>
+                                    <field name="rating" widget="priority"/>
+                                    <field name="rating_comment" placeholder="서비스에 대한 솔직한 의견이나 감사의 말씀을 남겨주세요."/>
                                 </group>
-                            </group>
-                            <div class="mt-2" invisible="author_id != uid or status == 'closed'">
-                                <button name="action_submit_rating" string="만족도 평가 제출" type="object" class="btn-primary"/>
+                                <div class="mt-2">
+                                    <button name="action_submit_rating" string="만족도 평가 제출 및 종결" type="object" class="btn-primary"/>
+                                </div>
+                            </div>
+
+                            <!-- 누적된 N:1 평가 이력 목록 (차수별 누적 관리) -->
+                            <div class="mt-3" invisible="not rating_ids">
+                                <h6 class="fw-bold mb-2">📜 누적 평가 이력 (차수별)</h6>
+                                <field name="rating_ids" readonly="1">
+                                    <list string="평가 이력">
+                                        <field name="round" string="차수" width="70px" decoration-bf="1"/>
+                                        <field name="rating" widget="priority" string="만족도 점수" width="120px"/>
+                                        <field name="rating_comment" string="한줄평"/>
+                                        <field name="author_id" string="평가 직원" width="120px"/>
+                                        <field name="create_date" string="평가일시" width="160px"/>
+                                    </list>
+                                </field>
                             </div>
                         </page>
                     </notebook>
