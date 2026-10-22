@@ -208,7 +208,7 @@
                             <!-- 신규 평가 작성 영역 (해결완료 상태에서 본인에게 활성화) -->
                             <div class="alert alert-light border mb-3" invisible="status != 'resolved' or author_id != uid">
                                 <h6 class="fw-bold mb-2">
-                                    ⭐ <field name="current_round" readonly="1" class="d-inline"/>차 만족도 평가 작성
+                                    <field name="current_round" readonly="1" class="d-inline"/>차 만족도 평가 작성
                                 </h6>
                                 <p class="text-muted small mb-2">조치 내용에 대한 만족도와 의견을 남겨주시면 최종 종결 처리됩니다.</p>
                                 <group>
@@ -222,7 +222,7 @@
 
                             <!-- 누적된 N:1 평가 이력 목록 (차수별 누적 관리) -->
                             <div class="mt-3" invisible="not rating_ids">
-                                <h6 class="fw-bold mb-2">📜 누적 평가 이력 (차수별)</h6>
+                                <h6 class="fw-bold mb-2">누적 평가 이력 (차수별)</h6>
                                 <field name="rating_ids" readonly="1">
                                     <list string="평가 이력">
                                         <field name="round" string="차수" width="70px" decoration-bf="1"/>
@@ -252,9 +252,9 @@
                 <field name="assignee_id" string="담당자"/>
                 <field name="category" string="카테고리"/>
 
-                <filter string="📘 FAQ 지식창고" name="filter_faq" domain="[('is_faq', '=', True)]"/>
+                <filter string="FAQ 지식창고" name="filter_faq" domain="[('is_faq', '=', True)]"/>
                 <!-- 관리자/담당자 전용 필터 -->
-                <filter string="🚨 SLA 기한 초과" name="filter_overdue" domain="[('is_overdue', '=', True)]" groups="it_helpdesk.group_helpdesk_officer"/>
+                <filter string="SLA 기한 초과" name="filter_overdue" domain="[('is_overdue', '=', True)]" groups="it_helpdesk.group_helpdesk_officer"/>
                 <filter string="내 문의" name="my_ticket" domain="[('author_id','=',uid)]"/>
                 <separator/>
                 <filter string="배정대기" name="unassigned" domain="[('assignee_id','=',False)]" groups="it_helpdesk.group_helpdesk_officer"/>

@@ -396,7 +396,7 @@ class HelpDeskTicket(models.Model):
             })
 
             record.message_post(
-                body=f"⭐ <b>직원 만족도 평가 ({next_round}차) 완료</b>: {record.rating}점<br/>"
+                body=f"<b>직원 만족도 평가 ({next_round}차) 완료</b>: {record.rating}점<br/>"
                      f"한줄평: {record.rating_comment or '없음'}"
             )
             # 만족도 제출 시 종결(closed)로 안전하게 마무리
@@ -410,7 +410,7 @@ class HelpDeskTicket(models.Model):
             if _is_html_empty(record.resolution_note):
                 raise UserError("FAQ로 등록하려면 먼저 공식 조치 내역을 작성해야 합니다.")
             record.is_faq = not record.is_faq
-            msg = "📘 <b>사내 FAQ 지식베이스로 등록되었습니다.</b> 전사 사원에게 유용한 조치 사례로 공유됩니다." if record.is_faq else "사내 FAQ 등록이 해제되었습니다."
+            msg = "<b>사내 FAQ 지식베이스로 등록되었습니다.</b> 전사 사원에게 유용한 조치 사례로 공유됩니다." if record.is_faq else "사내 FAQ 등록이 해제되었습니다."
             record.message_post(body=msg)
 
 
