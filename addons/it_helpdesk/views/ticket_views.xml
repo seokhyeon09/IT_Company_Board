@@ -40,6 +40,35 @@
         </field>
     </record>
 
+    <!-- 칸반보드뷰 -->
+    <record id="view_helpdesk_ticket_kanban" model="ir.ui.view">
+        <field name="name">it.helpdesk.ticket.kanban</field>
+        <field name="model">it.helpdesk.ticket</field>
+        <field name="groups_id" eval="[(4, ref('group_helpdesk_officer'))]"/>
+        <field name="arch" type="xml">
+            <kanban default_group_by="status">
+                <templates>
+                    <t t-name="card">
+                        <div>
+                            <field name="priority" widget="priority"/>
+                            <field name="category" class="text-muted"/>
+                        </div>
+                        
+                        <div>
+                            <field name="title" class="fw-bold"/>
+                            <field name="author_id" class="text-muted"/>
+                        </div>
+                        
+                        <div>
+                            <field name="create_date" class="text-muted small"/>
+                            <field name="assignee_id" widget="many2one_avatar_user"/>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
     <!-- 게시글상세 -->
     <record id="view_helpdesk_ticket_form" model="ir.ui.view">
         <field name="name">it.helpdesk.ticket.form</field>
@@ -195,20 +224,20 @@
     <record id="action_helpdesk_ticket" model="ir.actions.act_window">
         <field name="name">전체 문의 목록</field>
         <field name="res_model">it.helpdesk.ticket</field>
-        <field name="view_mode">list,form</field>
+        <field name="view_mode">list,kanban,form</field>
     </record>
 
     <record id="action_helpdesk_ticket_my" model="ir.actions.act_window">
         <field name="name">내 문의 목록</field>
         <field name="res_model">it.helpdesk.ticket</field>
-        <field name="view_mode">list,form</field>
+        <field name="view_mode">list,kanban,form</field>
         <field name="domain">[('author_id','=',uid)]</field>
     </record>
 
     <record id="action_helpdesk_ticket_unassigned" model="ir.actions.act_window">
         <field name="name">미배정 대기</field>
         <field name="res_model">it.helpdesk.ticket</field>
-        <field name="view_mode">list,form</field>
+        <field name="view_mode">list,kanban,form</field>
         <field name="domain">[('assignee_id','=',False)]</field>
     </record>
 
