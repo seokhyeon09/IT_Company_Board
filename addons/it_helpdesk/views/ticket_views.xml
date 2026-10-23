@@ -7,6 +7,14 @@
         <field name="model">it.helpdesk.ticket</field>
         <field name="arch" type="xml">
             <list string="문의 목록" decoration-muted="status in ('closed', 'canceled')" class="container">
+                <field
+                    name="is_officer"
+                    column_invisible="1"
+                />
+                <field
+                    name="is_author"
+                    column_invisible="1"
+                />
                 <field name="status" 
                        widget="badge" 
                        width="110px"
@@ -16,7 +24,7 @@
                        decoration-success="status in ('resolved', 'closed')"
                        decoration-muted="status == 'canceled'"/>
                 <field name="category" width="130px"/>
-                <field name="priority" widget="priority"/>
+                <field name="priority" widget="priority" readonly="not is_author and not is_officer"/>
                 <!-- 제목은 width를 적지 않아야 남은 공간을 알아서 꽉 채워줍니다 -->
                 <field name="title" class="fw-bold"/>
                 <field name="author_id" width="120px"
@@ -127,8 +135,8 @@
                     <group>
                         <!-- 왼쪽 열 -->
                         <group string="문의 분류">
-                            <field name="category" readonly="status in ('closed','canceled')"/>
-                            <field name="priority" widget="priority"/>
+                            <field name="category" readonly="status in ('closed','canceled') or (not is_officer and not is_author)"/>
+                            <field name="priority" widget="priority" readonly="status in ('closed','canceled') or (not is_author and not is_officer)"/>
                         </group>
     
                         <!-- 오른쪽 열 -->
