@@ -45,7 +45,7 @@
                         string = "담당 접수"
                         type = "object"
                         class = "oe_highlight"
-                        invisible = "status != 'submitted'"
+                        invisible = "status != 'submitted' or not is_officer"
                     />
 
                     <button
@@ -53,7 +53,7 @@
                         string = "처리 시작"
                         type = "object"
                         class = "oe_highlight"
-                        invisible = "status != 'assigned'"
+                        invisible = "status != 'assigned' or not is_officer"
                     />
 
                     <button
@@ -61,7 +61,7 @@
                         string = "답변 대기"
                         type="object"
                         class="oe_highlight"
-                        invisible="status!='in_progress'"
+                        invisible="status != 'in_progress' or not is_officer"
                     />
 
                     <button
@@ -69,7 +69,7 @@
                         string = "재문의"
                         type = "object"
                         class = "oe_highlight"
-                        invisible = "status != 'pending'"
+                        invisible = "status != 'pending' or not is_author"
                     />
 
                     <button
@@ -77,7 +77,15 @@
                         string = "해결 완료"
                         type="object"
                         class="oe_highlight"
-                        invisible="status not in ('in_progress', 'pending')"
+                        invisible="status not in ('in_progress', 'pending') or not is_officer"
+                    />
+
+                    <button
+                        name="action_submit_rating"
+                        string = "만족도 제출 및 종결"
+                        type="object"
+                        class="oe_highlight"
+                        invisible="status != 'resolved' or not is_author"
                     />
 
                     <button
@@ -85,7 +93,7 @@
                         string = "문의 종결"
                         type="object"
                         class="oe_highlight"
-                        invisible="status != 'resolved'"
+                        invisible="status != 'resolved' or not is_officer"
                     />
                     
                     <button
@@ -93,7 +101,7 @@
                         string = "문의 취소"
                         type="object"
                         class="btn-secondary"
-                        invisible="status in ('pending','resolved', 'closed', 'canceled')"
+                        invisible="status in ('pending','resolved', 'closed', 'canceled') or (not is_author and not is_officer)"
                     />
 
                     <button
@@ -135,6 +143,10 @@
                         </page>
                         <page string="공식 조치 내역">
                             <field name="resolution_note" placeholder="IT 담당자가 문제를 어떻게 해결했는지 공식 조치 내역을 기록합니다." readonly="status in ('closed', 'canceled') or not is_officer"/>
+                        </page>
+                        <page string="만족도 평가" invisible="status not in ('resolved', 'closed')" readonly="status == 'closed' or not is_author">
+                            <field name="rating" widget="priority"/>
+                            <field name="rating_feedback" placeholder="서비스에 대한 의견이나 개선사항을 자유롭게 남겨주세요."/>
                         </page>
                     </notebook>
                 </sheet>
