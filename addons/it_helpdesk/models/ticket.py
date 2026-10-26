@@ -1,5 +1,6 @@
-from odoo import models, fields
+from odoo import models, fields, api
 from odoo.exceptions import UserError
+from datetime import timedelta
 
 class HelpDeskTicket(models.Model):
     _name = "it.helpdesk.ticket"
@@ -74,6 +75,19 @@ class HelpDeskTicket(models.Model):
 
     rating_feedback = fields.Text(
         string = "만족도 의견"
+    )
+
+    deadline = fields.Datetime(
+        string="처리 기한",
+        compute="_compute_deadline",
+        store=True,
+        readonly=False
+    )
+
+    is_overdue = fields.Boolean(
+        string="기한 초과",
+        compute="_compute_is_overdue",
+        search="_search_is_overdue",
     )
 
     def _compute_assignee_name(self):
@@ -169,3 +183,44 @@ class HelpDeskTicket(models.Model):
                 if vals.get('status') in ('assigned', 'in_progress', 'pending', 'resolved'):
                     raise UserError("이러한 상태변화는 담당자에 한해서 가능합니다.")
         return super().write(vals)
+
+    @api.depends('priority', 'create_date')
+    def _compute_deadline(self):
+        for record in self:
+            # 기준 시각: 접수일시(create_date)가 있으면 사용하고, 아직 저장 전이면 현재 시각(fields.Datetime.now())을 사용
+            base_time = record.create_date or fields.Datetime.now()
+            
+            # 긴급도별로 더해줄 시간(hours) 매핑
+            if record.priority == '3':
+                record.deadline = base_time + timedelta(hours=4)
+            elif record.priority == '2':
+                record.deadline = base_time + timedelta(hours=24)
+            elif record.priority == '1':
+                record.deadline = base_time + timedelta(hours=48)
+            else:
+                record.deadline = base_time + timedelta(hours=72)
+
+    def _compute_is_overdue(self):
+        now = fields.Datetime.now()
+        for record in self :
+            if record.deadline and record.status not in ('resolved', 'closed', 'canceled'):
+                if record.deadline < now :
+                    record.is_overdue = True
+                else :
+                    record.is_overdue = False
+            else :
+                record.is_overdue = False
+
+    def _search_is_overdue(self, operator, value):
+        now = fields.Datetime.now()
+        if (operator == '=' and value) or (operator == '!=' and not value):
+            return [
+                ('deadline', '<', now),
+                ('status', 'not in', ('resolved', 'closed', 'canceled')),
+            ]
+        else:
+            return [
+                '|',
+                ('deadline', '>=', now),
+                ('status', 'in', ('resolved', 'closed', 'canceled')),
+            ]
