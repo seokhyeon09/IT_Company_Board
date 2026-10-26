@@ -162,3 +162,10 @@ class HelpDeskTicket(models.Model):
             else :
                 record.status = "closed"
                 record.message_post(body="작성자에 의해 만족도 조사가 작성되었습니다.")
+
+    def write(self, vals):
+        if 'status' in vals :
+            if not self.env.user.has_group('it_helpdesk.group_helpdesk_officer'):
+                if vals.get('status') in ('assigned', 'in_progress', 'pending', 'resolved'):
+                    raise UserError("이러한 상태변화는 담당자에 한해서 가능합니다.")
+        return super().write(vals)
