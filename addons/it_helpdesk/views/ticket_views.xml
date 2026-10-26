@@ -220,6 +220,28 @@
         </field>
     </record>
 
+    <record id="view_helpdesk_ticket_pivot" model="ir.ui.view">
+        <field name="name">it.helpdesk.ticket.pivot</field>
+        <field name="model">it.helpdesk.ticket</field>
+        <field name="arch" type="xml">
+            <pivot string ="문의 통계 분석" sample="1">
+                <field name="category" type="row"/>
+                <field name="status" type="col"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="view_helpdesk_ticket_graph" model="ir.ui.view">
+        <field name="name">it.helpdesk.ticket.graph</field>
+        <field name="model">it.helpdesk.ticket</field>
+        <field name="arch" type="xml">
+            <graph string="문의 통계 그래프" type="bar" sample="1">
+                <field name="category"/>
+                <field name="status"/>
+            </graph>
+        </field>
+    </record>
+
     <!--  액션 (리모컨: 메뉴를 눌렀을 때 목록과 폼 화면을 열어주는 명령) -->
     <record id="action_helpdesk_ticket" model="ir.actions.act_window">
         <field name="name">전체 문의 목록</field>
@@ -246,6 +268,12 @@
         <field name="name">문의 처리보드</field>
         <field name="res_model">it.helpdesk.ticket</field>
         <field name="view_mode">kanban,list,form</field>
+    </record>
+
+    <record id="action_helpdesk_ticket_analytics" model="ir.actions.act_window">
+        <field name="name">문의 통계 및 분석</field>
+        <field name="res_model">it.helpdesk.ticket</field>
+        <field name="view_mode">pivot,graph</field>
     </record>
 
     <!-- 메인메뉴 -->
@@ -276,6 +304,14 @@
         action="action_helpdesk_ticket_kanban"
         groups="it_helpdesk.group_helpdesk_officer"
         sequence="40"
+    />
+
+    <menuitem id="menu_helpdesk_ticket_analytics"
+        name="문의 통계 및 분석"
+        parent="menu_helpdesk_root"
+        action="action_helpdesk_ticket_analytics"
+        groups="it_helpdesk.group_helpdesk_officer"
+        sequence="50"
     />
 
 </odoo>
