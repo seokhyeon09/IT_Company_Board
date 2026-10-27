@@ -58,6 +58,16 @@ class TicketResolveDTO(BaseModel):
 
 
 
+
+class ThreadItemDTO(BaseModel):
+    id: int
+    type: str  # "inquiry" | "resolution"
+    round: int
+    author_id: Optional[Any] = None
+    author_name: str
+    date: Optional[str] = None
+    content: str
+
 class ResolutionNoteDTO(BaseModel):
     id: int
     date: Optional[str] = None
@@ -114,6 +124,7 @@ class TicketDetailResponseDTO(TicketResponseDTO):
     resolution_note: Optional[Any] = None
     author_name: Optional[Any] = None
     rating_comment: Optional[Any] = None
+    timeline: List[ThreadItemDTO] = []
     resolutions: List[ResolutionNoteDTO] = []
     follow_ups: List[FollowUpInquiryDTO] = []
     logs: List[TicketLogDTO] = []

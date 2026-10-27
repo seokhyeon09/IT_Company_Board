@@ -47,6 +47,23 @@ def _clean_html(raw: Optional[str]) -> str:
     text = text.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
     return text.strip()
 
+
+def _extract_thread_content(raw_html: str, markers: list) -> str:
+    """Extract clean body text from message tags without html artifacts."""
+    if not raw_html:
+        return ""
+    text = raw_html
+    for m in markers:
+        if m in text:
+            parts = text.split(m, 1)
+            if len(parts) > 1 and parts[1].strip():
+                text = parts[1]
+    # Strip residual closing tags before clean_html
+    text = re.sub(r'^(?:</b>|</strong>|</div>|</span>|<br\s*/?>)+', '', text.strip(), flags=re.IGNORECASE)
+    clean = _clean_html(text)
+    clean = re.sub(r'^(?:\[(?:추가 재문의|조치 답변|조치 답변 \(수정\))\]\s*)+', '', clean).strip()
+    return clean
+
 def _format_datetime_utc(dt_val) -> Optional[str]:
     """Format an Odoo Datetime value to an unambiguous ISO-8601 UTC string ending in 'Z'."""
     if not dt_val:
@@ -250,6 +267,17 @@ class ITHelpdeskAPIController(http.Controller):
             "rating_comment": ticket.rating_comment or None,
             "create_date": _format_datetime_utc(ticket.create_date),
             "write_date": _format_datetime_utc(ticket.write_date),
+            "timeline": [
+                {
+                    "id": 0,
+                    "type": "inquiry",
+                    "round": 1,
+                    "author_id": ticket.author_id.id if ticket.author_id else None,
+                    "author_name": ticket.author_id.name if ticket.author_id else "사원",
+                    "date": _format_datetime_utc(ticket.create_date),
+                    "content": _clean_html(ticket.content) or "작성된 상세 내용이 없습니다.",
+                }
+            ],
             "resolutions": [
                 {
                     "id": msg.id,
@@ -287,6 +315,55 @@ class ITHelpdeskAPIController(http.Controller):
                 if _clean_html(msg.body)
             ] if is_officer else []
         }
+        # Dynamic Sequential Timeline (최초문의 -> 조치1 -> 재문의1 -> 조치2 ...)
+        seq_timeline = [data["timeline"][0]]
+        inq_rnd = 1
+        res_rnd = 0
+
+        for msg in ticket.message_ids.sorted(key=lambda m: m.id, reverse=False):
+            body = msg.body or ""
+            author_name = msg.author_id.name if msg.author_id else "시스템"
+            clean_b = _clean_html(body)
+
+            if 'data-msg-type="resolution"' in body or "IT 담당자 조치 내용:" in body or "[조치 답변]" in clean_b:
+                res_rnd += 1
+                c = _extract_thread_content(body, ['data-msg-type="resolution">', 'IT 담당자 조치 내용:', '[조치 답변]', '[조치 답변 (수정)]'])
+                if c:
+                    seq_timeline.append({
+                        "id": msg.id,
+                        "type": "resolution",
+                        "round": res_rnd,
+                        "author_id": msg.author_id.id if msg.author_id else None,
+                        "author_name": author_name,
+                        "date": _format_datetime_utc(msg.date),
+                        "content": c
+                    })
+            elif 'data-msg-type="inquiry"' in body or "직원 추가 재문의 내용:" in body or "[추가 재문의]" in clean_b:
+                inq_rnd += 1
+                c = _extract_thread_content(body, ['data-msg-type="inquiry">', '직원 추가 재문의 내용:', '[추가 재문의]'])
+                if c:
+                    seq_timeline.append({
+                        "id": msg.id,
+                        "type": "inquiry",
+                        "round": inq_rnd,
+                        "author_id": msg.author_id.id if msg.author_id else None,
+                        "author_name": author_name,
+                        "date": _format_datetime_utc(msg.date),
+                        "content": c
+                    })
+
+        if res_rnd == 0 and ticket.resolution_note:
+            seq_timeline.append({
+                "id": 0,
+                "type": "resolution",
+                "round": 1,
+                "author_id": ticket.assignee_id.id if ticket.assignee_id else None,
+                "author_name": ticket.assignee_name or "IT 담당자",
+                "date": _format_datetime_utc(ticket.write_date),
+                "content": _clean_html(ticket.resolution_note)
+            })
+
+        data["timeline"] = seq_timeline
         return {"status": "success", "data": data}
 
     @http.route('/api/v1/tickets/create', type='json', auth='none', methods=['POST'], csrf=False)
@@ -359,7 +436,7 @@ class ITHelpdeskAPIController(http.Controller):
         elif ticket.status == 'assigned':
             ticket.action_start_progress()
         ticket.action_resolve()
-        ticket.message_post(body=f"<b>IT 담당자 조치 내용:</b><br/>{resolution_note}")
+        ticket.message_post(body=f'<div data-msg-type="resolution"><b>[조치 답변]</b><br/>{resolution_note}</div>')
 
         return {
             "status": "success",
@@ -448,7 +525,7 @@ class ITHelpdeskAPIController(http.Controller):
         ticket.action_restart_ticket()
         if reason and str(reason).strip():
             clean_reason = str(reason).strip()
-            ticket.message_post(body=f"<b>직원 추가 재문의 내용:</b><br/>{clean_reason}")
+            ticket.message_post(body=f'<div data-msg-type="inquiry"><b>[추가 재문의]</b><br/>{clean_reason}</div>')
 
         return {
             "status": "success",
@@ -494,7 +571,7 @@ class ITHelpdeskAPIController(http.Controller):
             raise UserError("Resolution note must be at least 5 characters.")
 
         ticket.resolution_note = clean_note
-        ticket.message_post(body=f"<b>IT 담당자 조치 내용:</b><br/>{clean_note}")
+        ticket.message_post(body=f'<div data-msg-type="resolution"><b>[조치 답변 (수정)]</b><br/>{clean_note}</div>')
 
         return {
             "status": "success",
