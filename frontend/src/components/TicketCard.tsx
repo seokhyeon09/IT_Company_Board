@@ -1,0 +1,116 @@
+import React from 'react';
+import { Clock, AlertTriangle, CheckCircle2, UserCheck, HelpCircle } from 'lucide-react';
+
+export interface Ticket {
+  id: number;
+  ticket_number: string;
+  title: string;
+  category: string;
+  status: string;
+  priority: string;
+  deadline?: string;
+  is_overdue: boolean;
+  author_id?: any;
+  assignee_id?: any;
+  assignee_name?: string;
+  create_date?: string;
+  write_date?: string;
+  is_faq: boolean;
+}
+
+interface TicketCardProps {
+  ticket: Ticket;
+  onClick: (ticket: Ticket) => void;
+}
+
+const statusMap: Record<string, { label: string; color: string }> = {
+  submitted: { label: '접수대기', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+  assigned: { label: '배정완료', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+  in_progress: { label: '처리중', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+  pending: { label: '답변대기', color: 'bg-purple-50 text-purple-700 border-purple-200' },
+  resolved: { label: '해결완료', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  closed: { label: '종결', color: 'bg-slate-100 text-slate-600 border-slate-200' },
+  canceled: { label: '취소', color: 'bg-rose-50 text-rose-700 border-rose-200' },
+};
+
+const categoryMap: Record<string, string> = {
+  hw: '하드웨어',
+  sw: '소프트웨어',
+  network: '네트워크',
+  account: '계정/권한',
+  etc: '기타',
+};
+
+const priorityMap: Record<string, { label: string; badge: string }> = {
+  '3': { label: '긴급', badge: 'bg-rose-500 text-white' },
+  '2': { label: '높음', badge: 'bg-orange-500 text-white' },
+  '1': { label: '보통', badge: 'bg-slate-200 text-slate-700' },
+  '0': { label: '낮음', badge: 'bg-slate-100 text-slate-500' },
+};
+
+export const TicketCard: React.FC<TicketCardProps> = ({ ticket, onClick }) => {
+  const statusInfo = statusMap[ticket.status] || { label: ticket.status, color: 'bg-slate-100 text-slate-700' };
+  const priorityInfo = priorityMap[ticket.priority] || { label: '보통', badge: 'bg-slate-200 text-slate-700' };
+
+  return (
+    <div
+      onClick={() => onClick(ticket)}
+      className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer flex flex-col justify-between"
+    >
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center space-x-2">
+            <span className="font-mono text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+              {ticket.ticket_number}
+            </span>
+            <span className={`text-xs px-2 py-0.5 rounded font-semibold ${priorityInfo.badge}`}>
+              {priorityInfo.label}
+            </span>
+            {ticket.is_faq && (
+              <span className="flex items-center text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded font-medium">
+                <HelpCircle className="w-3 h-3 mr-1" /> FAQ
+              </span>
+            )}
+          </div>
+          <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${statusInfo.color}`}>
+            {statusInfo.label}
+          </span>
+        </div>
+
+        <h3 className="font-bold text-base text-slate-900 group-hover:text-indigo-600 line-clamp-1 mb-2">
+          {ticket.title}
+        </h3>
+
+        <div className="flex items-center space-x-2 text-xs text-slate-500 mb-4">
+          <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600 font-medium">
+            {categoryMap[ticket.category] || ticket.category}
+          </span>
+          <span>·</span>
+          <span>담당자: {ticket.assignee_name || '배정 대기'}</span>
+        </div>
+      </div>
+
+      <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+        <div className="text-slate-400">
+          접수: {ticket.create_date ? ticket.create_date.substring(0, 10) : '-'}
+        </div>
+
+        {ticket.deadline && (
+          <div className={`flex items-center font-medium ${ticket.is_overdue ? 'text-rose-600 font-bold' : 'text-slate-600'}`}>
+            {ticket.is_overdue ? (
+              <span className="flex items-center bg-rose-50 text-rose-700 px-2 py-0.5 rounded border border-rose-200">
+                <AlertTriangle className="w-3.5 h-3.5 mr-1 text-rose-500" />
+                기한 초과
+              </span>
+            ) : (
+              <span className="flex items-center text-slate-500">
+                <Clock className="w-3.5 h-3.5 mr-1 text-slate-400" />
+                기한: {ticket.deadline.substring(5, 16).replace('T', ' ')}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};

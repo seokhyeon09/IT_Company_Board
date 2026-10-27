@@ -29,6 +29,35 @@ services:
       - odoo-db-data:/var/lib/postgresql/data/pgdata
     restart: unless-stopped
 
+  filter:
+    build:
+      context: ./filter
+      dockerfile: Dockerfile
+    container_name: it_helpdesk_filter
+    depends_on:
+      - web
+    ports:
+      - "8000:8000"
+    environment:
+      - ODOO_RPC_URL=http://web:8069
+      - ODOO_DB=${DB_NAME}
+      - GATEWAY_SHARED_SECRET=secure_inter_tier_hmac_secret_key_32_chars
+      - JWT_SECRET_KEY=it_company_board_super_secret_jwt_key_2026_xyz
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: it_helpdesk_frontend
+    depends_on:
+      - filter
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8000/api/v1
+    restart: unless-stopped
+
 volumes:
   odoo-web-data:
   odoo-db-data:

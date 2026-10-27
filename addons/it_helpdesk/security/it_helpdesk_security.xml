@@ -3,26 +3,42 @@
     <record id="module_category_it_helpdesk" model="ir.module.category">
         <field name="name">IT 헬프 데스크</field>
         <field name="sequence">20</field>
-
     </record>
+
     <record id="group_helpdesk_user" model="res.groups">
         <field name="name">사원</field>
         <field name="category_id" ref="module_category_it_helpdesk"/>
         <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
     </record>
+
     <record id="group_helpdesk_officer" model="res.groups">
         <field name="name">담당자</field>
         <field name="category_id" ref="module_category_it_helpdesk"/>
         <field name="implied_ids" eval="[(4, ref('group_helpdesk_user'))]"/>
     </record>
     
+    <!-- Fix SEC-18: Enable perm_read="True" to restrict employees to their own tickets -->
     <record id="helpdesk_ticket_rule_user" model="ir.rule">
-        <field name="name">내 문의만 조회</field>
+        <field name="name">내 문의만 조회 및 수정</field>
         <field name="model_id" ref="model_it_helpdesk_ticket"/>
         <field name="groups" eval="[(4, ref('group_helpdesk_user'))]"/>
         <field name="domain_force">[('author_id', '=', user.id)]</field>
-        <field name="perm_read" eval="False"/>
+        <field name="perm_read" eval="True"/>
         <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <!-- 사원 공식 FAQ 지식창고 열람 권한 -->
+    <record id="helpdesk_ticket_rule_faq_read" model="ir.rule">
+        <field name="name">사내 FAQ 지식창고 열람</field>
+        <field name="model_id" ref="model_it_helpdesk_ticket"/>
+        <field name="groups" eval="[(4, ref('group_helpdesk_user'))]"/>
+        <field name="domain_force">[('is_faq', '=', True)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
     </record>
 
     <record id="helpdesk_ticket_rule_officer" model="ir.rule">
@@ -31,5 +47,4 @@
         <field name="groups" eval="[(4, ref('group_helpdesk_officer'))]"/>
         <field name="domain_force">[(1, '=', 1)]</field>
     </record>
-
 </odoo>
