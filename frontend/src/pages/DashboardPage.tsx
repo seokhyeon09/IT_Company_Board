@@ -39,6 +39,7 @@ export const DashboardPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
+  const [sortBy, setSortBy] = useState('id desc');
   const [isOverdueOnly, setIsOverdueOnly] = useState(false);
 
   // Pagination
@@ -77,6 +78,7 @@ export const DashboardPage: React.FC = () => {
       if (categoryFilter) params.category = categoryFilter;
       if (priorityFilter) params.priority = priorityFilter;
       if (isOverdueOnly) params.is_overdue = true;
+      if (sortBy) params.sort_by = sortBy;
 
       if (activeTab === 'faq') {
         params.is_faq = true;
@@ -95,7 +97,7 @@ export const DashboardPage: React.FC = () => {
   // Trigger list fetch when filter states change
   useEffect(() => {
     fetchTickets();
-  }, [activeTab, debouncedSearch, statusFilter, categoryFilter, priorityFilter, isOverdueOnly, page]);
+  }, [activeTab, debouncedSearch, statusFilter, categoryFilter, priorityFilter, isOverdueOnly, sortBy, page]);
 
   // Initial stats fetch
   useEffect(() => {
@@ -114,6 +116,7 @@ export const DashboardPage: React.FC = () => {
       setStatusFilter('');
     } else {
       setIsOverdueOnly(false);
+    setSortBy('id desc');
       setStatusFilter((prev) => (prev === targetStatus ? '' : targetStatus));
     }
   };
@@ -125,6 +128,7 @@ export const DashboardPage: React.FC = () => {
     setCategoryFilter('');
     setPriorityFilter('');
     setIsOverdueOnly(false);
+    setSortBy('id desc');
     setActiveTab('all');
     setPage(1);
   };
@@ -234,6 +238,7 @@ export const DashboardPage: React.FC = () => {
             onChange={(e) => {
               setStatusFilter(e.target.value);
               setIsOverdueOnly(false);
+    setSortBy('id desc');
               setPage(1);
             }}
             className="text-xs border border-slate-300 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
@@ -246,6 +251,22 @@ export const DashboardPage: React.FC = () => {
             <option value="resolved">해결완료</option>
             <option value="closed">종결</option>
             <option value="canceled">취소</option>
+          </select>
+
+                    {/* Sort Dropdown */}
+          <select
+            value={sortBy}
+            onChange={(e) => {
+              setSortBy(e.target.value);
+              setPage(1);
+            }}
+            className="text-xs border border-slate-300 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer font-medium text-slate-700"
+          >
+            <option value="id desc">최신 등록순</option>
+            <option value="id asc">오래된 등록순</option>
+            <option value="deadline asc">SLA 마감 임박순</option>
+            <option value="priority desc">긴급도 높은순</option>
+            <option value="write_date desc">최근 업데이트순</option>
           </select>
 
           {/* Category Dropdown */}

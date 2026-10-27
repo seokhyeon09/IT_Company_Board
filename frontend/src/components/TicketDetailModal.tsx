@@ -25,6 +25,10 @@ import {
   UserCheck,
   CheckSquare,
   Ban,
+  Trash2,
+  Image,
+  Download,
+  Paperclip,
 } from 'lucide-react';
 
 export interface ThreadItem {
@@ -49,6 +53,14 @@ export interface FollowUpInquiry {
   date?: string;
   author_name?: string;
   content: string;
+}
+
+export interface Attachment {
+  id: number;
+  name: string;
+  mimetype: string;
+  file_size?: number;
+  create_date?: string;
 }
 
 export interface TicketLog {
@@ -83,6 +95,7 @@ export interface TicketDetail {
   resolutions?: ResolutionNote[];
   follow_ups?: FollowUpInquiry[];
   logs?: TicketLog[];
+  attachments?: Attachment[];
 }
 
 interface TicketDetailModalProps {
@@ -164,6 +177,19 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   const [submittingRating, setSubmittingRating] = useState(false);
   const [ratingError, setRatingError] = useState('');
 
+  // Employee Inquiry Edit State (접수 대기 중 본인 문의 수정)
+  const [isEditingTicket, setIsEditingTicket] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [editPriority, setEditPriority] = useState('');
+  const [editContent, setEditContent] = useState('');
+  const [submittingEditTicket, setSubmittingEditTicket] = useState(false);
+  const [editTicketError, setEditTicketError] = useState('');
+
+  // Attachment upload state
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<number | null>(null);
+
   // Status transition state (IT 담당자 워크플로우 액션)
   const [transitioningStatus, setTransitioningStatus] = useState<string | null>(null);
   const [showCloseModal, setShowCloseModal] = useState(false);
@@ -198,6 +224,12 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
       setCloseNote('');
       setCloseError('');
       setShowCancelModal(false);
+      setIsEditingTicket(false);
+      setEditTitle('');
+      setEditCategory('');
+      setEditPriority('');
+      setEditContent('');
+      setEditTicketError('');
       setCancelReason('');
       setCancelError('');
     } else {
@@ -414,6 +446,12 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     try {
       await apiClient.post(`/tickets/${ticket.id}/cancel`, { reason: cancelReason.trim() || undefined });
       setShowCancelModal(false);
+      setIsEditingTicket(false);
+      setEditTitle('');
+      setEditCategory('');
+      setEditPriority('');
+      setEditContent('');
+      setEditTicketError('');
       setCancelReason('');
       await fetchDetail(ticket.id);
       if (onSuccess) onSuccess();
@@ -422,6 +460,92 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     } finally {
       setSubmittingCancel(false);
     }
+  };
+
+  // 작성자 접수대기 문의 수정
+  const handleUpdateTicketSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ticket) return;
+    if (!editTitle.trim() || !editContent.trim()) {
+      setEditTicketError('제목과 문의 내용을 모두 입력해주세요.');
+      return;
+    }
+    setSubmittingEditTicket(true);
+    setEditTicketError('');
+    try {
+      await apiClient.post(`/tickets/${ticket.id}/update`, {
+        title: editTitle.trim(),
+        category: editCategory,
+        priority: editPriority,
+        content: editContent.trim(),
+      });
+      setIsEditingTicket(false);
+      await fetchDetail(ticket.id);
+      if (onSuccess) onSuccess();
+    } catch (err: any) {
+      setEditTicketError(getErrorMessage(err, '문의 내용 수정 중 오류가 발생했습니다.'));
+    } finally {
+      setSubmittingEditTicket(false);
+    }
+  };
+
+  // 첨부파일 다운로드
+  const handleDownloadAttachment = async (att: Attachment) => {
+    if (!ticket) return;
+    setDownloadingAttachmentId(att.id);
+    try {
+      const res = await apiClient.get(`/tickets/${ticket.id}/attachments/${att.id}`);
+      const base64Data = res.data.datas;
+      const mimetype = res.data.mimetype || 'application/octet-stream';
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: mimetype });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = att.name;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err: any) {
+      alert(getErrorMessage(err, '첨부파일 다운로드 중 오류가 발생했습니다.'));
+    } finally {
+      setDownloadingAttachmentId(null);
+    }
+  };
+
+  // 상세 모달 내 파일 추가 업로드
+  const handleDetailFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!ticket || !e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    if (file.size > 5 * 1024 * 1024) {
+      alert('첨부파일 크기는 최대 5MB까지 가능합니다.');
+      return;
+    }
+    setUploadingAttachment(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const base64Data = (reader.result as string).split(',')[1] || '';
+        await apiClient.post(`/tickets/${ticket.id}/attachments`, {
+          name: file.name,
+          datas: base64Data,
+          mimetype: file.type || 'application/octet-stream',
+        });
+        await fetchDetail(ticket.id);
+      } catch (err: any) {
+        alert(getErrorMessage(err, '첨부파일 업로드 중 오류가 발생했습니다.'));
+      } finally {
+        setUploadingAttachment(false);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   if (!isOpen) return null;
@@ -517,9 +641,102 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
             <>
               {/* Title & Metadata Grid */}
               <div>
-                <h2 className="text-xl font-bold text-slate-900 tracking-tight leading-snug">
-                  {ticket.title}
-                </h2>
+                <div className="flex items-start justify-between gap-3">
+                  <h2 className="text-xl font-bold text-slate-900 tracking-tight leading-snug">
+                    {ticket.title}
+                  </h2>
+                  {isAuthor && ticket.status === 'submitted' && !isEditingTicket && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditTitle(ticket.title || '');
+                        setEditCategory(ticket.category || 'sw');
+                        setEditPriority(ticket.priority || '1');
+                        setEditContent(ticket.content || '');
+                        setIsEditingTicket(true);
+                      }}
+                      className="shrink-0 flex items-center text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer shadow-xs"
+                    >
+                      <Edit3 className="w-3.5 h-3.5 mr-1" />
+                      문의 수정
+                    </button>
+                  )}
+                </div>
+
+                                {/* Inline Edit Form for Submitted Ticket */}
+                {isEditingTicket && (
+                  <div className="mt-3 p-4 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-3 animate-in fade-in">
+                    <div className="text-xs font-bold text-indigo-900">접수 대기 중 문의 내용 수정</div>
+                    <form onSubmit={handleUpdateTicketSubmit} className="space-y-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">문의 제목</label>
+                        <input
+                          type="text"
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          className="w-full px-3 py-1.5 text-xs border border-indigo-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800"
+                          required
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">카테고리</label>
+                          <select
+                            value={editCategory}
+                            onChange={(e) => setEditCategory(e.target.value)}
+                            className="w-full px-2.5 py-1.5 text-xs border border-indigo-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800"
+                          >
+                            <option value="hw">하드웨어</option>
+                            <option value="sw">소프트웨어</option>
+                            <option value="network">네트워크</option>
+                            <option value="account">계정/권한</option>
+                            <option value="etc">기타</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">긴급도 (우선순위)</label>
+                          <select
+                            value={editPriority}
+                            onChange={(e) => setEditPriority(e.target.value)}
+                            className="w-full px-2.5 py-1.5 text-xs border border-indigo-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800"
+                          >
+                            <option value="0">낮음</option>
+                            <option value="1">보통</option>
+                            <option value="2">높음</option>
+                            <option value="3">긴급</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">상세 내용</label>
+                        <textarea
+                          rows={3}
+                          value={editContent}
+                          onChange={(e) => setEditContent(e.target.value)}
+                          className="w-full px-3 py-2 text-xs border border-indigo-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 resize-none"
+                          required
+                        />
+                      </div>
+                      {editTicketError && <p className="text-xs text-rose-600 font-medium">{editTicketError}</p>}
+                      <div className="flex justify-end space-x-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingTicket(false)}
+                          className="px-3 py-1.5 text-xs text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
+                        >
+                          취소
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={submittingEditTicket}
+                          className="px-3.5 py-1.5 text-xs font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 cursor-pointer"
+                        >
+                          {submittingEditTicket ? '수정 저장 중...' : '수정 완료'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
 
                 <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-100 text-xs">
                   <div>
@@ -736,6 +953,85 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                   )}
                 </div>
               )}
+
+                            {/* Attachments Section */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-1.5">
+                    <Paperclip className="w-4 h-4 text-slate-600" />
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                      첨부파일 ({ticket.attachments ? ticket.attachments.length : 0}건)
+                    </h4>
+                  </div>
+                  {(isAuthor || user?.is_officer) && !['closed', 'canceled'].includes(ticket.status) && (
+                    <label className="flex items-center text-xs font-semibold text-indigo-600 hover:text-indigo-800 cursor-pointer bg-white px-2.5 py-1 rounded-lg border border-indigo-200 hover:bg-indigo-50 shadow-xs transition-all">
+                      {uploadingAttachment ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+                          업로드 중...
+                        </>
+                      ) : (
+                        <>
+                          <Paperclip className="w-3.5 h-3.5 mr-1" />
+                          파일 첨부
+                        </>
+                      )}
+                      <input
+                        type="file"
+                        onChange={handleDetailFileUpload}
+                        disabled={uploadingAttachment}
+                        className="hidden"
+                        accept="image/*,.log,.txt,.pdf"
+                      />
+                    </label>
+                  )}
+                </div>
+
+                {ticket.attachments && ticket.attachments.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {ticket.attachments.map((att) => {
+                      const isImage = att.mimetype.startsWith('image/');
+                      return (
+                        <div
+                          key={att.id}
+                          className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs hover:bg-slate-100 transition-all"
+                        >
+                          <div className="flex items-center space-x-2 truncate min-w-0">
+                            {isImage ? (
+                              <Image className="w-4 h-4 text-indigo-500 shrink-0" />
+                            ) : (
+                              <FileText className="w-4 h-4 text-slate-400 shrink-0" />
+                            )}
+                            <span className="truncate font-semibold text-slate-700">{att.name}</span>
+                            {att.file_size ? (
+                              <span className="text-[10px] text-slate-400 shrink-0">
+                                ({(att.file_size / 1024).toFixed(1)} KB)
+                              </span>
+                            ) : null}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadAttachment(att)}
+                            disabled={downloadingAttachmentId === att.id}
+                            className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-white rounded-lg transition-all cursor-pointer shrink-0 ml-2"
+                            title="다운로드"
+                          >
+                            {downloadingAttachmentId === att.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+                            ) : (
+                              <Download className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-xs text-slate-400 italic p-2 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 text-center">
+                    등록된 첨부파일이 없습니다.
+                  </div>
+                )}
+              </div>
 
               {/* Unified Sequential Q&A Timeline Thread (문의 -> 1차조치 -> 1차재문의 -> 2차조치...) */}
               <div className="space-y-3">

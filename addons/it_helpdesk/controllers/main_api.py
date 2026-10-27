@@ -169,7 +169,7 @@ class ITHelpdeskAPIController(http.Controller):
             return {'status': 'error', 'message': str(e)}
 
     @http.route('/api/v1/tickets/list', type='json', auth='none', methods=['POST'], csrf=False)
-    def list_tickets(self, category=None, priority=None, status=None, search=None, is_faq=None, is_overdue=None, offset=0, limit=50, **kwargs):
+    def list_tickets(self, category=None, priority=None, status=None, search=None, is_faq=None, is_overdue=None, sort_by=None, offset=0, limit=50, **kwargs):
         """티켓 목록 조회 (일반 사원은 본인 글 + FAQ 지식창고 열람 가능, 담당자는 전체 열람)"""
         user = verify_gateway_request()
         ticket_env = request.env['it.helpdesk.ticket'].with_user(user)
@@ -200,12 +200,23 @@ class ITHelpdeskAPIController(http.Controller):
             safe_term = search.strip()[:100]
             domain.extend(['|', ('ticket_number', 'ilike', safe_term), ('title', 'ilike', safe_term)])
 
+        ALLOWED_SORTS = {
+            'id desc': 'id desc',
+            'id asc': 'id asc',
+            'deadline asc': 'deadline asc',
+            'deadline desc': 'deadline desc',
+            'priority desc': 'priority desc, id desc',
+            'priority asc': 'priority asc, id desc',
+            'write_date desc': 'write_date desc',
+        }
+        order_clause = ALLOWED_SORTS.get(sort_by, 'id desc') if sort_by else 'id desc'
+
         tickets = ticket_env.search_read(
             domain,
             LIST_FIELDS,
             offset=max(0, int(offset)),
             limit=min(max(1, int(limit)), 100),
-            order='id desc'
+            order=order_clause
         )
 
         for t in tickets:
@@ -254,6 +265,21 @@ class ITHelpdeskAPIController(http.Controller):
         is_officer = user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()
         if not is_officer and ticket.author_id.id != user.id and not ticket.is_faq:
             raise AccessError("You do not have permission to view this ticket.")
+
+        att_records = request.env['ir.attachment'].sudo().search([
+            ('res_model', '=', 'it.helpdesk.ticket'),
+            ('res_id', '=', ticket.id)
+        ])
+        ticket_attachments = [
+            {
+                "id": att.id,
+                "name": att.name,
+                "mimetype": att.mimetype,
+                "file_size": att.file_size,
+                "create_date": _format_datetime_utc(att.create_date)
+            }
+            for att in att_records
+        ]
 
         data = {
             "id": ticket.id,
@@ -321,7 +347,8 @@ class ITHelpdeskAPIController(http.Controller):
                 }
                 for msg in ticket.message_ids.sorted(key=lambda m: m.id, reverse=True)[:50]
                 if _clean_html(msg.body)
-            ] if is_officer else []
+            ] if is_officer else [],
+            "attachments": ticket_attachments
         }
         # Dynamic Sequential Timeline (시간순 정렬 및 문의 N차 / 답변 N차 체계)
         seq_timeline = [data["timeline"][0]]
@@ -405,6 +432,20 @@ class ITHelpdeskAPIController(http.Controller):
             vals['priority'] = str_p
 
         ticket = ticket_env.create(vals)
+
+        # Optional initial attachments
+        initial_attachments = kwargs.get('attachments')
+        if initial_attachments and isinstance(initial_attachments, list):
+            for att in initial_attachments:
+                if isinstance(att, dict) and att.get('name') and att.get('datas'):
+                    request.env['ir.attachment'].sudo().create({
+                        'name': os.path.basename(str(att['name'])),
+                        'datas': att['datas'],
+                        'res_model': 'it.helpdesk.ticket',
+                        'res_id': ticket.id,
+                        'mimetype': att.get('mimetype') or 'application/octet-stream',
+                    })
+
         return {
             "status": "success",
             "data": {
@@ -761,5 +802,132 @@ class ITHelpdeskAPIController(http.Controller):
                 "ticket_number": ticket.ticket_number,
                 "status": ticket.status,
                 "write_date": _format_datetime_utc(ticket.write_date)
+            }
+        }
+
+    @http.route('/api/v1/tickets/update', type='json', auth='none', methods=['POST'], csrf=False)
+    def update_ticket(self, ticket_id: int, **kwargs):
+        """접수대기(submitted) 상태에서의 작성자 본인 티켓 내용 수정"""
+        user = verify_gateway_request()
+        ticket = request.env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
+        if not ticket.exists():
+            raise UserError("Ticket not found.")
+
+        is_officer = user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()
+        if not is_officer and ticket.author_id.id != user.id:
+            raise AccessError("Only the author can update this ticket.")
+
+        if ticket.status != 'submitted':
+            raise UserError("Only tickets in 'submitted' (waiting) status can be updated.")
+
+        allowed = {'title', 'content', 'category', 'priority'}
+        vals = {k: v for k, v in kwargs.items() if k in allowed and v is not None}
+
+        if 'title' in vals:
+            clean_title = str(vals['title']).strip()
+            if not clean_title:
+                raise UserError("Title cannot be empty.")
+            vals['title'] = clean_title
+
+        if 'content' in vals:
+            clean_content = str(vals['content']).strip()
+            if not clean_content:
+                raise UserError("Content cannot be empty.")
+            vals['content'] = clean_content
+
+        if 'priority' in vals:
+            str_p = str(vals['priority']).strip()
+            if str_p not in {'0', '1', '2', '3'}:
+                raise UserError("Invalid priority value.")
+            vals['priority'] = str_p
+
+        ticket.write(vals)
+        ticket.message_post(body=f"<b>[문의 내용 수정]</b><br/>작성자({html.escape(user.name)})가 접수 대기 중 문의 내용을 수정하였습니다.")
+
+        return {
+            "status": "success",
+            "data": {
+                "id": ticket.id,
+                "ticket_number": ticket.ticket_number,
+                "title": ticket.title,
+                "category": ticket.category,
+                "status": ticket.status,
+                "priority": ticket.priority,
+                "deadline": _format_datetime_utc(ticket.deadline),
+                "is_overdue": ticket.is_overdue,
+                "author_id": ticket.author_id.id,
+                "assignee_id": ticket.assignee_id.id if ticket.assignee_id else None,
+                "assignee_name": ticket.assignee_id.name if ticket.assignee_id else "배정 대기",
+                "create_date": _format_datetime_utc(ticket.create_date),
+                "write_date": _format_datetime_utc(ticket.write_date),
+                "is_faq": ticket.is_faq,
+                "rating": ticket.rating or None,
+            }
+        }
+
+    @http.route('/api/v1/tickets/upload-attachment', type='json', auth='none', methods=['POST'], csrf=False)
+    def upload_attachment(self, ticket_id: int, name: str, datas: str, mimetype: str = None):
+        """티켓 첨부파일 업로드 (Base64)"""
+        user = verify_gateway_request()
+        ticket = request.env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
+        if not ticket.exists():
+            raise UserError("Ticket not found.")
+
+        is_officer = user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()
+        if not is_officer and ticket.author_id.id != user.id:
+            raise AccessError("Only the author or helpdesk officers can upload attachments.")
+
+        clean_name = os.path.basename(str(name).strip())
+        if not clean_name:
+            clean_name = "attachment"
+
+        attachment = request.env['ir.attachment'].sudo().create({
+            'name': clean_name,
+            'datas': datas,
+            'res_model': 'it.helpdesk.ticket',
+            'res_id': ticket.id,
+            'mimetype': mimetype or 'application/octet-stream',
+        })
+
+        ticket.message_post(body=f"<b>[첨부파일 등록]</b><br/>파일명: {html.escape(clean_name)}")
+
+        return {
+            "status": "success",
+            "data": {
+                "id": attachment.id,
+                "name": attachment.name,
+                "mimetype": attachment.mimetype,
+                "file_size": attachment.file_size,
+                "create_date": _format_datetime_utc(attachment.create_date)
+            }
+        }
+
+    @http.route('/api/v1/tickets/get-attachment', type='json', auth='none', methods=['POST'], csrf=False)
+    def get_attachment(self, ticket_id: int, attachment_id: int):
+        """티켓 첨부파일 다운로드/조회 (Base64 반환)"""
+        user = verify_gateway_request()
+        ticket = request.env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
+        if not ticket.exists():
+            raise UserError("Ticket not found.")
+
+        is_officer = user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()
+        if not is_officer and ticket.author_id.id != user.id and not ticket.is_faq:
+            raise AccessError("Access denied to ticket attachment.")
+
+        attachment = request.env['ir.attachment'].sudo().browse(int(attachment_id))
+        if not attachment.exists() or attachment.res_model != 'it.helpdesk.ticket' or attachment.res_id != ticket.id:
+            raise UserError("Attachment not found.")
+
+        raw_datas = attachment.datas
+        data_str = raw_datas.decode('utf-8') if isinstance(raw_datas, bytes) else (raw_datas or "")
+
+        return {
+            "status": "success",
+            "data": {
+                "id": attachment.id,
+                "name": attachment.name,
+                "mimetype": attachment.mimetype,
+                "file_size": attachment.file_size,
+                "datas": data_str,
             }
         }

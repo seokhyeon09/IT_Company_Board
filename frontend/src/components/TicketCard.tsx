@@ -48,6 +48,42 @@ const priorityMap: Record<string, { label: string; badge: string }> = {
   '0': { label: '낮음', badge: 'bg-slate-100 text-slate-500' },
 };
 
+const formatSlaRemaining = (deadlineStr?: string, isOverdue?: boolean, status?: string) => {
+  if (!deadlineStr || ['resolved', 'closed', 'canceled'].includes(status || '')) return null;
+  const deadline = new Date(deadlineStr).getTime();
+  const now = Date.now();
+  const diffMs = deadline - now;
+  const isPast = diffMs < 0 || isOverdue;
+
+  const absMinutes = Math.floor(Math.abs(diffMs) / (1000 * 60));
+  const hours = Math.floor(absMinutes / 60);
+  const minutes = absMinutes % 60;
+  const days = Math.floor(hours / 24);
+
+  let timeText = '';
+  if (days > 0) {
+    timeText = `${days}일 ${hours % 24}시간`;
+  } else if (hours > 0) {
+    timeText = `${hours}시간 ${minutes}분`;
+  } else {
+    timeText = `${minutes}분`;
+  }
+
+  if (isPast) {
+    return {
+      text: `SLA ${timeText} 초과`,
+      badgeClass: 'bg-rose-50 text-rose-700 border-rose-200 font-bold',
+      isOverdue: true,
+    };
+  } else {
+    return {
+      text: `SLA ${timeText} 남음`,
+      badgeClass: hours < 4 ? 'bg-amber-50 text-amber-700 border-amber-200 font-semibold' : 'bg-slate-50 text-slate-600 border-slate-200',
+      isOverdue: false,
+    };
+  }
+};
+
 export const TicketCard: React.FC<TicketCardProps> = ({ ticket, onClick }) => {
   const statusInfo = statusMap[ticket.status] || { label: ticket.status, color: 'bg-slate-100 text-slate-700' };
   const priorityInfo = priorityMap[ticket.priority] || { label: '보통', badge: 'bg-slate-200 text-slate-700' };
@@ -95,21 +131,28 @@ export const TicketCard: React.FC<TicketCardProps> = ({ ticket, onClick }) => {
           접수: {ticket.create_date ? ticket.create_date.substring(0, 10) : '-'}
         </div>
 
-        {ticket.deadline && (
-          <div className={`flex items-center font-medium ${ticket.is_overdue ? 'text-rose-600 font-bold' : 'text-slate-600'}`}>
-            {ticket.is_overdue ? (
-              <span className="flex items-center bg-rose-50 text-rose-700 px-2 py-0.5 rounded border border-rose-200">
-                <AlertTriangle className="w-3.5 h-3.5 mr-1 text-rose-500" />
-                기한 초과
-              </span>
-            ) : (
-              <span className="flex items-center text-slate-500">
-                <Clock className="w-3.5 h-3.5 mr-1 text-slate-400" />
-                기한: {ticket.deadline.substring(5, 16).replace('T', ' ')}
-              </span>
-            )}
-          </div>
-        )}
+        {ticket.deadline && (() => {
+          const slaInfo = formatSlaRemaining(ticket.deadline, ticket.is_overdue, ticket.status);
+          return (
+            <div className="flex items-center text-xs">
+              {slaInfo ? (
+                <span className={`flex items-center px-2 py-0.5 rounded border text-[11px] ${slaInfo.badgeClass}`}>
+                  {slaInfo.isOverdue ? (
+                    <AlertTriangle className="w-3 h-3 mr-1 text-rose-500" />
+                  ) : (
+                    <Clock className="w-3 h-3 mr-1 text-amber-500" />
+                  )}
+                  {slaInfo.text}
+                </span>
+              ) : (
+                <span className="flex items-center text-slate-400 text-[11px]">
+                  <Clock className="w-3 h-3 mr-1" />
+                  {ticket.deadline.substring(5, 16).replace('T', ' ')}
+                </span>
+              )}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

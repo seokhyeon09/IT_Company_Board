@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
 from enum import Enum
 from typing import Any, List, Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -32,6 +33,7 @@ class TicketCreateDTO(BaseModel):
     category: TicketCategoryEnum = Field(..., description="문의 분류")
     content: str = Field(..., min_length=1, description="문의 상세 내용")
     priority: TicketPriorityEnum = Field(default=TicketPriorityEnum.NORMAL, description="우선순위 (0: 낮음, 1: 보통, 2: 높음, 3: 긴급)")
+    attachments: Optional[List[AttachmentUploadDTO]] = Field(default=None, description="초기 첨부파일 목록")
 
     @field_validator("priority", mode="before")
     @classmethod
@@ -58,6 +60,30 @@ class TicketResolveDTO(BaseModel):
 
 
 
+
+class AttachmentDTO(BaseModel):
+    id: int
+    name: str
+    mimetype: str = "application/octet-stream"
+    file_size: Optional[int] = 0
+    create_date: Optional[str] = None
+
+class AttachmentDetailDTO(AttachmentDTO):
+    datas: str
+
+class AttachmentUploadDTO(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    name: str = Field(..., min_length=1, max_length=200, description="파일명")
+    datas: str = Field(..., min_length=1, description="Base64 인코딩 파일 데이터")
+    mimetype: Optional[str] = Field(default="application/octet-stream", description="MIME 타입")
+    file_size: Optional[int] = Field(default=None, description="파일 크기")
+
+class TicketUpdateDTO(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    title: Optional[str] = Field(default=None, min_length=1, max_length=150, description="문의 제목")
+    category: Optional[TicketCategoryEnum] = Field(default=None, description="문의 분류")
+    priority: Optional[TicketPriorityEnum] = Field(default=None, description="우선순위")
+    content: Optional[str] = Field(default=None, min_length=1, description="문의 상세 내용")
 
 class ThreadItemDTO(BaseModel):
     id: int
@@ -136,6 +162,7 @@ class TicketDetailResponseDTO(TicketResponseDTO):
     resolutions: List[ResolutionNoteDTO] = []
     follow_ups: List[FollowUpInquiryDTO] = []
     logs: List[TicketLogDTO] = []
+    attachments: List[AttachmentDTO] = []
 
     @field_validator("content", "resolution_note", "author_name", "rating_comment", mode="before")
     @classmethod

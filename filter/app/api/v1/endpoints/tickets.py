@@ -10,6 +10,10 @@ from app.schemas.ticket import (
     TicketUpdateResolutionDTO,
     TicketCloseDTO,
     TicketCancelDTO,
+    TicketUpdateDTO,
+    AttachmentDTO,
+    AttachmentDetailDTO,
+    AttachmentUploadDTO,
     TicketRateDTO,
     TicketResponseDTO,
     TicketDetailResponseDTO,
@@ -27,6 +31,7 @@ async def list_tickets(
     search: Optional[str] = Query(None, description="검색어"),
     is_faq: Optional[bool] = Query(None, description="FAQ 여부"),
     is_overdue: Optional[bool] = Query(None, description="기한 초과 여부"),
+    sort_by: Optional[str] = Query("id desc", description="정렬 옵션 (id desc, id asc, deadline asc, priority desc, write_date desc)"),
     offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     claims: dict = Depends(get_current_user_claims),
@@ -40,6 +45,7 @@ async def list_tickets(
         "search": search,
         "is_faq": is_faq,
         "is_overdue": is_overdue,
+        "sort_by": sort_by,
         "offset": offset,
         "limit": limit,
     }
@@ -246,3 +252,44 @@ async def cancel_ticket(
     params = {"ticket_id": ticket_id, "reason": dto.reason}
     result = await odoo_client.call_json("/api/v1/tickets/cancel", params=params, user_id=user_id)
     return result
+
+@router.post("/{ticket_id}/update", response_model=TicketResponseDTO)
+async def update_ticket(
+    ticket_id: int,
+    dto: TicketUpdateDTO,
+    claims: dict = Depends(get_current_user_claims),
+):
+    """Update ticket content when in submitted (waiting) status (Author or IT Officers)."""
+    user_id = int(claims["sub"])
+    params = {"ticket_id": ticket_id, **dto.model_dump(exclude_unset=True)}
+    result = await odoo_client.call_json("/api/v1/tickets/update", params=params, user_id=user_id)
+    return result.get("data", {})
+
+@router.post("/{ticket_id}/attachments", response_model=AttachmentDTO, status_code=status.HTTP_201_CREATED)
+async def upload_attachment(
+    ticket_id: int,
+    dto: AttachmentUploadDTO,
+    claims: dict = Depends(get_current_user_claims),
+):
+    """Upload Base64 attachment to ticket (Author or IT Officers)."""
+    user_id = int(claims["sub"])
+    params = {
+        "ticket_id": ticket_id,
+        "name": dto.name,
+        "datas": dto.datas,
+        "mimetype": dto.mimetype,
+    }
+    result = await odoo_client.call_json("/api/v1/tickets/upload-attachment", params=params, user_id=user_id)
+    return result.get("data", {})
+
+@router.get("/{ticket_id}/attachments/{attachment_id}", response_model=AttachmentDetailDTO)
+async def get_attachment(
+    ticket_id: int,
+    attachment_id: int,
+    claims: dict = Depends(get_current_user_claims),
+):
+    """Retrieve single attachment with Base64 data (Author or IT Officers)."""
+    user_id = int(claims["sub"])
+    params = {"ticket_id": ticket_id, "attachment_id": attachment_id}
+    result = await odoo_client.call_json("/api/v1/tickets/get-attachment", params=params, user_id=user_id)
+    return result.get("data", {})
