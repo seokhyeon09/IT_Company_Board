@@ -620,3 +620,130 @@ class ITHelpdeskAPIController(http.Controller):
                 "write_date": _format_datetime_utc(ticket.write_date)
             }
         }
+
+    @http.route('/api/v1/tickets/assign', type='json', auth='none', methods=['POST'], csrf=False)
+    def assign_ticket(self, ticket_id: int):
+        """IT 담당자 티켓 본인 배정"""
+        user = verify_gateway_request()
+        if not (user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()):
+            raise AccessError("Only helpdesk officers can assign tickets.")
+
+        ticket = request.env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
+        if not ticket.exists():
+            raise UserError("Ticket not found.")
+
+        ticket.action_assign_to_me()
+
+        return {
+            "status": "success",
+            "data": {
+                "id": ticket.id,
+                "ticket_number": ticket.ticket_number,
+                "status": ticket.status,
+                "assignee_id": ticket.assignee_id.id if ticket.assignee_id else None,
+                "assignee_name": ticket.assignee_name,
+                "write_date": _format_datetime_utc(ticket.write_date)
+            }
+        }
+
+    @http.route('/api/v1/tickets/start-progress', type='json', auth='none', methods=['POST'], csrf=False)
+    def start_progress_ticket(self, ticket_id: int):
+        """IT 담당자 처리 시작 (assigned 또는 pending -> in_progress)"""
+        user = verify_gateway_request()
+        if not (user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()):
+            raise AccessError("Only helpdesk officers can change ticket status.")
+
+        ticket = request.env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
+        if not ticket.exists():
+            raise UserError("Ticket not found.")
+
+        ticket.action_start_progress()
+
+        return {
+            "status": "success",
+            "data": {
+                "id": ticket.id,
+                "ticket_number": ticket.ticket_number,
+                "status": ticket.status,
+                "write_date": _format_datetime_utc(ticket.write_date)
+            }
+        }
+
+    @http.route('/api/v1/tickets/pending', type='json', auth='none', methods=['POST'], csrf=False)
+    def pending_ticket(self, ticket_id: int):
+        """IT 담당자 답변 대기 요청 (in_progress -> pending)"""
+        user = verify_gateway_request()
+        if not (user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()):
+            raise AccessError("Only helpdesk officers can set ticket to pending.")
+
+        ticket = request.env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
+        if not ticket.exists():
+            raise UserError("Ticket not found.")
+
+        ticket.action_pending()
+
+        return {
+            "status": "success",
+            "data": {
+                "id": ticket.id,
+                "ticket_number": ticket.ticket_number,
+                "status": ticket.status,
+                "write_date": _format_datetime_utc(ticket.write_date)
+            }
+        }
+
+    @http.route('/api/v1/tickets/close', type='json', auth='none', methods=['POST'], csrf=False)
+    def close_ticket(self, ticket_id: int, note: str = None):
+        """IT 담당자 직권 종결 처리"""
+        user = verify_gateway_request()
+        if not (user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()):
+            raise AccessError("Only helpdesk officers can close tickets.")
+
+        ticket = request.env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
+        if not ticket.exists():
+            raise UserError("Ticket not found.")
+
+        if note and str(note).strip():
+            clean_note = str(note).strip()
+            ticket.resolution_note = clean_note
+        elif not ticket.resolution_note or not _clean_html(ticket.resolution_note).strip():
+            ticket.resolution_note = "IT 담당자에 의해 직권 종결 처리되었습니다."
+
+        ticket.action_close()
+        ticket.message_post(body=f"<b>[직권 종결]</b><br/>IT 담당자({user.name})에 의해 문의가 최종 종결되었습니다.")
+
+        return {
+            "status": "success",
+            "data": {
+                "id": ticket.id,
+                "ticket_number": ticket.ticket_number,
+                "status": ticket.status,
+                "write_date": _format_datetime_utc(ticket.write_date)
+            }
+        }
+
+    @http.route('/api/v1/tickets/cancel', type='json', auth='none', methods=['POST'], csrf=False)
+    def cancel_ticket(self, ticket_id: int, reason: str = None):
+        """요청 직원 또는 IT 담당자의 문의 취소"""
+        user = verify_gateway_request()
+        ticket = request.env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
+        if not ticket.exists():
+            raise UserError("Ticket not found.")
+
+        is_officer = user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()
+        if not is_officer and ticket.author_id.id != user.id:
+            raise AccessError("Only the author or helpdesk officers can cancel this ticket.")
+
+        ticket.action_cancel()
+        clean_reason = str(reason).strip() if reason and str(reason).strip() else "사유 미기재"
+        ticket.message_post(body=f"<b>[문의 취소]</b><br/>취소자: {user.name}<br/>취소 사유: {clean_reason}")
+
+        return {
+            "status": "success",
+            "data": {
+                "id": ticket.id,
+                "ticket_number": ticket.ticket_number,
+                "status": ticket.status,
+                "write_date": _format_datetime_utc(ticket.write_date)
+            }
+        }

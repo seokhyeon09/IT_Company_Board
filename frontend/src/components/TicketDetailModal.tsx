@@ -20,6 +20,11 @@ import {
   RotateCcw,
   Edit3,
   MessageSquare,
+  Play,
+  PauseCircle,
+  UserCheck,
+  CheckSquare,
+  Ban,
 } from 'lucide-react';
 
 export interface ThreadItem {
@@ -159,6 +164,19 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   const [submittingRating, setSubmittingRating] = useState(false);
   const [ratingError, setRatingError] = useState('');
 
+  // Status transition state (IT 담당자 워크플로우 액션)
+  const [transitioningStatus, setTransitioningStatus] = useState<string | null>(null);
+  const [showCloseModal, setShowCloseModal] = useState(false);
+  const [closeNote, setCloseNote] = useState('');
+  const [submittingClose, setSubmittingClose] = useState(false);
+  const [closeError, setCloseError] = useState('');
+
+  // Cancel inquiry state (문의 취소)
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [submittingCancel, setSubmittingCancel] = useState(false);
+  const [cancelError, setCancelError] = useState('');
+
   // FAQ Toggle State
   const [togglingFaq, setTogglingFaq] = useState(false);
 
@@ -176,6 +194,12 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
       setRatingScore(5);
       setRatingComment('');
       setRatingError('');
+      setShowCloseModal(false);
+      setCloseNote('');
+      setCloseError('');
+      setShowCancelModal(false);
+      setCancelReason('');
+      setCancelError('');
     } else {
       setTicket(null);
       setFetchError('');
@@ -314,6 +338,89 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
       alert(getErrorMessage(err, 'FAQ 설정 변경 중 오류가 발생했습니다.'));
     } finally {
       setTogglingFaq(false);
+    }
+  };
+
+  // 담당자 내게 배정
+  const handleAssignToMe = async () => {
+    if (!ticket) return;
+    setTransitioningStatus('assign');
+    try {
+      await apiClient.post(`/tickets/${ticket.id}/assign`);
+      await fetchDetail(ticket.id);
+      if (onSuccess) onSuccess();
+    } catch (err: any) {
+      alert(getErrorMessage(err, '담당자 배정 중 오류가 발생했습니다.'));
+    } finally {
+      setTransitioningStatus(null);
+    }
+  };
+
+  // 담당자 처리 시작
+  const handleStartProgress = async () => {
+    if (!ticket) return;
+    setTransitioningStatus('start-progress');
+    try {
+      await apiClient.post(`/tickets/${ticket.id}/start-progress`);
+      await fetchDetail(ticket.id);
+      if (onSuccess) onSuccess();
+    } catch (err: any) {
+      alert(getErrorMessage(err, '처리 시작 변경 중 오류가 발생했습니다.'));
+    } finally {
+      setTransitioningStatus(null);
+    }
+  };
+
+  // 담당자 답변 대기 요청
+  const handlePending = async () => {
+    if (!ticket) return;
+    setTransitioningStatus('pending');
+    try {
+      await apiClient.post(`/tickets/${ticket.id}/pending`);
+      await fetchDetail(ticket.id);
+      if (onSuccess) onSuccess();
+    } catch (err: any) {
+      alert(getErrorMessage(err, '답변 대기 변경 중 오류가 발생했습니다.'));
+    } finally {
+      setTransitioningStatus(null);
+    }
+  };
+
+  // 담당자 직권 종결
+  const handleCloseSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ticket) return;
+    setSubmittingClose(true);
+    setCloseError('');
+    try {
+      await apiClient.post(`/tickets/${ticket.id}/close`, { note: closeNote.trim() || undefined });
+      setShowCloseModal(false);
+      setCloseNote('');
+      await fetchDetail(ticket.id);
+      if (onSuccess) onSuccess();
+    } catch (err: any) {
+      setCloseError(getErrorMessage(err, '직권 종결 처리 중 오류가 발생했습니다.'));
+    } finally {
+      setSubmittingClose(false);
+    }
+  };
+
+  // 문의 취소
+  const handleCancelSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ticket) return;
+    setSubmittingCancel(true);
+    setCancelError('');
+    try {
+      await apiClient.post(`/tickets/${ticket.id}/cancel`, { reason: cancelReason.trim() || undefined });
+      setShowCancelModal(false);
+      setCancelReason('');
+      await fetchDetail(ticket.id);
+      if (onSuccess) onSuccess();
+    } catch (err: any) {
+      setCancelError(getErrorMessage(err, '문의 취소 처리 중 오류가 발생했습니다.'));
+    } finally {
+      setSubmittingCancel(false);
     }
   };
 
@@ -474,6 +581,161 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                   </div>
                 )}
               </div>
+
+              {/* IT Officer Workflow Action Bar */}
+              {user?.is_officer && ticket && !['closed', 'canceled'].includes(ticket.status) && (
+                <div className="p-3.5 bg-indigo-50/60 border border-indigo-200/80 rounded-xl space-y-2.5">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center space-x-1.5 text-xs font-bold text-indigo-900">
+                      <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                      <span>IT 담당자 상태 제어 액션</span>
+                    </div>
+                    <div className="flex items-center flex-wrap gap-1.5">
+                      {/* 내게 배정: submitted 상태이거나 배정되지 않은 경우 */}
+                      {ticket.status === 'submitted' && (
+                        <button
+                          type="button"
+                          onClick={handleAssignToMe}
+                          disabled={transitioningStatus !== null}
+                          className="flex items-center px-2.5 py-1 text-xs font-semibold text-blue-700 bg-white border border-blue-300 rounded-lg hover:bg-blue-50 cursor-pointer shadow-xs transition-all"
+                        >
+                          <UserCheck className="w-3.5 h-3.5 mr-1" />
+                          내게 배정
+                        </button>
+                      )}
+
+                      {/* 처리 시작: assigned 또는 pending 상태인 경우 */}
+                      {['assigned', 'pending'].includes(ticket.status) && (
+                        <button
+                          type="button"
+                          onClick={handleStartProgress}
+                          disabled={transitioningStatus !== null}
+                          className="flex items-center px-2.5 py-1 text-xs font-semibold text-indigo-700 bg-white border border-indigo-300 rounded-lg hover:bg-indigo-50 cursor-pointer shadow-xs transition-all"
+                        >
+                          <Play className="w-3.5 h-3.5 mr-1" />
+                          처리 시작
+                        </button>
+                      )}
+
+                      {/* 답변 대기 요청: in_progress 상태인 경우 */}
+                      {ticket.status === 'in_progress' && (
+                        <button
+                          type="button"
+                          onClick={handlePending}
+                          disabled={transitioningStatus !== null}
+                          className="flex items-center px-2.5 py-1 text-xs font-semibold text-purple-700 bg-white border border-purple-300 rounded-lg hover:bg-purple-50 cursor-pointer shadow-xs transition-all"
+                        >
+                          <PauseCircle className="w-3.5 h-3.5 mr-1" />
+                          답변 대기 요청
+                        </button>
+                      )}
+
+                      {/* 직권 종결: in_progress 또는 resolved 상태인 경우 */}
+                      {['in_progress', 'resolved'].includes(ticket.status) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowCloseModal(true);
+                            setCloseNote('');
+                            setCloseError('');
+                          }}
+                          disabled={transitioningStatus !== null}
+                          className="flex items-center px-2.5 py-1 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 cursor-pointer shadow-xs transition-all"
+                        >
+                          <CheckSquare className="w-3.5 h-3.5 mr-1" />
+                          직권 종결
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 직권 종결 인라인 사유 폼 */}
+                  {showCloseModal && (
+                    <div className="mt-2 pt-2.5 border-t border-indigo-200/60 animate-in fade-in">
+                      <div className="text-xs font-bold text-slate-800 mb-1.5">직권 종결 처리 사유</div>
+                      <form onSubmit={handleCloseSubmit} className="space-y-2">
+                        <textarea
+                          rows={2}
+                          value={closeNote}
+                          onChange={(e) => setCloseNote(e.target.value)}
+                          placeholder="직권 종결 사유를 입력하세요 (미입력 시 기본 문구가 반영됩니다)..."
+                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none text-slate-800"
+                        />
+                        {closeError && <p className="text-xs text-rose-600 font-medium">{closeError}</p>}
+                        <div className="flex justify-end space-x-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setShowCloseModal(false)}
+                            className="px-2.5 py-1 text-xs text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
+                          >
+                            취소
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={submittingClose}
+                            className="px-3.5 py-1 text-xs font-semibold text-white bg-slate-700 rounded-lg hover:bg-slate-800 disabled:opacity-50 cursor-pointer"
+                          >
+                            {submittingClose ? '종결 중...' : '직권 종결 확정'}
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Cancel Inquiry Action (Author or Officer, when not closed/canceled) */}
+              {ticket && !['closed', 'canceled'].includes(ticket.status) && (isAuthor || user?.is_officer) && (
+                <div className="flex items-center justify-end">
+                  {!showCancelModal ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowCancelModal(true);
+                        setCancelReason('');
+                        setCancelError('');
+                      }}
+                      className="flex items-center text-xs text-rose-600 hover:text-rose-800 hover:bg-rose-50 px-2.5 py-1 rounded-lg transition-all cursor-pointer border border-transparent hover:border-rose-200"
+                    >
+                      <Ban className="w-3.5 h-3.5 mr-1" />
+                      문의 취소
+                    </button>
+                  ) : (
+                    <div className="w-full p-3.5 bg-rose-50/80 border border-rose-200 rounded-xl animate-in fade-in">
+                      <div className="text-xs font-bold text-rose-900 mb-1">문의 취소 확인</div>
+                      <p className="text-xs text-rose-700 mb-2">
+                        문의를 취소하면 추가 처리가 중단되며 티켓이 취소 상태로 변경됩니다.
+                      </p>
+                      <form onSubmit={handleCancelSubmit} className="space-y-2">
+                        <input
+                          type="text"
+                          value={cancelReason}
+                          onChange={(e) => setCancelReason(e.target.value)}
+                          placeholder="취소 사유를 입력하세요 (선택)..."
+                          className="w-full px-3 py-1.5 text-xs border border-rose-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800"
+                        />
+                        {cancelError && <p className="text-xs text-rose-600 font-medium">{cancelError}</p>}
+                        <div className="flex justify-end space-x-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setShowCancelModal(false)}
+                            className="px-2.5 py-1 text-xs text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
+                          >
+                            취소 철회
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={submittingCancel}
+                            className="px-3.5 py-1 text-xs font-semibold text-white bg-rose-600 rounded-lg hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
+                          >
+                            {submittingCancel ? '취소 중...' : '문의 취소 확정'}
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Unified Sequential Q&A Timeline Thread (문의 -> 1차조치 -> 1차재문의 -> 2차조치...) */}
               <div className="space-y-3">

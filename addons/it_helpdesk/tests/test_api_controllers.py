@@ -91,11 +91,17 @@ class TestHelpdeskAPIController(TransactionCase):
             self.assertEqual(res['status'], 'success')
             ticket_ids = [t['id'] for t in res['data']]
             
-            # 본인 티켓과 FAQ는 포함되어야 함
+            # 9단계 사원 문의-FAQ 목록 격리: 일반 목록에서는 본인 티켓만 노출 (타인 FAQ 합산 차단)
             self.assertIn(self.ticket_emp1.id, ticket_ids)
-            self.assertIn(self.ticket_faq.id, ticket_ids)
+            self.assertNotIn(self.ticket_faq.id, ticket_ids)
             # 타인 티켓은 절대 포함되지 않아야 함 (BOLA 방어)
             self.assertNotIn(self.ticket_emp2.id, ticket_ids)
+
+            # FAQ 탭 요청 시에는 FAQ 티켓이 정상 조회됨
+            res_faq = self.controller.list_tickets(is_faq=True)
+            self.assertEqual(res_faq['status'], 'success')
+            faq_ids = [t['id'] for t in res_faq['data']]
+            self.assertIn(self.ticket_faq.id, faq_ids)
 
     def test_02_officer_sees_all_tickets(self):
         """IT 담당자는 모든 티켓을 조회할 수 있어야 함"""
@@ -228,3 +234,94 @@ class TestHelpdeskAPIController(TransactionCase):
             res = self.controller.toggle_faq(ticket_id=self.ticket_emp1.id)
             self.assertEqual(res['status'], 'success')
             self.assertNotEqual(res['data']['is_faq'], initial_faq)
+
+    def test_07_workflow_state_transitions(self):
+        """IT 담당자 단계별 상태 제어 (assign -> start-progress -> pending -> close) 검증"""
+        from unittest.mock import patch, MagicMock
+
+        # 신규 접수 티켓 생성
+        ticket = self.env['it.helpdesk.ticket'].with_user(self.user_employee).create({
+            'title': '워크플로우 테스트 티켓',
+            'category': 'sw',
+            'content': '<p>상태 전이 검증용</p>',
+            'priority': '1',
+        })
+        self.assertEqual(ticket.status, 'submitted')
+
+        # 1. 담당자 내게 배정 (assign)
+        h_assign = self._generate_hmac_headers(self.user_officer.id, path='/api/v1/tickets/assign')
+        mock_req = MagicMock()
+        mock_req.httprequest.headers = h_assign
+        mock_req.httprequest.method = 'POST'
+        mock_req.httprequest.path = '/api/v1/tickets/assign'
+        mock_req.httprequest.get_data.return_value = b''
+        mock_req.env = self.env
+        mock_req.session.uid = None
+
+        with patch('odoo.addons.it_helpdesk.controllers.main_api.request', mock_req):
+            res = self.controller.assign_ticket(ticket_id=ticket.id)
+            self.assertEqual(res['status'], 'success')
+            self.assertEqual(res['data']['status'], 'assigned')
+            self.assertEqual(res['data']['assignee_id'], self.user_officer.id)
+
+        # 2. 처리 시작 (start-progress)
+        h_start = self._generate_hmac_headers(self.user_officer.id, path='/api/v1/tickets/start-progress')
+        mock_req.httprequest.headers = h_start
+        mock_req.httprequest.path = '/api/v1/tickets/start-progress'
+
+        with patch('odoo.addons.it_helpdesk.controllers.main_api.request', mock_req):
+            res = self.controller.start_progress_ticket(ticket_id=ticket.id)
+            self.assertEqual(res['status'], 'success')
+            self.assertEqual(res['data']['status'], 'in_progress')
+
+        # 3. 답변 대기 요청 (pending)
+        h_pending = self._generate_hmac_headers(self.user_officer.id, path='/api/v1/tickets/pending')
+        mock_req.httprequest.headers = h_pending
+        mock_req.httprequest.path = '/api/v1/tickets/pending'
+
+        with patch('odoo.addons.it_helpdesk.controllers.main_api.request', mock_req):
+            res = self.controller.pending_ticket(ticket_id=ticket.id)
+            self.assertEqual(res['status'], 'success')
+            self.assertEqual(res['data']['status'], 'pending')
+
+        # 4. 다시 처리 시작 후 직권 종결 (close)
+        with patch('odoo.addons.it_helpdesk.controllers.main_api.request', mock_req):
+            self.controller.start_progress_ticket(ticket_id=ticket.id)
+
+        h_close = self._generate_hmac_headers(self.user_officer.id, path='/api/v1/tickets/close')
+        mock_req.httprequest.headers = h_close
+        mock_req.httprequest.path = '/api/v1/tickets/close'
+
+        with patch('odoo.addons.it_helpdesk.controllers.main_api.request', mock_req):
+            res = self.controller.close_ticket(ticket_id=ticket.id, note='직권 종결 처리 사유 작성')
+            self.assertEqual(res['status'], 'success')
+            self.assertEqual(res['data']['status'], 'closed')
+
+    def test_08_cancel_ticket(self):
+        """요청 직원의 본인 티켓 취소(cancel) 및 상태 전이 검증"""
+        from unittest.mock import patch, MagicMock
+
+        # 사원 문의 티켓 생성
+        ticket = self.env['it.helpdesk.ticket'].with_user(self.user_employee).create({
+            'title': '취소 대상 티켓',
+            'category': 'hw',
+            'content': '<p>취소할 문의 내용</p>',
+            'priority': '0',
+        })
+        self.assertEqual(ticket.status, 'submitted')
+
+        # 사원 본인의 취소 요청
+        h_cancel = self._generate_hmac_headers(self.user_employee.id, path='/api/v1/tickets/cancel')
+        mock_req = MagicMock()
+        mock_req.httprequest.headers = h_cancel
+        mock_req.httprequest.method = 'POST'
+        mock_req.httprequest.path = '/api/v1/tickets/cancel'
+        mock_req.httprequest.get_data.return_value = b''
+        mock_req.env = self.env
+        mock_req.session.uid = None
+
+        with patch('odoo.addons.it_helpdesk.controllers.main_api.request', mock_req):
+            res = self.controller.cancel_ticket(ticket_id=ticket.id, reason='단순 변심으로 인한 취소')
+            self.assertEqual(res['status'], 'success')
+            self.assertEqual(res['data']['status'], 'canceled')
+            self.assertEqual(ticket.status, 'canceled')

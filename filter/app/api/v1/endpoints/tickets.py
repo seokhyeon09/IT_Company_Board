@@ -8,6 +8,8 @@ from app.schemas.ticket import (
     TicketResolveDTO,
     TicketRestartDTO,
     TicketUpdateResolutionDTO,
+    TicketCloseDTO,
+    TicketCancelDTO,
     TicketRateDTO,
     TicketResponseDTO,
     TicketDetailResponseDTO,
@@ -169,4 +171,78 @@ async def update_resolution(
         "if_match_write_date": dto.if_match_write_date,
     }
     result = await odoo_client.call_json("/api/v1/tickets/update-resolution", params=params, user_id=user_id)
+    return result
+
+@router.post("/{ticket_id}/assign")
+async def assign_ticket(
+    ticket_id: int,
+    claims: dict = Depends(get_current_user_claims),
+):
+    """Assign ticket to current IT Helpdesk Officer."""
+    if not claims.get("is_officer", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only IT Helpdesk Officers are authorized to assign tickets"
+        )
+    user_id = int(claims["sub"])
+    result = await odoo_client.call_json("/api/v1/tickets/assign", params={"ticket_id": ticket_id}, user_id=user_id)
+    return result
+
+@router.post("/{ticket_id}/start-progress")
+async def start_progress_ticket(
+    ticket_id: int,
+    claims: dict = Depends(get_current_user_claims),
+):
+    """Transition ticket status to in_progress (Restricted to IT Helpdesk Officers)."""
+    if not claims.get("is_officer", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only IT Helpdesk Officers are authorized to update ticket status"
+        )
+    user_id = int(claims["sub"])
+    result = await odoo_client.call_json("/api/v1/tickets/start-progress", params={"ticket_id": ticket_id}, user_id=user_id)
+    return result
+
+@router.post("/{ticket_id}/pending")
+async def pending_ticket(
+    ticket_id: int,
+    claims: dict = Depends(get_current_user_claims),
+):
+    """Transition ticket status to pending (Restricted to IT Helpdesk Officers)."""
+    if not claims.get("is_officer", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only IT Helpdesk Officers are authorized to set ticket to pending"
+        )
+    user_id = int(claims["sub"])
+    result = await odoo_client.call_json("/api/v1/tickets/pending", params={"ticket_id": ticket_id}, user_id=user_id)
+    return result
+
+@router.post("/{ticket_id}/close")
+async def close_ticket(
+    ticket_id: int,
+    dto: TicketCloseDTO,
+    claims: dict = Depends(get_current_user_claims),
+):
+    """Close ticket authoritatively (Restricted to IT Helpdesk Officers)."""
+    if not claims.get("is_officer", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only IT Helpdesk Officers are authorized to close tickets"
+        )
+    user_id = int(claims["sub"])
+    params = {"ticket_id": ticket_id, "note": dto.note}
+    result = await odoo_client.call_json("/api/v1/tickets/close", params=params, user_id=user_id)
+    return result
+
+@router.post("/{ticket_id}/cancel")
+async def cancel_ticket(
+    ticket_id: int,
+    dto: TicketCancelDTO,
+    claims: dict = Depends(get_current_user_claims),
+):
+    """Cancel ticket (Author or IT Helpdesk Officers)."""
+    user_id = int(claims["sub"])
+    params = {"ticket_id": ticket_id, "reason": dto.reason}
+    result = await odoo_client.call_json("/api/v1/tickets/cancel", params=params, user_id=user_id)
     return result

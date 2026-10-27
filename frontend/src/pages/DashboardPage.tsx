@@ -245,6 +245,7 @@ export const DashboardPage: React.FC = () => {
             <option value="pending">답변대기</option>
             <option value="resolved">해결완료</option>
             <option value="closed">종결</option>
+            <option value="canceled">취소</option>
           </select>
 
           {/* Category Dropdown */}
