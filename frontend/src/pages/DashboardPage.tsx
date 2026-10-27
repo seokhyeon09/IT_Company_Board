@@ -3,6 +3,7 @@ import { useAuthStore } from '../stores/authStore';
 import { apiClient } from '../api/client';
 import { TicketCard, Ticket } from '../components/TicketCard';
 import { TicketCreateModal } from '../components/TicketCreateModal';
+import { TicketDetailModal } from '../components/TicketDetailModal';
 import { Plus, Search, Filter, RefreshCw, BookOpen, Inbox } from 'lucide-react';
 
 export const DashboardPage: React.FC = () => {
@@ -11,6 +12,7 @@ export const DashboardPage: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
 
   // Filters
   const [activeTab, setActiveTab] = useState<'all' | 'faq'>('all');
@@ -170,9 +172,7 @@ export const DashboardPage: React.FC = () => {
             <TicketCard
               key={ticket.id}
               ticket={ticket}
-              onClick={(t) => {
-                alert(`[${t.ticket_number}] ${t.title}\n상태: ${t.status}\n조치기한: ${t.deadline || '없음'}`);
-              }}
+              onClick={(t) => setSelectedTicketId(t.id)}
             />
           ))}
         </div>
@@ -182,6 +182,14 @@ export const DashboardPage: React.FC = () => {
       <TicketCreateModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+        onSuccess={fetchTickets}
+      />
+
+      {/* Ticket Detail Modal */}
+      <TicketDetailModal
+        isOpen={selectedTicketId !== null}
+        ticketId={selectedTicketId}
+        onClose={() => setSelectedTicketId(null)}
         onSuccess={fetchTickets}
       />
     </div>
