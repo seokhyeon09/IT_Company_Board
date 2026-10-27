@@ -132,7 +132,7 @@ class ITHelpdeskAPIController(http.Controller):
             return {'status': 'error', 'message': str(e)}
 
     @http.route('/api/v1/tickets/list', type='json', auth='none', methods=['POST'], csrf=False)
-    def list_tickets(self, category=None, priority=None, status=None, search=None, is_faq=None, offset=0, limit=50, **kwargs):
+    def list_tickets(self, category=None, priority=None, status=None, search=None, is_faq=None, is_overdue=None, offset=0, limit=50, **kwargs):
         """티켓 목록 조회 (일반 사원은 본인 글 + FAQ 지식창고 열람 가능, 담당자는 전체 열람)"""
         user = verify_gateway_request()
         ticket_env = request.env['it.helpdesk.ticket'].with_user(user)
@@ -156,6 +156,9 @@ class ITHelpdeskAPIController(http.Controller):
             domain.append(('priority', '=', str(priority)))
         if status in ('submitted', 'assigned', 'in_progress', 'pending', 'resolved', 'closed', 'canceled'):
             domain.append(('status', '=', status))
+        if is_overdue is True or str(is_overdue).lower() == 'true':
+            domain.append(('is_overdue', '=', True))
+            domain.append(('status', 'not in', ['resolved', 'closed']))
         if search and isinstance(search, str):
             safe_term = search.strip()[:100]
             domain.extend(['|', ('ticket_number', 'ilike', safe_term), ('title', 'ilike', safe_term)])
@@ -175,6 +178,33 @@ class ITHelpdeskAPIController(http.Controller):
 
         total_count = ticket_env.search_count(domain)
         return {"status": "success", "data": tickets, "total": total_count}
+
+    @http.route('/api/v1/tickets/stats', type='json', auth='none', methods=['POST'], csrf=False)
+    def get_ticket_stats(self):
+        """티켓 현황 통계 조회 (총 건수, 대기, 처리중, 해결완료, 기한초과)"""
+        user = verify_gateway_request()
+        ticket_env = request.env['it.helpdesk.ticket'].with_user(user)
+        is_officer = user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()
+        base_domain = [('is_faq', '=', False)]
+        if not is_officer:
+            base_domain.append(('author_id', '=', user.id))
+
+        total = ticket_env.search_count(base_domain)
+        waiting = ticket_env.search_count(base_domain + [('status', 'in', ['submitted', 'assigned'])])
+        in_progress = ticket_env.search_count(base_domain + [('status', 'in', ['in_progress', 'pending'])])
+        resolved = ticket_env.search_count(base_domain + [('status', 'in', ['resolved', 'closed'])])
+        overdue = ticket_env.search_count(base_domain + [('is_overdue', '=', True), ('status', 'not in', ['resolved', 'closed'])])
+
+        return {
+            "status": "success",
+            "data": {
+                "total": total,
+                "waiting": waiting,
+                "in_progress": in_progress,
+                "resolved": resolved,
+                "overdue": overdue,
+            }
+        }
 
     @http.route('/api/v1/tickets/detail', type='json', auth='none', methods=['POST'], csrf=False)
     def get_ticket_detail(self, ticket_id: int):

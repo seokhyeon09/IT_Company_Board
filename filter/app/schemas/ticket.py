@@ -89,3 +89,14 @@ class TicketListResponseDTO(BaseModel):
     status: str = "success"
     total: int
     data: List[TicketResponseDTO]
+
+class TicketStatsDataDTO(BaseModel):
+    total: int = 0
+    waiting: int = 0
+    in_progress: int = 0
+    resolved: int = 0
+    overdue: int = 0
+
+class TicketStatsResponseDTO(BaseModel):
+    status: str = "success"
+    data: TicketStatsDataDTO

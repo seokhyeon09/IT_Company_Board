@@ -8,7 +8,8 @@ from app.schemas.ticket import (
     TicketResolveDTO,
     TicketResponseDTO,
     TicketDetailResponseDTO,
-    TicketListResponseDTO
+    TicketListResponseDTO,
+    TicketStatsResponseDTO
 )
 
 router = APIRouter()
@@ -20,6 +21,7 @@ async def list_tickets(
     status: Optional[str] = Query(None, description="상태"),
     search: Optional[str] = Query(None, description="검색어"),
     is_faq: Optional[bool] = Query(None, description="FAQ 여부"),
+    is_overdue: Optional[bool] = Query(None, description="기한 초과 여부"),
     offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     claims: dict = Depends(get_current_user_claims),
@@ -32,6 +34,7 @@ async def list_tickets(
         "status": status,
         "search": search,
         "is_faq": is_faq,
+        "is_overdue": is_overdue,
         "offset": offset,
         "limit": limit,
     }
@@ -52,6 +55,18 @@ async def create_ticket(
     params = dto.model_dump()
     result = await odoo_client.call_json("/api/v1/tickets/create", params=params, user_id=user_id)
     return result.get("data", {})
+
+@router.get("/stats", response_model=TicketStatsResponseDTO)
+async def get_ticket_stats(
+    claims: dict = Depends(get_current_user_claims),
+):
+    """Retrieve ticket metrics (total, waiting, in_progress, resolved, overdue)."""
+    user_id = int(claims["sub"])
+    result = await odoo_client.call_json("/api/v1/tickets/stats", params={}, user_id=user_id)
+    return TicketStatsResponseDTO(
+        status="success",
+        data=result.get("data", {})
+    )
 
 @router.get("/{ticket_id}", response_model=TicketDetailResponseDTO)
 async def get_ticket(
