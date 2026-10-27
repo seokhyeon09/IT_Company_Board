@@ -250,6 +250,16 @@ class ITHelpdeskAPIController(http.Controller):
             "rating_comment": ticket.rating_comment or None,
             "create_date": _format_datetime_utc(ticket.create_date),
             "write_date": _format_datetime_utc(ticket.write_date),
+            "follow_ups": [
+                {
+                    "id": msg.id,
+                    "date": _format_datetime_utc(msg.date),
+                    "author_name": msg.author_id.name if msg.author_id else "작성 직원",
+                    "content": _clean_html(msg.body).split("직원 추가 재문의 내용:", 1)[1].strip() if "직원 추가 재문의 내용:" in _clean_html(msg.body) else _clean_html(msg.body).strip()
+                }
+                for msg in ticket.message_ids.sorted(key=lambda m: m.id, reverse=False)
+                if "직원 추가 재문의 내용:" in (msg.body or "")
+            ],
             "logs": [
                 {
                     "id": msg.id,

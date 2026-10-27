@@ -22,6 +22,13 @@ import {
   MessageSquare,
 } from 'lucide-react';
 
+export interface FollowUpInquiry {
+  id: number;
+  date?: string;
+  author_name?: string;
+  content: string;
+}
+
 export interface TicketLog {
   id: number;
   date?: string;
@@ -50,6 +57,7 @@ export interface TicketDetail {
   resolution_note?: string;
   rating?: string;
   rating_comment?: string;
+  follow_ups?: FollowUpInquiry[];
   logs?: TicketLog[];
 }
 
@@ -457,6 +465,41 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                   {formatHtmlContent(ticket.content) || '작성된 상세 내용이 없습니다.'}
                 </div>
               </div>
+
+              {/* Follow-up Inquiries Thread (직원 추가 재문의 내역) */}
+              {ticket.follow_ups && ticket.follow_ups.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-1.5">
+                    <MessageSquare className="w-3.5 h-3.5 text-purple-600" />
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-purple-900">
+                      직원 추가 재문의 내역 ({ticket.follow_ups.length}건)
+                    </h4>
+                  </div>
+                  <div className="space-y-2.5">
+                    {ticket.follow_ups.map((inquiry, idx) => (
+                      <div
+                        key={inquiry.id || idx}
+                        className="p-4 bg-purple-50 border border-purple-200 rounded-xl space-y-1.5 shadow-xs"
+                      >
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-purple-900 flex items-center">
+                            <span className="bg-purple-200 text-purple-800 text-[10px] px-2 py-0.5 rounded-full mr-2 font-mono font-semibold">
+                              재문의 {idx + 1}차
+                            </span>
+                            {inquiry.author_name || '작성 직원'}
+                          </span>
+                          <span className="text-[11px] text-purple-600">
+                            {inquiry.date ? inquiry.date.substring(0, 16).replace('T', ' ') : '-'}
+                          </span>
+                        </div>
+                        <p className="text-purple-950 text-sm whitespace-pre-wrap leading-relaxed">
+                          {formatHtmlContent(inquiry.content)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Resolution Area: Display note with edit button for officer */}
               {ticket.resolution_note && (

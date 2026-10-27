@@ -56,6 +56,13 @@ class TicketResolveDTO(BaseModel):
     if_match_write_date: Optional[str] = Field(default=None, description="낙관적 락킹용 이전 write_date")
 
 
+
+class FollowUpInquiryDTO(BaseModel):
+    id: int
+    date: Optional[str] = None
+    author_name: Optional[str] = "작성 직원"
+    content: str
+
 class TicketLogDTO(BaseModel):
     id: int
     date: Optional[str] = None
@@ -100,6 +107,7 @@ class TicketDetailResponseDTO(TicketResponseDTO):
     resolution_note: Optional[Any] = None
     author_name: Optional[Any] = None
     rating_comment: Optional[Any] = None
+    follow_ups: List[FollowUpInquiryDTO] = []
     logs: List[TicketLogDTO] = []
 
     @field_validator("content", "resolution_note", "author_name", "rating_comment", mode="before")
