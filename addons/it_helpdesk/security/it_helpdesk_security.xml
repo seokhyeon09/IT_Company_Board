@@ -47,4 +47,23 @@
         <field name="groups" eval="[(4, ref('group_helpdesk_officer'))]"/>
         <field name="domain_force">[(1, '=', 1)]</field>
     </record>
+
+    <!-- RC-SEC-03: 만족도 평가 이력 Record Rule (사원은 본인 작성 평가만 접근 가능) -->
+    <record id="helpdesk_ticket_rating_rule_user" model="ir.rule">
+        <field name="name">내 만족도 평가만 조회 및 작성</field>
+        <field name="model_id" ref="model_it_helpdesk_ticket_rating"/>
+        <field name="groups" eval="[(4, ref('group_helpdesk_user'))]"/>
+        <field name="domain_force">[('author_id', '=', user.id)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <record id="helpdesk_ticket_rating_rule_officer" model="ir.rule">
+        <field name="name">모든 만족도 평가 조회</field>
+        <field name="model_id" ref="model_it_helpdesk_ticket_rating"/>
+        <field name="groups" eval="[(4, ref('group_helpdesk_officer'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
 </odoo>

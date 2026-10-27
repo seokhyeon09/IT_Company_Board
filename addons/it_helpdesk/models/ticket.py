@@ -309,7 +309,8 @@ class HelpDeskTicket(models.Model):
             if record.status in ('resolved', 'closed', 'canceled'):
                 raise UserError("이미 완료되거나 종결된 티켓은 담당자를 배정할 수 없습니다.")
             record.assignee_id = self.env.user
-            record.status = 'assigned'
+            if record.status == 'submitted':
+                record.status = 'assigned'
             
             # 기존 미완료 todo Activity 정리 후 본인에게 스케줄링
             todo_type = self.env.ref('mail.mail_activity_data_todo', raise_if_not_found=False)
@@ -389,8 +390,11 @@ class HelpDeskTicket(models.Model):
                 record.activity_ids.action_done()
 
     def action_cancel(self):
-        """취소"""
+        """취소 (본인 티켓이거나 IT 담당자/관리자만 가능)"""
+        is_officer = self.env.is_admin() or self.env.user.has_group('it_helpdesk.group_helpdesk_officer')
         for record in self:
+            if not is_officer and not self.env.su and record.author_id != self.env.user:
+                raise AccessError("본인이 작성한 문의 티켓만 취소할 수 있습니다.")
             if record.status in ('closed', 'canceled'):
                 raise UserError("이미 종결되거나 취소된 티켓은 취소할 수 없습니다.")
             record.status = "canceled"
@@ -425,6 +429,8 @@ class HelpDeskTicket(models.Model):
         for record in self:
             if self.env.user != record.author_id:
                 raise UserError("만족도 평가는 문의를 등록한 본인만 작성할 수 있습니다.")
+            if record.status != 'resolved':
+                raise UserError("해결 완료(resolved) 상태의 티켓만 만족도를 평가하고 종결할 수 있습니다.")
             if not record.rating or record.rating == "0":
                 raise UserError("만족도 별점을 1점 이상 선택해 주세요. (미평가 상태로는 제출할 수 없습니다.)")
 
@@ -466,13 +472,17 @@ class HelpDeskTicket(models.Model):
         ])
         closed_count = 0
         for ticket in tickets:
-            # 시스템 관리자 권한으로 안전하게 종결(closed) 처리 및 Chatter 기록
-            ticket.sudo().write({'status': 'closed'})
-            ticket.sudo().message_post(
-                body=f"해결 완료 상태에서 {days}일 동안 추가 문의 또는 만족도 평가가 등록되지 않아 시스템 스케줄러에 의해 자동으로 문의가 종결되었습니다.",
-                subtype_xmlid='mail.mt_note'
-            )
-            closed_count += 1
+            try:
+                with self.env.cr.savepoint():
+                    ticket.sudo().write({'status': 'closed'})
+                    ticket.sudo().message_post(
+                        body=f"해결 완료 상태에서 {days}일 동안 추가 문의 또는 만족도 평가가 등록되지 않아 시스템 스케줄러에 의해 자동으로 문의가 종결되었습니다.",
+                        subtype_xmlid='mail.mt_note'
+                    )
+                    closed_count += 1
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning("Failed to auto-close ticket ID %s: %s", ticket.id, e)
         return closed_count
 
 
