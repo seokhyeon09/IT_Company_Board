@@ -6,6 +6,7 @@ from app.client.odoo_client import odoo_client
 from app.schemas.ticket import (
     TicketCreateDTO,
     TicketResolveDTO,
+    TicketRateDTO,
     TicketResponseDTO,
     TicketDetailResponseDTO,
     TicketListResponseDTO,
@@ -97,4 +98,37 @@ async def resolve_ticket(
         "if_match_write_date": dto.if_match_write_date,
     }
     result = await odoo_client.call_json("/api/v1/tickets/resolve", params=params, user_id=user_id)
+    return result
+
+@router.post("/{ticket_id}/rate")
+async def rate_ticket(
+    ticket_id: int,
+    dto: TicketRateDTO,
+    claims: dict = Depends(get_current_user_claims),
+):
+    """Rate a resolved IT ticket and close it (Restricted to ticket author)."""
+    user_id = int(claims["sub"])
+    params = {
+        "ticket_id": ticket_id,
+        "rating": dto.rating,
+        "rating_comment": dto.rating_comment,
+        "if_match_write_date": dto.if_match_write_date,
+    }
+    result = await odoo_client.call_json("/api/v1/tickets/rate", params=params, user_id=user_id)
+    return result
+
+@router.post("/{ticket_id}/toggle-faq")
+async def toggle_faq(
+    ticket_id: int,
+    claims: dict = Depends(get_current_user_claims),
+):
+    """Toggle FAQ recommendation status (Restricted to IT Helpdesk Officers)."""
+    if not claims.get("is_officer", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only IT Helpdesk Officers are authorized to manage FAQ tickets"
+        )
+    user_id = int(claims["sub"])
+    params = {"ticket_id": ticket_id}
+    result = await odoo_client.call_json("/api/v1/tickets/toggle-faq", params=params, user_id=user_id)
     return result

@@ -55,6 +55,12 @@ class TicketResolveDTO(BaseModel):
     resolution_note: str = Field(..., min_length=5, description="조치 완료 내용")
     if_match_write_date: Optional[str] = Field(default=None, description="낙관적 락킹용 이전 write_date")
 
+class TicketRateDTO(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    rating: str = Field(..., pattern="^[1-5]$", description="만족도 별점 (1~5)")
+    rating_comment: Optional[str] = Field(default=None, max_length=500, description="만족도 한줄평")
+    if_match_write_date: Optional[str] = Field(default=None, description="낙관적 락킹용 이전 write_date")
+
 class TicketResponseDTO(BaseModel):
     id: int
     ticket_number: str

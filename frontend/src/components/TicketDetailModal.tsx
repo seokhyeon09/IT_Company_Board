@@ -11,9 +11,11 @@ import {
   Tag,
   FileText,
   ShieldCheck,
-  Send,
   Loader2,
   HelpCircle,
+  Star,
+  BookmarkPlus,
+  BookmarkCheck,
 } from 'lucide-react';
 
 export interface TicketDetail {
@@ -96,14 +98,26 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
 
   // Officer Resolution Form State
   const [resolutionNote, setResolutionNote] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [submittingResolve, setSubmittingResolve] = useState(false);
   const [resolveError, setResolveError] = useState('');
+
+  // Rating State
+  const [ratingScore, setRatingScore] = useState<number>(5);
+  const [ratingComment, setRatingComment] = useState('');
+  const [submittingRating, setSubmittingRating] = useState(false);
+  const [ratingError, setRatingError] = useState('');
+
+  // FAQ Toggle State
+  const [togglingFaq, setTogglingFaq] = useState(false);
 
   useEffect(() => {
     if (isOpen && ticketId) {
       fetchDetail(ticketId);
       setResolutionNote('');
       setResolveError('');
+      setRatingScore(5);
+      setRatingComment('');
+      setRatingError('');
     } else {
       setTicket(null);
       setFetchError('');
@@ -132,7 +146,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
       return;
     }
 
-    setSubmitting(true);
+    setSubmittingResolve(true);
     setResolveError('');
 
     try {
@@ -141,15 +155,49 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
         if_match_write_date: ticket.write_date,
       });
 
-      // Refresh local detail and trigger dashboard refresh
       await fetchDetail(ticket.id);
-      if (onSuccess) {
-        onSuccess();
-      }
+      if (onSuccess) onSuccess();
     } catch (err: any) {
       setResolveError(getErrorMessage(err, '해결 완료 처리 중 오류가 발생했습니다.'));
     } finally {
-      setSubmitting(false);
+      setSubmittingResolve(false);
+    }
+  };
+
+  const handleRateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ticket) return;
+
+    setSubmittingRating(true);
+    setRatingError('');
+
+    try {
+      await apiClient.post(`/tickets/${ticket.id}/rate`, {
+        rating: String(ratingScore),
+        rating_comment: ratingComment.trim() || undefined,
+        if_match_write_date: ticket.write_date,
+      });
+
+      await fetchDetail(ticket.id);
+      if (onSuccess) onSuccess();
+    } catch (err: any) {
+      setRatingError(getErrorMessage(err, '만족도 평가 등록 중 오류가 발생했습니다.'));
+    } finally {
+      setSubmittingRating(false);
+    }
+  };
+
+  const handleToggleFaq = async () => {
+    if (!ticket) return;
+    setTogglingFaq(true);
+    try {
+      await apiClient.post(`/tickets/${ticket.id}/toggle-faq`);
+      await fetchDetail(ticket.id);
+      if (onSuccess) onSuccess();
+    } catch (err: any) {
+      alert(getErrorMessage(err, 'FAQ 설정 변경 중 오류가 발생했습니다.'));
+    } finally {
+      setTogglingFaq(false);
     }
   };
 
@@ -163,7 +211,9 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     ? priorityMap[ticket.priority] || { label: '보통', badge: 'bg-slate-200 text-slate-700' }
     : { label: '', badge: '' };
 
-  const isResolvedOrClosed = ticket?.status === 'resolved' || ticket?.status === 'closed';
+  const isResolved = ticket?.status === 'resolved';
+  const isClosed = ticket?.status === 'closed';
+  const isAuthor = ticket && user && ticket.author_id === user.uid;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -184,18 +234,48 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 </span>
                 {ticket.is_faq && (
                   <span className="flex items-center text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded font-medium">
-                    <HelpCircle className="w-3 h-3 mr-1" /> FAQ
+                    <HelpCircle className="w-3 h-3 mr-1" /> FAQ 공식 선정
                   </span>
                 )}
               </>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all"
-          >
-            <X className="w-5 h-5" />
-          </button>
+
+          <div className="flex items-center space-x-2">
+            {/* Officer FAQ Toggle Action */}
+            {user?.is_officer && ticket && ticket.resolution_note && (
+              <button
+                type="button"
+                onClick={handleToggleFaq}
+                disabled={togglingFaq}
+                className={`flex items-center px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                  ticket.is_faq
+                    ? 'bg-indigo-50 text-indigo-700 border-indigo-300 hover:bg-indigo-100'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                }`}
+                title="FAQ 지식창고 등록/해제"
+              >
+                {ticket.is_faq ? (
+                  <>
+                    <BookmarkCheck className="w-3.5 h-3.5 mr-1 text-indigo-600" />
+                    FAQ 등록됨
+                  </>
+                ) : (
+                  <>
+                    <BookmarkPlus className="w-3.5 h-3.5 mr-1 text-slate-400" />
+                    FAQ 추천
+                  </>
+                )}
+              </button>
+            )}
+
+            <button
+              onClick={onClose}
+              className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Content Body */}
@@ -284,7 +364,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center">
                   <FileText className="w-3.5 h-3.5 mr-1" /> 문의 상세 내용
                 </h4>
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 whitespace-pre-wrap leading-relaxed text-sm min-h-[100px]">
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 whitespace-pre-wrap leading-relaxed text-sm min-h-[90px]">
                   {formatHtmlContent(ticket.content) || '작성된 상세 내용이 없습니다.'}
                 </div>
               </div>
@@ -302,8 +382,115 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 </div>
               )}
 
-              {/* IT Officer Action Form (Only when NOT resolved and user is officer) */}
-              {!isResolvedOrClosed && user?.is_officer && (
+              {/* Customer Rating Section (If already rated) */}
+              {ticket.rating && ticket.rating !== '0' && (
+                <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-xl">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center space-x-1.5">
+                      <span className="text-xs font-bold text-amber-900 uppercase tracking-wider">
+                        직원 만족도 평가 결과
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      {[1, 2, 3, 4, 5].map((starVal) => (
+                        <Star
+                          key={starVal}
+                          className={`w-4 h-4 ${
+                            starVal <= Number(ticket.rating)
+                              ? 'text-amber-500 fill-amber-400'
+                              : 'text-slate-300'
+                          }`}
+                        />
+                      ))}
+                      <span className="text-xs font-black text-amber-900 ml-1.5">
+                        {ticket.rating}점 / 5점
+                      </span>
+                    </div>
+                  </div>
+                  {ticket.rating_comment && (
+                    <p className="text-xs text-amber-950 mt-1 italic bg-white/70 p-2.5 rounded-lg border border-amber-100">
+                      "{ticket.rating_comment}"
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Active Rating Form: When resolved, author hasn't rated yet */}
+              {isResolved && isAuthor && (!ticket.rating || ticket.rating === '0') && (
+                <div className="p-4 bg-indigo-50/70 border border-indigo-200 rounded-xl">
+                  <div className="flex items-center space-x-1.5 mb-2">
+                    <Star className="w-4 h-4 text-indigo-600 fill-indigo-500" />
+                    <h4 className="text-xs font-bold text-indigo-900 uppercase tracking-wider">
+                      조치 만족도 평가 (본인 평가 후 종결)
+                    </h4>
+                  </div>
+                  <p className="text-xs text-slate-500 mb-3">
+                    IT 지원팀의 조치 내용에 대해 만족도를 평가해 주세요. 평가 완료 시 문의가 최종 종결됩니다.
+                  </p>
+
+                  <form onSubmit={handleRateSubmit} className="space-y-3">
+                    <div className="flex items-center space-x-2 bg-white p-2.5 rounded-xl border border-indigo-100 w-fit">
+                      <span className="text-xs text-slate-600 font-semibold mr-1">별점:</span>
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => setRatingScore(s)}
+                          className="p-1 hover:scale-110 transition-transform cursor-pointer"
+                        >
+                          <Star
+                            className={`w-5 h-5 ${
+                              s <= ratingScore
+                                ? 'text-amber-500 fill-amber-400'
+                                : 'text-slate-200'
+                            }`}
+                          />
+                        </button>
+                      ))}
+                      <span className="text-xs font-bold text-amber-600 ml-1">
+                        {ratingScore}점
+                      </span>
+                    </div>
+
+                    <textarea
+                      rows={2}
+                      value={ratingComment}
+                      onChange={(e) => setRatingComment(e.target.value)}
+                      placeholder="처리 과정에 대한 한줄평이나 감사의견을 남겨주세요 (선택사항)"
+                      className="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                    />
+
+                    {ratingError && (
+                      <div className="text-xs text-rose-600 bg-rose-50 border border-rose-200 p-2.5 rounded-lg">
+                        {ratingError}
+                      </div>
+                    )}
+
+                    <div className="flex justify-end">
+                      <button
+                        type="submit"
+                        disabled={submittingRating}
+                        className="flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-md shadow-indigo-600/20 disabled:opacity-50 transition-all cursor-pointer"
+                      >
+                        {submittingRating ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                            제출 중...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                            만족도 제출 및 문의 종결
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {/* IT Officer Action Form (Only when NOT resolved/closed and user is officer) */}
+              {!isResolved && !isClosed && user?.is_officer && (
                 <div className="pt-4 border-t border-slate-200">
                   <div className="flex items-center space-x-1.5 mb-2">
                     <ShieldCheck className="w-4 h-4 text-indigo-600" />
@@ -330,10 +517,10 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                     <div className="flex justify-end">
                       <button
                         type="submit"
-                        disabled={submitting}
-                        className="flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl shadow-md shadow-emerald-600/20 disabled:opacity-50 transition-all"
+                        disabled={submittingResolve}
+                        className="flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl shadow-md shadow-emerald-600/20 disabled:opacity-50 transition-all cursor-pointer"
                       >
-                        {submitting ? (
+                        {submittingResolve ? (
                           <>
                             <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
                             처리 중...
@@ -351,7 +538,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
               )}
 
               {/* Regular User Pending Message */}
-              {!isResolvedOrClosed && !user?.is_officer && (
+              {!isResolved && !isClosed && !user?.is_officer && (
                 <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-xl text-blue-800 text-xs flex items-center">
                   <Clock className="w-4 h-4 mr-2 text-blue-600 shrink-0" />
                   <span>현재 IT 지원팀에서 담당자 배정 및 문의 처리를 진행 중입니다.</span>
@@ -365,7 +552,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
         <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 transition-all"
+            className="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 transition-all cursor-pointer"
           >
             닫기
           </button>

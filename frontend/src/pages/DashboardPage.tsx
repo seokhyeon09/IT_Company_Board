@@ -5,6 +5,7 @@ import { TicketCard, Ticket } from '../components/TicketCard';
 import { TicketCreateModal } from '../components/TicketCreateModal';
 import { TicketDetailModal } from '../components/TicketDetailModal';
 import { DashboardStats, TicketStats } from '../components/DashboardStats';
+import { FaqAccordion } from '../components/FaqAccordion';
 import {
   Plus,
   Search,
@@ -335,15 +336,22 @@ export const DashboardPage: React.FC = () => {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {tickets.map((ticket) => (
-              <TicketCard
-                key={ticket.id}
-                ticket={ticket}
-                onClick={(t) => setSelectedTicketId(t.id)}
-              />
-            ))}
-          </div>
+          {activeTab === 'faq' ? (
+            <FaqAccordion
+              tickets={tickets}
+              onSelectTicket={(id) => setSelectedTicketId(id)}
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {tickets.map((ticket) => (
+                <TicketCard
+                  key={ticket.id}
+                  ticket={ticket}
+                  onClick={(t) => setSelectedTicketId(t.id)}
+                />
+              ))}
+            </div>
+          )}
 
           {/* Pagination Controls */}
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-200 pt-6">

@@ -321,3 +321,62 @@ class ITHelpdeskAPIController(http.Controller):
                 "write_date": _format_datetime_utc(ticket.write_date)
             }
         }
+
+    @http.route('/api/v1/tickets/rate', type='json', auth='none', methods=['POST'], csrf=False)
+    def rate_ticket(self, ticket_id: int, rating: str, rating_comment: str = None, if_match_write_date: str = None):
+        """요청 직원의 티켓 만족도 평가 및 자동 종결 처리"""
+        user = verify_gateway_request()
+        ticket = request.env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
+        if not ticket.exists():
+            raise UserError("Ticket not found.")
+
+        # 권한 검증: 본인 티켓만 평가 가능
+        if ticket.author_id.id != user.id:
+            raise AccessError("Only the author can evaluate and rate this ticket.")
+
+        if ticket.status != 'resolved':
+            raise UserError("Only resolved tickets can be rated and closed.")
+
+        if str(rating) not in ('1', '2', '3', '4', '5'):
+            raise UserError("Rating must be between 1 and 5.")
+
+        ticket.write({
+            'rating': str(rating),
+            'rating_comment': rating_comment or False
+        })
+        ticket.action_submit_rating()
+
+        return {
+            "status": "success",
+            "data": {
+                "id": ticket.id,
+                "ticket_number": ticket.ticket_number,
+                "status": ticket.status,
+                "rating": ticket.rating,
+                "rating_comment": ticket.rating_comment,
+                "write_date": _format_datetime_utc(ticket.write_date)
+            }
+        }
+
+    @http.route('/api/v1/tickets/toggle-faq', type='json', auth='none', methods=['POST'], csrf=False)
+    def toggle_faq(self, ticket_id: int):
+        """IT 담당자의 사내 FAQ 지식창고 추천/해제 토글"""
+        user = verify_gateway_request()
+        if not (user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()):
+            raise AccessError("Only helpdesk officers can manage FAQ tickets.")
+
+        ticket = request.env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
+        if not ticket.exists():
+            raise UserError("Ticket not found.")
+
+        ticket.action_toggle_faq()
+
+        return {
+            "status": "success",
+            "data": {
+                "id": ticket.id,
+                "ticket_number": ticket.ticket_number,
+                "is_faq": ticket.is_faq,
+                "write_date": _format_datetime_utc(ticket.write_date)
+            }
+        }
