@@ -222,3 +222,84 @@ class TestHelpdeskSecurityAudit(TransactionCase):
                 'title': '     ',
                 'content': '<p>내용</p>',
             })
+
+    def test_09_action_cancel_guarded_against_third_party(self):
+        """[RC-SEC-01 검증] 타인 사원의 action_cancel() 호출 차단 및 본인 취소 허용"""
+        # 사원 2 생성
+        user_employee2 = self.env['res.users'].create({
+            'name': '테스트 사원 2',
+            'login': 'test_employee2_audit',
+            'email': 'employee2@audit.com',
+            'groups_id': [(6, 0, [
+                self.env.ref('base.group_user').id,
+                self.env.ref('it_helpdesk.group_helpdesk_user').id,
+            ])]
+        })
+
+        ticket = self.Ticket.with_user(self.user_employee).create({
+            'title': '마우스 클릭 불량',
+            'content': '<p>좌클릭이 두 번 인식됩니다.</p>',
+            'author_id': self.user_employee.id,
+        })
+
+        # 1. 제3자 사원이 타인의 티켓 취소 시도 -> AccessError
+        with self.assertRaises(AccessError):
+            ticket.with_user(user_employee2).action_cancel()
+
+        # 2. 본인 사원이 본인 티켓 취소 시도 -> 성공
+        ticket.with_user(self.user_employee).action_cancel()
+        self.assertEqual(ticket.status, 'canceled')
+
+    def test_10_action_submit_rating_requires_resolved_status(self):
+        """[RC-SEC-02 검증] submitted 상태에서 action_submit_rating() 호출 시 차단"""
+        ticket = self.Ticket.with_user(self.user_employee).create({
+            'title': '모니터 케이블 교체 요청',
+            'content': '<p>HDMI 케이블이 손상되었습니다.</p>',
+            'author_id': self.user_employee.id,
+        })
+
+        # 1. submitted 상태에서 action_submit_rating() 시도 -> UserError
+        ticket.rating = '5'
+        with self.assertRaises(UserError):
+            ticket.with_user(self.user_employee).action_submit_rating()
+
+        # 2. 정상 조치 후 resolved 전이
+        ticket.with_user(self.user_officer1).action_assign_to_me()
+        ticket.with_user(self.user_officer1).write({'resolution_note': '<p>새 케이블 지급 완료</p>'})
+        ticket.with_user(self.user_officer1).action_start_progress()
+        ticket.with_user(self.user_officer1).action_resolve()
+
+        # 3. resolved 상태에서 action_submit_rating() -> 성공 및 종결(closed)
+        ticket.with_user(self.user_employee).action_submit_rating()
+        self.assertEqual(ticket.status, 'closed')
+        self.assertEqual(len(ticket.rating_ids), 1)
+
+    def test_11_ticket_rating_record_rule_isolation(self):
+        """[RC-SEC-03 검증] it.helpdesk.ticket.rating 모델의 Record Rule 사원 간 격리"""
+        user_employee2 = self.env['res.users'].create({
+            'name': '테스트 사원 3',
+            'login': 'test_employee3_audit',
+            'email': 'employee3@audit.com',
+            'groups_id': [(6, 0, [
+                self.env.ref('base.group_user').id,
+                self.env.ref('it_helpdesk.group_helpdesk_user').id,
+            ])]
+        })
+
+        ticket = self.Ticket.with_user(self.user_employee).create({
+            'title': '사내 메신저 로그인 에러',
+            'content': '<p>인증 오류 발생</p>',
+            'author_id': self.user_employee.id,
+        })
+        ticket.with_user(self.user_officer1).action_assign_to_me()
+        ticket.with_user(self.user_officer1).write({'resolution_note': '<p>계정 락 해제</p>'})
+        ticket.with_user(self.user_officer1).action_start_progress()
+        ticket.with_user(self.user_officer1).action_resolve()
+
+        ticket.rating = '5'
+        ticket.with_user(self.user_employee).action_submit_rating()
+        rating_rec = ticket.rating_ids[0]
+
+        # 타 사원이 해당 평가 이력을 읽으려 시도 -> AccessError
+        with self.assertRaises(AccessError):
+            rating_rec.with_user(user_employee2).read(['rating', 'rating_comment'])
