@@ -88,6 +88,7 @@ export interface TicketDetail {
   create_date?: string;
   write_date?: string;
   is_faq: boolean;
+  pending_reason?: string;
   resolution_note?: string;
   rating?: string;
   rating_comment?: string;
@@ -132,14 +133,21 @@ const priorityMap: Record<string, { label: string; badge: string }> = {
 
 function formatHtmlContent(raw: string | undefined | null): string {
   if (!raw) return '';
-  return raw
+  let text = String(raw);
+  // Decode HTML entities (2 passes for double escaping)
+  for (let i = 0; i < 2; i++) {
+    text = text
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&amp;/g, '&');
+  }
+  return text
     .replace(/<br\s*[\/]?>/gi, '\n')
     .replace(/<\/p>/gi, '\n')
     .replace(/<[^>]+>/g, '')
     .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
     .trim();
 }
 
@@ -197,6 +205,12 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   const [submittingClose, setSubmittingClose] = useState(false);
   const [closeError, setCloseError] = useState('');
 
+  // Pending reason state (답변 대기 요청 사유)
+  const [showPendingModal, setShowPendingModal] = useState(false);
+  const [pendingReason, setPendingReason] = useState('');
+  const [submittingPending, setSubmittingPending] = useState(false);
+  const [pendingError, setPendingError] = useState('');
+
   // Cancel inquiry state (문의 취소)
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
@@ -223,6 +237,9 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
       setShowCloseModal(false);
       setCloseNote('');
       setCloseError('');
+      setShowPendingModal(false);
+      setPendingReason('');
+      setPendingError('');
       setShowCancelModal(false);
       setIsEditingTicket(false);
       setEditTitle('');
@@ -403,18 +420,28 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     }
   };
 
-  // 담당자 답변 대기 요청
-  const handlePending = async () => {
+  // 담당자 답변 대기 요청 (사유 수기 입력)
+  const handlePendingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!ticket) return;
-    setTransitioningStatus('pending');
+    if (!pendingReason.trim()) {
+      setPendingError('답변 대기 요청 사유를 입력해 주세요.');
+      return;
+    }
+    setSubmittingPending(true);
+    setPendingError('');
     try {
-      await apiClient.post(`/tickets/${ticket.id}/pending`);
+      await apiClient.post(`/tickets/${ticket.id}/pending`, {
+        reason: pendingReason.trim(),
+      });
+      setShowPendingModal(false);
+      setPendingReason('');
       await fetchDetail(ticket.id);
       if (onSuccess) onSuccess();
     } catch (err: any) {
-      alert(getErrorMessage(err, '답변 대기 변경 중 오류가 발생했습니다.'));
+      setPendingError(getErrorMessage(err, '답변 대기 전환 중 오류가 발생했습니다.'));
     } finally {
-      setTransitioningStatus(null);
+      setSubmittingPending(false);
     }
   };
 
@@ -560,7 +587,14 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
 
   const isResolved = ticket?.status === 'resolved';
   const isClosed = ticket?.status === 'closed';
-  const isAuthor = ticket && user && ticket.author_id === user.uid;
+  const isAuthor = Boolean(
+    ticket && user && (
+      ticket.author_id === user.uid ||
+      String(ticket.author_id) === String(user.uid) ||
+      (Array.isArray(ticket.author_id) && String(ticket.author_id[0]) === String(user.uid)) ||
+      (ticket.author_name && user.name && ticket.author_name === user.name)
+    )
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -645,23 +679,80 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                   <h2 className="text-xl font-bold text-slate-900 tracking-tight leading-snug">
                     {ticket.title}
                   </h2>
-                  {isAuthor && ticket.status === 'submitted' && !isEditingTicket && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditTitle(ticket.title || '');
-                        setEditCategory(ticket.category || 'sw');
-                        setEditPriority(ticket.priority || '1');
-                        setEditContent(ticket.content || '');
-                        setIsEditingTicket(true);
-                      }}
-                      className="shrink-0 flex items-center text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer shadow-xs"
-                    >
-                      <Edit3 className="w-3.5 h-3.5 mr-1" />
-                      문의 수정
-                    </button>
-                  )}
+                  <div className="flex items-center space-x-2 shrink-0">
+                    {isAuthor && ticket.status === 'submitted' && !isEditingTicket && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditTitle(ticket.title || '');
+                          setEditCategory(ticket.category || 'sw');
+                          setEditPriority(ticket.priority || '1');
+                          setEditContent(ticket.content || '');
+                          setIsEditingTicket(true);
+                        }}
+                        className="flex items-center text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer shadow-xs"
+                      >
+                        <Edit3 className="w-3.5 h-3.5 mr-1" />
+                        문의 수정
+                      </button>
+                    )}
+                    {!['closed', 'canceled'].includes(ticket.status) && (isAuthor || user?.is_officer) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowCancelModal(true);
+                          setCancelReason('');
+                          setCancelError('');
+                        }}
+                        className="flex items-center text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer shadow-xs"
+                      >
+                        <Ban className="w-3.5 h-3.5 mr-1" />
+                        문의 취소
+                      </button>
+                    )}
+                  </div>
                 </div>
+
+                {/* Cancel Confirmation Prompt */}
+                {showCancelModal && (
+                  <div className="mt-3 p-4 bg-rose-50/90 border border-rose-300 rounded-xl space-y-2.5 animate-in fade-in shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-bold text-rose-900 flex items-center">
+                        <Ban className="w-4 h-4 mr-1.5 text-rose-600" />
+                        문의 취소 확인
+                      </div>
+                    </div>
+                    <p className="text-xs text-rose-700 leading-relaxed">
+                      문의를 취소하면 IT 지원 처리가 즉시 중단되며 티켓이 취소 상태로 변경됩니다. 취소 사유를 입력해주세요.
+                    </p>
+                    <form onSubmit={handleCancelSubmit} className="space-y-2.5">
+                      <input
+                        type="text"
+                        value={cancelReason}
+                        onChange={(e) => setCancelReason(e.target.value)}
+                        placeholder="취소 사유를 입력하세요 (선택)..."
+                        className="w-full px-3 py-2 text-xs border border-rose-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800"
+                      />
+                      {cancelError && <p className="text-xs text-rose-600 font-medium">{cancelError}</p>}
+                      <div className="flex justify-end space-x-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowCancelModal(false)}
+                          className="px-3 py-1.5 text-xs text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
+                        >
+                          취소 철회
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={submittingCancel}
+                          className="flex items-center px-3.5 py-1.5 text-xs font-semibold text-white bg-rose-600 rounded-lg hover:bg-rose-700 disabled:opacity-50 cursor-pointer shadow-xs"
+                        >
+                          {submittingCancel ? '취소 처리 중...' : '문의 취소 확정'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
 
                                 {/* Inline Edit Form for Submitted Ticket */}
                 {isEditingTicket && (
@@ -797,6 +888,40 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                     )}
                   </div>
                 )}
+
+                {/* Pending Notice Banner */}
+                {ticket.status === 'pending' && (
+                  <div className="mt-3 p-4 bg-purple-50/90 border border-purple-200 rounded-xl flex items-start space-x-3 shadow-xs animate-in fade-in">
+                    <PauseCircle className="w-5 h-5 text-purple-600 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-bold text-purple-900">IT 담당자 답변 대기 요청 안내</h4>
+                        <span className="text-[10px] font-semibold bg-purple-200/80 text-purple-800 px-2 py-0.5 rounded-full">
+                          답변 대기 중
+                        </span>
+                      </div>
+                      <p className="text-xs text-purple-800 mt-1.5 whitespace-pre-wrap leading-relaxed">
+                        {ticket.pending_reason || '추가 확인 사항에 대해 요청 직원의 확인 및 답변을 기다리고 있습니다.'}
+                      </p>
+                      {isAuthor && !showRestartForm && (
+                        <div className="mt-2.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowRestartForm(true);
+                              setRestartReason('');
+                              setRestartError('');
+                            }}
+                            className="inline-flex items-center text-xs font-semibold text-purple-700 bg-white border border-purple-300 hover:bg-purple-100/50 px-3 py-1.5 rounded-lg shadow-xs transition-all cursor-pointer"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5 mr-1.5" />
+                            추가 답변 / 정보 입력하기
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* IT Officer Workflow Action Bar */}
@@ -838,7 +963,12 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                       {ticket.status === 'in_progress' && (
                         <button
                           type="button"
-                          onClick={handlePending}
+                          onClick={() => {
+                            setShowPendingModal((prev) => !prev);
+                            setPendingReason('');
+                            setPendingError('');
+                            setShowCloseModal(false);
+                          }}
                           disabled={transitioningStatus !== null}
                           className="flex items-center px-2.5 py-1 text-xs font-semibold text-purple-700 bg-white border border-purple-300 rounded-lg hover:bg-purple-50 cursor-pointer shadow-xs transition-all"
                         >
@@ -893,6 +1023,40 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                             className="px-3.5 py-1 text-xs font-semibold text-white bg-slate-700 rounded-lg hover:bg-slate-800 disabled:opacity-50 cursor-pointer"
                           >
                             {submittingClose ? '종결 중...' : '직권 종결 확정'}
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  )}
+
+                  {/* 답변 대기 요청 인라인 사유 폼 */}
+                  {showPendingModal && (
+                    <div className="mt-2 pt-2.5 border-t border-purple-200 animate-in fade-in">
+                      <div className="text-xs font-bold text-purple-900 mb-1.5">답변 대기 요청 사유 입력</div>
+                      <form onSubmit={handlePendingSubmit} className="space-y-2">
+                        <textarea
+                          rows={2}
+                          value={pendingReason}
+                          onChange={(e) => setPendingReason(e.target.value)}
+                          placeholder="요청 직원에게 전달할 답변 대기 사유를 입력하세요 (예: 재현 환경, 스크린샷, 오류 로그 요청 등)..."
+                          className="w-full px-3 py-2 text-xs border border-purple-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-slate-800"
+                          required
+                        />
+                        {pendingError && <p className="text-xs text-rose-600 font-medium">{pendingError}</p>}
+                        <div className="flex justify-end space-x-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setShowPendingModal(false)}
+                            className="px-2.5 py-1 text-xs text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
+                          >
+                            취소
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={submittingPending}
+                            className="px-3.5 py-1 text-xs font-semibold text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 cursor-pointer shadow-xs"
+                          >
+                            {submittingPending ? '요청 처리 중...' : '답변 대기 전환 확정'}
                           </button>
                         </div>
                       </form>
@@ -1426,15 +1590,15 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                             </div>
                             <div className="text-[11px] text-slate-500 line-through bg-white/70 p-1.5 rounded border border-slate-200">
                               <span className="font-semibold text-slate-600 mr-1">[수정 전]</span>
-                              {log.body.split('[수정 전]')[1]?.split('[수정 후]')[0]?.trim()}
+                              {formatHtmlContent(log.body.split('[수정 전]')[1]?.split('[수정 후]')[0])}
                             </div>
                             <div className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 p-1.5 rounded border border-emerald-200">
                               <span className="font-bold text-emerald-700 mr-1">[수정 후]</span>
-                              {log.body.split('[수정 후]')[1]?.trim()}
+                              {formatHtmlContent(log.body.split('[수정 후]')[1])}
                             </div>
                           </div>
                         ) : (
-                          <p className="text-slate-800 whitespace-pre-wrap leading-relaxed">{log.body}</p>
+                          <p className="text-slate-800 whitespace-pre-wrap leading-relaxed">{formatHtmlContent(log.body)}</p>
                         )}
                       </div>
                     ))}

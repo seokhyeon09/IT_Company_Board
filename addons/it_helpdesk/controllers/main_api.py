@@ -47,13 +47,19 @@ def _safe_html_text(text: Optional[str]) -> str:
     return escaped.replace("\r\n", "<br/>").replace("\n", "<br/>")
 
 def _clean_html(raw: Optional[str]) -> str:
-    """Strip HTML tags and convert line breaks for clean plain text display, preserving escaped entities."""
+    """Strip HTML tags and convert line breaks for clean plain text display."""
     if not raw:
         return ""
-    text = re.sub(r'<br\s*/?>', '\n', raw, flags=re.IGNORECASE)
+    # 1. Unescape HTML entities so tags become real <...>
+    text = html.unescape(raw)
+    # 2. Convert line breaks
+    text = re.sub(r'<br\s*/?>', '\n', text, flags=re.IGNORECASE)
     text = re.sub(r'</p>', '\n', text, flags=re.IGNORECASE)
+    # 3. Strip all HTML tags
     text = re.sub(r'<[^>]+>', '', text)
-    text = text.replace('&nbsp;', ' ')
+    # 4. Strip residual prefixes and clean whitespace
+    text = re.sub(r'^(?:\[(?:추가 재문의|조치 답변|조치 답변 \(수정\)|답변 대기 요청|직권 종결|문의 취소)\]\s*)+', '', text.strip())
+    text = text.replace('\xa0', ' ').replace('&nbsp;', ' ')
     return text.strip()
 
 
@@ -61,18 +67,14 @@ def _extract_thread_content(raw_html: str, markers: list) -> str:
     """Extract clean body text from message tags without html artifacts."""
     if not raw_html:
         return ""
-    text = raw_html
+    text = html.unescape(raw_html)
     for m in markers:
-        if m in text:
-            parts = text.split(m, 1)
+        m_un = html.unescape(m)
+        if m_un in text:
+            parts = text.split(m_un, 1)
             if len(parts) > 1 and parts[1].strip():
                 text = parts[1]
-    # Strip residual opening/closing tags before clean_html
-    text = re.sub(r'^(?:</b>|</strong>|</div>|</span>|<br\s*/?>)+', '', text.strip(), flags=re.IGNORECASE)
-    text = re.sub(r'(?:</b>|</strong>|</div>|</span>|<br\s*/?>)+$', '', text.strip(), flags=re.IGNORECASE)
-    clean = _clean_html(text)
-    clean = re.sub(r'^(?:\[(?:추가 재문의|조치 답변|조치 답변 \(수정\))\]\s*)+', '', clean).strip()
-    return clean
+    return _clean_html(text)
 
 def _format_datetime_utc(dt_val) -> Optional[str]:
     """Format an Odoo Datetime value to an unambiguous ISO-8601 UTC string ending in 'Z'."""
@@ -299,6 +301,7 @@ class ITHelpdeskAPIController(http.Controller):
             "is_faq": bool(ticket.is_faq),
             "rating": ticket.rating or None,
             "rating_comment": ticket.rating_comment or None,
+            "pending_reason": ticket.pending_reason or None,
             "create_date": _format_datetime_utc(ticket.create_date),
             "write_date": _format_datetime_utc(ticket.write_date),
             "timeline": [
@@ -358,8 +361,9 @@ class ITHelpdeskAPIController(http.Controller):
             body = msg.body or ""
             author_name = msg.author_id.name if msg.author_id else "시스템"
             clean_b = _clean_html(body)
+            body_un = html.unescape(body)
 
-            if 'data-msg-type="resolution"' in body or "IT 담당자 조치 내용:" in body or "[조치 답변]" in clean_b:
+            if 'data-msg-type="resolution"' in body_un or "IT 담당자 조치 내용:" in body_un or "[조치 답변]" in body_un or "[조치 답변]" in clean_b:
                 has_resolution_msg = True
                 c = _extract_thread_content(body, ['data-msg-type="resolution">', 'IT 담당자 조치 내용:', '[조치 답변]', '[조치 답변 (수정)]'])
                 if c:
@@ -722,8 +726,8 @@ class ITHelpdeskAPIController(http.Controller):
         }
 
     @http.route('/api/v1/tickets/pending', type='json', auth='none', methods=['POST'], csrf=False)
-    def pending_ticket(self, ticket_id: int):
-        """IT 담당자 답변 대기 요청 (in_progress -> pending)"""
+    def pending_ticket(self, ticket_id: int, reason: str = None):
+        """IT 담당자 답변 대기 요청 (in_progress -> pending, 사유 기록)"""
         user = verify_gateway_request()
         if not (user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()):
             raise AccessError("Only helpdesk officers can set ticket to pending.")
@@ -733,6 +737,11 @@ class ITHelpdeskAPIController(http.Controller):
             raise UserError("Ticket not found.")
 
         ticket.action_pending()
+        clean_reason = str(reason).strip() if reason and str(reason).strip() else "추가 정보 및 확인 요청"
+        safe_reason = _safe_html_text(clean_reason)
+        ticket.write({'pending_reason': clean_reason})
+        safe_officer_name = html.escape(user.name)
+        ticket.message_post(body=f'<div data-msg-type="pending_request"><b>[답변 대기 요청]</b><br/>담당자({safe_officer_name}): {safe_reason}</div>')
 
         return {
             "status": "success",
@@ -740,6 +749,7 @@ class ITHelpdeskAPIController(http.Controller):
                 "id": ticket.id,
                 "ticket_number": ticket.ticket_number,
                 "status": ticket.status,
+                "pending_reason": ticket.pending_reason,
                 "write_date": _format_datetime_utc(ticket.write_date)
             }
         }

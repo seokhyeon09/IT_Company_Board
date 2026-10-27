@@ -127,8 +127,12 @@ class TicketCloseDTO(BaseModel):
     note: Optional[str] = Field(default=None, description="직권 종결 사유")
 
 class TicketCancelDTO(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
     reason: Optional[str] = Field(default=None, description="문의 취소 사유")
+
+class TicketPendingDTO(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    reason: Optional[str] = Field(default=None, description="답변 대기 요청 사유")
 
 class TicketRateDTO(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -163,8 +167,9 @@ class TicketDetailResponseDTO(TicketResponseDTO):
     follow_ups: List[FollowUpInquiryDTO] = []
     logs: List[TicketLogDTO] = []
     attachments: List[AttachmentDTO] = []
+    pending_reason: Optional[str] = None
 
-    @field_validator("content", "resolution_note", "author_name", "rating_comment", mode="before")
+    @field_validator("content", "resolution_note", "author_name", "rating_comment", "pending_reason", mode="before")
     @classmethod
     def clean_false_to_none(cls, v: Any):
         if v is False or v == "False":

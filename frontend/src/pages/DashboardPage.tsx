@@ -139,6 +139,19 @@ export const DashboardPage: React.FC = () => {
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  const getPageNumbers = () => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    if (page <= 4) {
+      return [1, 2, 3, 4, 5, '...', totalPages];
+    }
+    if (page >= totalPages - 3) {
+      return [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+    }
+    return [1, '...', page - 2, page - 1, page, page + 1, page + 2, '...', totalPages];
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Top Banner & Action */}
@@ -178,155 +191,161 @@ export const DashboardPage: React.FC = () => {
       />
 
       {/* Filter and Search Bar */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-4 mb-6 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        {/* Left: View Tabs */}
-        <div className="flex space-x-2">
-          <button
-            onClick={() => {
-              setActiveTab('all');
-              setPage(1);
-            }}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'all'
-                ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-xs'
-                : 'text-slate-600 hover:bg-slate-100'
-            }`}
-          >
-            {user?.is_officer ? '전체 문의 목록' : '내 문의 내역'}
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab('faq');
-              setPage(1);
-            }}
-            className={`flex items-center px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'faq'
-                ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-xs'
-                : 'text-slate-600 hover:bg-slate-100'
-            }`}
-          >
-            <BookOpen className="w-3.5 h-3.5 mr-1.5" />
-            FAQ 지식창고
-          </button>
-        </div>
-
-        {/* Right: Multi Filters */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* Debounced Search Input */}
-          <div className="relative">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="접수번호, 제목 실시간 검색..."
-              className="pl-8 pr-7 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 w-44 sm:w-56 transition-all"
-            />
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-3" />
-            {search && (
-              <button
-                onClick={() => setSearch('')}
-                className="absolute right-2 top-2.5 text-slate-400 hover:text-slate-600 p-0.5"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 mb-6 shadow-xs space-y-3.5">
+        {/* Row 1: Left Tabs & Right Search/Overdue */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          {/* Left: View Tabs */}
+          <div className="flex space-x-2">
+            <button
+              onClick={() => {
+                setActiveTab('all');
+                setPage(1);
+              }}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'all'
+                  ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              {user?.is_officer ? '전체 문의 목록' : '내 문의 내역'}
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('faq');
+                setPage(1);
+              }}
+              className={`flex items-center px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'faq'
+                  ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <BookOpen className="w-3.5 h-3.5 mr-1.5" />
+              FAQ 지식창고
+            </button>
           </div>
 
-          {/* Status Dropdown */}
-          <select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setIsOverdueOnly(false);
-    setSortBy('id desc');
-              setPage(1);
-            }}
-            className="text-xs border border-slate-300 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-          >
-            <option value="">전체 상태</option>
-            <option value="submitted">접수대기</option>
-            <option value="assigned">배정완료</option>
-            <option value="in_progress">처리중</option>
-            <option value="pending">답변대기</option>
-            <option value="resolved">해결완료</option>
-            <option value="closed">종결</option>
-            <option value="canceled">취소</option>
-          </select>
+          {/* Right: Search & Overdue Toggle */}
+          <div className="flex items-center gap-2.5">
+            {/* Debounced Search Input */}
+            <div className="relative">
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="접수번호, 제목 실시간 검색..."
+                className="pl-8 pr-7 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 w-44 sm:w-56 transition-all bg-white"
+              />
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-3" />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  className="absolute right-2 top-2.5 text-slate-400 hover:text-slate-600 p-0.5"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
 
-                    {/* Sort Dropdown */}
-          <select
-            value={sortBy}
-            onChange={(e) => {
-              setSortBy(e.target.value);
-              setPage(1);
-            }}
-            className="text-xs border border-slate-300 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer font-medium text-slate-700"
-          >
-            <option value="id desc">최신 등록순</option>
-            <option value="id asc">오래된 등록순</option>
-            <option value="deadline asc">SLA 마감 임박순</option>
-            <option value="priority desc">긴급도 높은순</option>
-            <option value="write_date desc">최근 업데이트순</option>
-          </select>
+            {/* Overdue Quick Filter Toggle */}
+            <button
+              onClick={() => {
+                setIsOverdueOnly((prev) => !prev);
+                setPage(1);
+              }}
+              className={`flex items-center px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                isOverdueOnly
+                  ? 'bg-rose-50 border-rose-300 text-rose-700 shadow-xs'
+                  : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <AlertTriangle className={`w-3.5 h-3.5 mr-1.5 ${isOverdueOnly ? 'text-rose-600' : 'text-slate-400'}`} />
+              기한 초과만
+            </button>
+          </div>
+        </div>
 
-          {/* Category Dropdown */}
-          <select
-            value={categoryFilter}
-            onChange={(e) => {
-              setCategoryFilter(e.target.value);
-              setPage(1);
-            }}
-            className="text-xs border border-slate-300 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-          >
-            <option value="">전체 카테고리</option>
-            <option value="hw">하드웨어</option>
-            <option value="sw">소프트웨어</option>
-            <option value="network">네트워크</option>
-            <option value="account">계정/권한</option>
-            <option value="etc">기타</option>
-          </select>
+        {/* Row 2: Multi Filter Selects & Sort */}
+        <div className="border-t border-slate-100 pt-3 flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Status Dropdown */}
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setIsOverdueOnly(false);
+                setPage(1);
+              }}
+              className="text-xs border border-slate-300 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+            >
+              <option value="">전체 상태</option>
+              <option value="submitted">접수대기</option>
+              <option value="assigned">배정완료</option>
+              <option value="in_progress">처리중</option>
+              <option value="pending">답변대기</option>
+              <option value="resolved">해결완료</option>
+              <option value="closed">종결</option>
+              <option value="canceled">취소</option>
+            </select>
 
-          {/* Priority Dropdown */}
-          <select
-            value={priorityFilter}
-            onChange={(e) => {
-              setPriorityFilter(e.target.value);
-              setPage(1);
-            }}
-            className="text-xs border border-slate-300 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-          >
-            <option value="">전체 우선순위</option>
-            <option value="3">긴급</option>
-            <option value="2">높음</option>
-            <option value="1">보통</option>
-            <option value="0">낮음</option>
-          </select>
+            {/* Category Dropdown */}
+            <select
+              value={categoryFilter}
+              onChange={(e) => {
+                setCategoryFilter(e.target.value);
+                setPage(1);
+              }}
+              className="text-xs border border-slate-300 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+            >
+              <option value="">전체 카테고리</option>
+              <option value="hw">하드웨어</option>
+              <option value="sw">소프트웨어</option>
+              <option value="network">네트워크</option>
+              <option value="account">계정/권한</option>
+              <option value="etc">기타</option>
+            </select>
 
-          {/* Overdue Quick Filter Toggle */}
-          <button
-            onClick={() => {
-              setIsOverdueOnly((prev) => !prev);
-              setPage(1);
-            }}
-            className={`flex items-center px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
-              isOverdueOnly
-                ? 'bg-rose-50 border-rose-300 text-rose-700 shadow-xs'
-                : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            <AlertTriangle className={`w-3.5 h-3.5 mr-1.5 ${isOverdueOnly ? 'text-rose-600' : 'text-slate-400'}`} />
-            기한 초과만
-          </button>
+            {/* Priority Dropdown */}
+            <select
+              value={priorityFilter}
+              onChange={(e) => {
+                setPriorityFilter(e.target.value);
+                setPage(1);
+              }}
+              className="text-xs border border-slate-300 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+            >
+              <option value="">전체 우선순위</option>
+              <option value="3">긴급</option>
+              <option value="2">높음</option>
+              <option value="1">보통</option>
+              <option value="0">낮음</option>
+            </select>
 
-          {/* Reset Filters Button */}
+            {/* Sort Dropdown */}
+            <select
+              value={sortBy}
+              onChange={(e) => {
+                setSortBy(e.target.value);
+                setPage(1);
+              }}
+              className="text-xs border border-slate-300 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer font-medium text-slate-700"
+            >
+              <option value="id desc">최신 등록순</option>
+              <option value="id asc">오래된 등록순</option>
+              <option value="deadline asc">SLA 마감 임박순</option>
+              <option value="priority desc">긴급도 높은순</option>
+              <option value="write_date desc">최근 업데이트순</option>
+            </select>
+          </div>
+
+          {/* Reset Filters */}
           {hasActiveFilters && (
             <button
               onClick={resetFilters}
-              className="flex items-center px-3 py-2 text-xs text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all cursor-pointer"
-              title="필터 초기화"
+              className="text-xs font-semibold text-slate-500 hover:text-slate-800 flex items-center px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-all cursor-pointer shrink-0 ml-auto"
             >
               <RotateCcw className="w-3.5 h-3.5 mr-1" />
-              초기화
+              필터 초기화
             </button>
           )}
         </div>
@@ -394,35 +413,28 @@ export const DashboardPage: React.FC = () => {
               </button>
 
               <div className="flex items-center space-x-1">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => {
-                  // Display page numbers near current page
-                  if (
-                    pageNum === 1 ||
-                    pageNum === totalPages ||
-                    (pageNum >= page - 1 && pageNum <= page + 1)
-                  ) {
+                {getPageNumbers().map((item, idx) => {
+                  if (item === '...') {
                     return (
-                      <button
-                        key={pageNum}
-                        onClick={() => setPage(pageNum)}
-                        className={`w-8 h-8 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                          page === pageNum
-                            ? 'bg-indigo-600 text-white shadow-xs'
-                            : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  }
-                  if (pageNum === page - 2 || pageNum === page + 2) {
-                    return (
-                      <span key={pageNum} className="text-slate-400 px-1 text-xs">
+                      <span key={`ellipsis-${idx}`} className="text-slate-400 px-1 text-xs select-none">
                         ...
                       </span>
                     );
                   }
-                  return null;
+                  const pageNum = item as number;
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setPage(pageNum)}
+                      className={`w-8 h-8 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        page === pageNum
+                          ? 'bg-indigo-600 text-white shadow-xs'
+                          : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
                 })}
               </div>
 

@@ -10,6 +10,7 @@ from app.schemas.ticket import (
     TicketUpdateResolutionDTO,
     TicketCloseDTO,
     TicketCancelDTO,
+    TicketPendingDTO,
     TicketUpdateDTO,
     AttachmentDTO,
     AttachmentDetailDTO,
@@ -212,6 +213,7 @@ async def start_progress_ticket(
 @router.post("/{ticket_id}/pending")
 async def pending_ticket(
     ticket_id: int,
+    dto: Optional[TicketPendingDTO] = None,
     claims: dict = Depends(get_current_user_claims),
 ):
     """Transition ticket status to pending (Restricted to IT Helpdesk Officers)."""
@@ -221,7 +223,9 @@ async def pending_ticket(
             detail="Only IT Helpdesk Officers are authorized to set ticket to pending"
         )
     user_id = int(claims["sub"])
-    result = await odoo_client.call_json("/api/v1/tickets/pending", params={"ticket_id": ticket_id}, user_id=user_id)
+    reason = dto.reason if dto else None
+    params = {"ticket_id": ticket_id, "reason": reason}
+    result = await odoo_client.call_json("/api/v1/tickets/pending", params=params, user_id=user_id)
     return result
 
 @router.post("/{ticket_id}/close")
@@ -244,12 +248,13 @@ async def close_ticket(
 @router.post("/{ticket_id}/cancel")
 async def cancel_ticket(
     ticket_id: int,
-    dto: TicketCancelDTO,
+    dto: Optional[TicketCancelDTO] = None,
     claims: dict = Depends(get_current_user_claims),
 ):
     """Cancel ticket (Author or IT Helpdesk Officers)."""
     user_id = int(claims["sub"])
-    params = {"ticket_id": ticket_id, "reason": dto.reason}
+    reason = dto.reason if dto else None
+    params = {"ticket_id": ticket_id, "reason": reason}
     result = await odoo_client.call_json("/api/v1/tickets/cancel", params=params, user_id=user_id)
     return result
 

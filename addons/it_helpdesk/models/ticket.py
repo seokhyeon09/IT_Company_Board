@@ -119,6 +119,10 @@ class HelpDeskTicket(models.Model):
         string="조치 내용",
         copy=False,
     )
+    pending_reason = fields.Text(
+        string="답변 대기 요청 사유",
+        copy=False,
+    )
 
     rating = fields.Selection(
         [
@@ -253,7 +257,7 @@ class HelpDeskTicket(models.Model):
                 allowed = (
                     is_author and (
                         # 1) 본인 티켓 취소
-                        (record.status in ('submitted', 'assigned', 'in_progress', 'pending') and new_status == 'canceled') or
+                        (record.status in ('submitted', 'assigned', 'in_progress', 'pending', 'resolved') and new_status == 'canceled') or
                         # 2) 본인 티켓 재문의
                         (record.status in ('pending', 'resolved', 'closed') and new_status == 'in_progress') or
                         # 3) 본인 티켓 만족도 평가 완료 후 종결
