@@ -16,7 +16,19 @@ import {
   Star,
   BookmarkPlus,
   BookmarkCheck,
+  History,
+  RotateCcw,
+  Edit3,
+  MessageSquare,
 } from 'lucide-react';
+
+export interface TicketLog {
+  id: number;
+  date?: string;
+  author_name?: string;
+  body: string;
+  message_type?: string;
+}
 
 export interface TicketDetail {
   id: number;
@@ -38,6 +50,7 @@ export interface TicketDetail {
   resolution_note?: string;
   rating?: string;
   rating_comment?: string;
+  logs?: TicketLog[];
 }
 
 interface TicketDetailModalProps {
@@ -101,6 +114,18 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   const [submittingResolve, setSubmittingResolve] = useState(false);
   const [resolveError, setResolveError] = useState('');
 
+  // Officer Edit Resolution State (답변 수정)
+  const [isEditingResolution, setIsEditingResolution] = useState(false);
+  const [editResolutionNote, setEditResolutionNote] = useState('');
+  const [submittingEditResolution, setSubmittingEditResolution] = useState(false);
+  const [editResolutionError, setEditResolutionError] = useState('');
+
+  // Employee Restart/Follow-up Inquiry State (직원 재문의)
+  const [showRestartForm, setShowRestartForm] = useState(false);
+  const [restartReason, setRestartReason] = useState('');
+  const [submittingRestart, setSubmittingRestart] = useState(false);
+  const [restartError, setRestartError] = useState('');
+
   // Rating State
   const [ratingScore, setRatingScore] = useState<number>(5);
   const [ratingComment, setRatingComment] = useState('');
@@ -115,6 +140,12 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
       fetchDetail(ticketId);
       setResolutionNote('');
       setResolveError('');
+      setIsEditingResolution(false);
+      setEditResolutionNote('');
+      setEditResolutionError('');
+      setShowRestartForm(false);
+      setRestartReason('');
+      setRestartError('');
       setRatingScore(5);
       setRatingComment('');
       setRatingError('');
@@ -161,6 +192,64 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
       setResolveError(getErrorMessage(err, '해결 완료 처리 중 오류가 발생했습니다.'));
     } finally {
       setSubmittingResolve(false);
+    }
+  };
+
+  // Officer 답변 수정 핸들러
+  const handleUpdateResolutionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ticket) return;
+
+    if (!editResolutionNote.trim() || editResolutionNote.trim().length < 5) {
+      setEditResolutionError('수정할 조치 내용은 최소 5자 이상 입력해 주세요.');
+      return;
+    }
+
+    setSubmittingEditResolution(true);
+    setEditResolutionError('');
+
+    try {
+      await apiClient.post(`/tickets/${ticket.id}/update-resolution`, {
+        resolution_note: editResolutionNote.trim(),
+        if_match_write_date: ticket.write_date,
+      });
+
+      setIsEditingResolution(false);
+      await fetchDetail(ticket.id);
+      if (onSuccess) onSuccess();
+    } catch (err: any) {
+      setEditResolutionError(getErrorMessage(err, '답변 수정 처리 중 오류가 발생했습니다.'));
+    } finally {
+      setSubmittingEditResolution(false);
+    }
+  };
+
+  // Employee 재문의 핸들러
+  const handleRestartSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ticket) return;
+
+    if (!restartReason.trim() || restartReason.trim().length < 5) {
+      setRestartError('재문의 내용은 최소 5자 이상 입력해 주세요.');
+      return;
+    }
+
+    setSubmittingRestart(true);
+    setRestartError('');
+
+    try {
+      await apiClient.post(`/tickets/${ticket.id}/restart`, {
+        reason: restartReason.trim(),
+      });
+
+      setShowRestartForm(false);
+      setRestartReason('');
+      await fetchDetail(ticket.id);
+      if (onSuccess) onSuccess();
+    } catch (err: any) {
+      setRestartError(getErrorMessage(err, '재문의 등록 중 오류가 발생했습니다.'));
+    } finally {
+      setSubmittingRestart(false);
     }
   };
 
@@ -271,7 +360,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
 
             <button
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all"
+              className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -369,16 +458,144 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 </div>
               </div>
 
-              {/* Resolution Area: Display note if resolved */}
+              {/* Resolution Area: Display note with edit button for officer */}
               {ticket.resolution_note && (
                 <div className="p-4 bg-emerald-50/80 border border-emerald-200 rounded-xl">
-                  <div className="flex items-center text-emerald-800 font-bold text-xs uppercase tracking-wider mb-2">
-                    <CheckCircle2 className="w-4 h-4 mr-1.5 text-emerald-600" />
-                    IT 담당자 조치 내용
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center text-emerald-800 font-bold text-xs uppercase tracking-wider">
+                      <CheckCircle2 className="w-4 h-4 mr-1.5 text-emerald-600" />
+                      IT 담당자 조치 내용
+                    </div>
+                    {user?.is_officer && !isEditingResolution && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditResolutionNote(formatHtmlContent(ticket.resolution_note));
+                          setIsEditingResolution(true);
+                          setEditResolutionError('');
+                        }}
+                        className="flex items-center text-xs font-semibold text-emerald-700 hover:text-emerald-900 bg-white border border-emerald-300 hover:bg-emerald-100/50 px-2.5 py-1 rounded-lg transition-all cursor-pointer shadow-xs"
+                      >
+                        <Edit3 className="w-3.5 h-3.5 mr-1" />
+                        답변 수정
+                      </button>
+                    )}
                   </div>
-                  <div className="text-emerald-950 text-sm whitespace-pre-wrap leading-relaxed">
-                    {formatHtmlContent(ticket.resolution_note)}
+
+                  {isEditingResolution ? (
+                    <form onSubmit={handleUpdateResolutionSubmit} className="space-y-3 mt-3">
+                      <textarea
+                        rows={3}
+                        value={editResolutionNote}
+                        onChange={(e) => setEditResolutionNote(e.target.value)}
+                        className="w-full px-3.5 py-2.5 text-xs border border-emerald-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none text-slate-800"
+                        placeholder="수정할 조치 내용을 입력하세요 (최소 5자)..."
+                      />
+                      {editResolutionError && (
+                        <p className="text-xs text-rose-600 font-medium">{editResolutionError}</p>
+                      )}
+                      <div className="flex justify-end space-x-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingResolution(false)}
+                          className="px-3 py-1.5 text-xs text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
+                        >
+                          취소
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={submittingEditResolution}
+                          className="flex items-center px-3.5 py-1.5 text-xs font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-all cursor-pointer"
+                        >
+                          {submittingEditResolution ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+                              저장 중...
+                            </>
+                          ) : (
+                            '수정 저장'
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="text-emerald-950 text-sm whitespace-pre-wrap leading-relaxed">
+                      {formatHtmlContent(ticket.resolution_note)}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Employee Follow-up Inquiry (재문의) Section */}
+              {isAuthor && ['pending', 'resolved', 'closed'].includes(ticket.status) && (
+                <div className="p-4 bg-purple-50/70 border border-purple-200 rounded-xl">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-1.5">
+                      <RotateCcw className="w-4 h-4 text-purple-600" />
+                      <span className="text-xs font-bold text-purple-900 uppercase tracking-wider">
+                        추가 문의 (재문의)
+                      </span>
+                    </div>
+                    {!showRestartForm && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowRestartForm(true);
+                          setRestartReason('');
+                          setRestartError('');
+                        }}
+                        className="flex items-center px-3 py-1.5 text-xs font-semibold text-purple-700 bg-white border border-purple-300 rounded-lg hover:bg-purple-100/50 transition-all cursor-pointer shadow-xs"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5 mr-1" />
+                        추가 재문의하기
+                      </button>
+                    )}
                   </div>
+
+                  {showRestartForm ? (
+                    <form onSubmit={handleRestartSubmit} className="space-y-3 mt-3">
+                      <p className="text-xs text-purple-800">
+                        조치 내용에 대해 미해결된 사항이나 추가 문의사항을 남겨주시면 담당자에게 재배정되어 처리가 다시 시작됩니다.
+                      </p>
+                      <textarea
+                        rows={3}
+                        value={restartReason}
+                        onChange={(e) => setRestartReason(e.target.value)}
+                        placeholder="추가 문의하실 상세 내용을 입력하세요 (최소 5자)..."
+                        className="w-full px-3.5 py-2.5 text-xs border border-purple-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-slate-800"
+                      />
+                      {restartError && (
+                        <p className="text-xs text-rose-600 font-medium">{restartError}</p>
+                      )}
+                      <div className="flex justify-end space-x-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowRestartForm(false)}
+                          className="px-3 py-1.5 text-xs text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
+                        >
+                          취소
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={submittingRestart}
+                          className="flex items-center px-4 py-1.5 text-xs font-semibold text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-all cursor-pointer"
+                        >
+                          {submittingRestart ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                              등록 중...
+                            </>
+                          ) : (
+                            '재문의 등록'
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <p className="text-xs text-purple-700 mt-1">
+                      조치가 완료되었거나 추가 확인이 필요한 경우 언제든지 재문의를 통해 다시 처리를 요청하실 수 있습니다.
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -542,6 +759,35 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-xl text-blue-800 text-xs flex items-center">
                   <Clock className="w-4 h-4 mr-2 text-blue-600 shrink-0" />
                   <span>현재 IT 지원팀에서 담당자 배정 및 문의 처리를 진행 중입니다.</span>
+                </div>
+              )}
+
+              {/* Officer-Only Activity & Audit Logs Section */}
+              {user?.is_officer && ticket.logs && ticket.logs.length > 0 && (
+                <div className="pt-4 border-t border-slate-200">
+                  <div className="flex items-center space-x-1.5 mb-3">
+                    <History className="w-4 h-4 text-slate-500" />
+                    <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      IT 담당자 활동 및 처리 이력 ({ticket.logs.length}건)
+                    </h4>
+                    <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">
+                      사원 비노출
+                    </span>
+                  </div>
+                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                    {ticket.logs.map((log) => (
+                      <div
+                        key={log.id}
+                        className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-xs space-y-1"
+                      >
+                        <div className="flex items-center justify-between text-slate-500 text-[11px]">
+                          <span className="font-semibold text-slate-700">{log.author_name}</span>
+                          <span>{log.date ? log.date.substring(0, 16).replace('T', ' ') : '-'}</span>
+                        </div>
+                        <p className="text-slate-800 whitespace-pre-wrap leading-relaxed">{log.body}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </>

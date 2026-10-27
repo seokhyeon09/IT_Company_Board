@@ -6,6 +6,8 @@ from app.client.odoo_client import odoo_client
 from app.schemas.ticket import (
     TicketCreateDTO,
     TicketResolveDTO,
+    TicketRestartDTO,
+    TicketUpdateResolutionDTO,
     TicketRateDTO,
     TicketResponseDTO,
     TicketDetailResponseDTO,
@@ -131,4 +133,40 @@ async def toggle_faq(
     user_id = int(claims["sub"])
     params = {"ticket_id": ticket_id}
     result = await odoo_client.call_json("/api/v1/tickets/toggle-faq", params=params, user_id=user_id)
+    return result
+
+@router.post("/{ticket_id}/restart")
+async def restart_ticket(
+    ticket_id: int,
+    dto: TicketRestartDTO,
+    claims: dict = Depends(get_current_user_claims),
+):
+    """Employee follow-up inquiry (Restarts ticket to in_progress)."""
+    user_id = int(claims["sub"])
+    params = {
+        "ticket_id": ticket_id,
+        "reason": dto.reason,
+    }
+    result = await odoo_client.call_json("/api/v1/tickets/restart", params=params, user_id=user_id)
+    return result
+
+@router.post("/{ticket_id}/update-resolution")
+async def update_resolution(
+    ticket_id: int,
+    dto: TicketUpdateResolutionDTO,
+    claims: dict = Depends(get_current_user_claims),
+):
+    """Update resolution note (Restricted to IT Helpdesk Officers, Optimistic Concurrency Protected)."""
+    if not claims.get("is_officer", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only IT Helpdesk Officers are authorized to update resolution notes"
+        )
+    user_id = int(claims["sub"])
+    params = {
+        "ticket_id": ticket_id,
+        "resolution_note": dto.resolution_note,
+        "if_match_write_date": dto.if_match_write_date,
+    }
+    result = await odoo_client.call_json("/api/v1/tickets/update-resolution", params=params, user_id=user_id)
     return result

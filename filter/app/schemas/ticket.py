@@ -55,6 +55,23 @@ class TicketResolveDTO(BaseModel):
     resolution_note: str = Field(..., min_length=5, description="조치 완료 내용")
     if_match_write_date: Optional[str] = Field(default=None, description="낙관적 락킹용 이전 write_date")
 
+
+class TicketLogDTO(BaseModel):
+    id: int
+    date: Optional[str] = None
+    author_name: Optional[str] = "시스템"
+    body: str
+    message_type: Optional[str] = "notification"
+
+class TicketRestartDTO(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    reason: Optional[str] = Field(default=None, description="재문의 사유 및 추가 질문 내용")
+
+class TicketUpdateResolutionDTO(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    resolution_note: str = Field(..., min_length=5, description="수정할 조치 내용")
+    if_match_write_date: Optional[str] = Field(default=None, description="낙관적 락킹용 이전 write_date")
+
 class TicketRateDTO(BaseModel):
     model_config = ConfigDict(extra="forbid")
     rating: str = Field(..., pattern="^[1-5]$", description="만족도 별점 (1~5)")
@@ -83,6 +100,7 @@ class TicketDetailResponseDTO(TicketResponseDTO):
     resolution_note: Optional[Any] = None
     author_name: Optional[Any] = None
     rating_comment: Optional[Any] = None
+    logs: List[TicketLogDTO] = []
 
     @field_validator("content", "resolution_note", "author_name", "rating_comment", mode="before")
     @classmethod

@@ -3,6 +3,7 @@ import hmac
 import hashlib
 import json
 import logging
+import re
 import time
 from datetime import datetime, timezone
 from typing import Optional
@@ -34,6 +35,17 @@ def parse_iso_utc(dt_str: str) -> Optional[datetime]:
         return dt
     except (ValueError, TypeError) as exc:
         raise UserError(f"Invalid datetime format: '{dt_str}'. Expected ISO-8601 UTC format.") from exc
+
+
+def _clean_html(raw: Optional[str]) -> str:
+    """Strip HTML tags and convert line breaks for clean plain text display."""
+    if not raw:
+        return ""
+    text = re.sub(r'<br\s*/?>', '\n', raw, flags=re.IGNORECASE)
+    text = re.sub(r'</p>', '\n', text, flags=re.IGNORECASE)
+    text = re.sub(r'<[^>]+>', '', text)
+    text = text.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
+    return text.strip()
 
 def _format_datetime_utc(dt_val) -> Optional[str]:
     """Format an Odoo Datetime value to an unambiguous ISO-8601 UTC string ending in 'Z'."""
@@ -148,7 +160,7 @@ class ITHelpdeskAPIController(http.Controller):
                 domain.append(('author_id', '=', user.id))
         else:
             if not is_officer:
-                domain.extend(['|', ('author_id', '=', user.id), ('is_faq', '=', True)])
+                domain.append(('author_id', '=', user.id))
 
         if category in ('hw', 'sw', 'network', 'account', 'etc'):
             domain.append(('category', '=', category))
@@ -238,6 +250,17 @@ class ITHelpdeskAPIController(http.Controller):
             "rating_comment": ticket.rating_comment or None,
             "create_date": _format_datetime_utc(ticket.create_date),
             "write_date": _format_datetime_utc(ticket.write_date),
+            "logs": [
+                {
+                    "id": msg.id,
+                    "date": _format_datetime_utc(msg.date),
+                    "author_name": msg.author_id.name if msg.author_id else "시스템",
+                    "body": _clean_html(msg.body),
+                    "message_type": msg.message_type or "notification",
+                }
+                for msg in ticket.message_ids.sorted(key=lambda m: m.id, reverse=True)[:50]
+                if _clean_html(msg.body)
+            ] if is_officer else []
         }
         return {"status": "success", "data": data}
 
@@ -377,6 +400,83 @@ class ITHelpdeskAPIController(http.Controller):
                 "id": ticket.id,
                 "ticket_number": ticket.ticket_number,
                 "is_faq": ticket.is_faq,
+                "write_date": _format_datetime_utc(ticket.write_date)
+            }
+        }
+
+    @http.route('/api/v1/tickets/restart', type='json', auth='none', methods=['POST'], csrf=False)
+    def restart_ticket(self, ticket_id: int, reason: str = None):
+        """직원의 추가 문의 (재문의: 답변대기, 해결완료, 종결 건 재개)"""
+        user = verify_gateway_request()
+        ticket = request.env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
+        if not ticket.exists():
+            raise UserError("Ticket not found.")
+
+        is_officer = user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()
+        if not is_officer and ticket.author_id.id != user.id:
+            raise AccessError("Only the author can request a follow-up inquiry.")
+
+        if ticket.status not in ('pending', 'resolved', 'closed'):
+            raise UserError("Only pending, resolved, or closed tickets can be restarted.")
+
+        ticket.action_restart_ticket()
+        if reason and str(reason).strip():
+            clean_reason = str(reason).strip()
+            ticket.message_post(body=f"<b>직원 추가 재문의 내용:</b><br/>{clean_reason}")
+
+        return {
+            "status": "success",
+            "data": {
+                "id": ticket.id,
+                "ticket_number": ticket.ticket_number,
+                "status": ticket.status,
+                "write_date": _format_datetime_utc(ticket.write_date)
+            }
+        }
+
+    @http.route('/api/v1/tickets/update-resolution', type='json', auth='none', methods=['POST'], csrf=False)
+    def update_resolution(self, ticket_id: int, resolution_note: str, if_match_write_date: str = None):
+        """IT 담당자의 조치 내용(답변) 수정 (낙관적 동시성 제어 적용)"""
+        user = verify_gateway_request()
+        if not (user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()):
+            raise AccessError("Only helpdesk officers can update resolution notes.")
+
+        ticket = request.env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
+        if not ticket.exists():
+            raise UserError("Ticket not found.")
+
+        if if_match_write_date:
+            client_dt = parse_iso_utc(if_match_write_date)
+            record_dt = ticket.write_date
+            is_match = False
+            if record_dt and client_dt:
+                if client_dt.microsecond == 0 and record_dt.microsecond != 0:
+                    is_match = (client_dt.replace(microsecond=0) == record_dt.replace(microsecond=0))
+                else:
+                    is_match = (client_dt == record_dt)
+
+            if not is_match:
+                current_iso = _format_datetime_utc(record_dt)
+                raise ConcurrencyError(
+                    f"Concurrency Conflict: Ticket '{ticket.ticket_number}' was modified by another transaction. "
+                    f"Current write_date is '{current_iso}', but provided if_match was '{if_match_write_date}'.",
+                    current_write_date=current_iso
+                )
+
+        clean_note = str(resolution_note).strip()
+        if not clean_note or len(clean_note) < 5:
+            raise UserError("Resolution note must be at least 5 characters.")
+
+        ticket.resolution_note = clean_note
+        ticket.message_post(body="<b>IT 담당자가 조치 내용(답변)을 수정하였습니다.</b>")
+
+        return {
+            "status": "success",
+            "data": {
+                "id": ticket.id,
+                "ticket_number": ticket.ticket_number,
+                "resolution_note": ticket.resolution_note,
+                "status": ticket.status,
                 "write_date": _format_datetime_utc(ticket.write_date)
             }
         }
