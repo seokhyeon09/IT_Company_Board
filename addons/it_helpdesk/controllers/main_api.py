@@ -376,6 +376,30 @@ class ITHelpdeskAPIController(http.Controller):
                         "date": _format_datetime_utc(msg.date),
                         "content": c
                     })
+            elif 'data-msg-type="pending_request"' in body_un or "[답변 대기 요청]" in body_un or "[답변 대기 요청]" in clean_b:
+                c = _extract_thread_content(body, ['data-msg-type="pending_request">', '[답변 대기 요청]'])
+                if c:
+                    seq_timeline.append({
+                        "id": msg.id,
+                        "type": "pending_request",
+                        "round": 0,
+                        "author_id": msg.author_id.id if msg.author_id else None,
+                        "author_name": author_name,
+                        "date": _format_datetime_utc(msg.date),
+                        "content": c
+                    })
+            elif 'data-msg-type="pending_response"' in body_un or "[답변 대기 회신]" in body_un or "[답변 대기 회신]" in clean_b:
+                c = _extract_thread_content(body, ['data-msg-type="pending_response">', '[답변 대기 회신]'])
+                if c:
+                    seq_timeline.append({
+                        "id": msg.id,
+                        "type": "pending_response",
+                        "round": 0,
+                        "author_id": msg.author_id.id if msg.author_id else None,
+                        "author_name": author_name,
+                        "date": _format_datetime_utc(msg.date),
+                        "content": c
+                    })
             elif 'data-msg-type="inquiry"' in body or "직원 추가 재문의 내용:" in body or "[추가 재문의]" in clean_b:
                 c = _extract_thread_content(body, ['data-msg-type="inquiry">', '직원 추가 재문의 내용:', '[추가 재문의]'])
                 if c:
@@ -400,6 +424,18 @@ class ITHelpdeskAPIController(http.Controller):
                 "content": _clean_html(ticket.resolution_note)
             })
 
+        has_pending_msg = any(item["type"] == "pending_request" for item in seq_timeline)
+        if not has_pending_msg and ticket.pending_reason and ticket.status == 'pending':
+            seq_timeline.append({
+                "id": 0,
+                "type": "pending_request",
+                "round": 0,
+                "author_id": ticket.assignee_id.id if ticket.assignee_id else None,
+                "author_name": ticket.assignee_name or "IT 담당자",
+                "date": _format_datetime_utc(ticket.write_date),
+                "content": _clean_html(ticket.pending_reason)
+            })
+
         # 엄격한 시간순 정렬 (최초 문의 -> 답변 1차 -> 문의 2차 -> 답변 2차 ...)
         seq_timeline.sort(key=lambda x: (x.get("date") or "", x.get("id", 0)))
 
@@ -413,6 +449,8 @@ class ITHelpdeskAPIController(http.Controller):
             elif item["type"] == "resolution":
                 res_cnt += 1
                 item["round"] = res_cnt
+            else:
+                item["round"] = 0
 
         data["timeline"] = seq_timeline
         return {"status": "success", "data": data}
@@ -585,13 +623,17 @@ class ITHelpdeskAPIController(http.Controller):
         if not is_officer and ticket.author_id.id != user.id:
             raise AccessError("Only the author can request a follow-up inquiry.")
 
-        if ticket.status not in ('pending', 'resolved', 'closed'):
-            raise UserError("Only pending, resolved, or closed tickets can be restarted.")
+        if ticket.status not in ('pending', 'resolved'):
+            raise UserError("Only pending or resolved tickets can be restarted. Closed tickets cannot be reopened by inquiry.")
 
+        was_pending = (ticket.status == 'pending')
         ticket.action_restart_ticket()
         if reason and str(reason).strip():
             safe_reason = _safe_html_text(reason)
-            ticket.message_post(body=f'<div data-msg-type="inquiry"><b>[추가 재문의]</b><br/>{safe_reason}</div>')
+            if was_pending:
+                ticket.message_post(body=f'<div data-msg-type="pending_response"><b>[답변 대기 회신]</b><br/>{safe_reason}</div>')
+            else:
+                ticket.message_post(body=f'<div data-msg-type="inquiry"><b>[추가 재문의]</b><br/>{safe_reason}</div>')
 
         return {
             "status": "success",

@@ -33,7 +33,7 @@ import {
 
 export interface ThreadItem {
   id: number;
-  type: 'inquiry' | 'resolution';
+  type: 'inquiry' | 'resolution' | 'pending_request' | 'pending_response';
   round: number;
   author_id?: any;
   author_name: string;
@@ -205,11 +205,17 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   const [submittingClose, setSubmittingClose] = useState(false);
   const [closeError, setCloseError] = useState('');
 
-  // Pending reason state (답변 대기 요청 사유)
+  // Pending reason state (IT 담당자의 답변 대기 요청 사유)
   const [showPendingModal, setShowPendingModal] = useState(false);
   const [pendingReason, setPendingReason] = useState('');
   const [submittingPending, setSubmittingPending] = useState(false);
   const [pendingError, setPendingError] = useState('');
+
+  // Pending reply state (요청 직원의 답변 대기 요청에 대한 답변 회신)
+  const [showPendingReplyForm, setShowPendingReplyForm] = useState(false);
+  const [pendingReplyText, setPendingReplyText] = useState('');
+  const [submittingPendingReply, setSubmittingPendingReply] = useState(false);
+  const [pendingReplyError, setPendingReplyError] = useState('');
 
   // Cancel inquiry state (문의 취소)
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -240,6 +246,9 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
       setShowPendingModal(false);
       setPendingReason('');
       setPendingError('');
+      setShowPendingReplyForm(false);
+      setPendingReplyText('');
+      setPendingReplyError('');
       setShowCancelModal(false);
       setIsEditingTicket(false);
       setEditTitle('');
@@ -417,6 +426,35 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
       alert(getErrorMessage(err, '처리 시작 변경 중 오류가 발생했습니다.'));
     } finally {
       setTransitioningStatus(null);
+    }
+  };
+
+  // 요청 직원의 답변 대기 요청에 대한 회신 등록 핸들러
+  const handlePendingReplySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ticket) return;
+
+    if (!pendingReplyText.trim() || pendingReplyText.trim().length < 5) {
+      setPendingReplyError('답변 회신 내용은 최소 5자 이상 입력해 주세요.');
+      return;
+    }
+
+    setSubmittingPendingReply(true);
+    setPendingReplyError('');
+
+    try {
+      await apiClient.post(`/tickets/${ticket.id}/restart`, {
+        reason: pendingReplyText.trim(),
+      });
+
+      setShowPendingReplyForm(false);
+      setPendingReplyText('');
+      await fetchDetail(ticket.id);
+      if (onSuccess) onSuccess();
+    } catch (err: any) {
+      setPendingReplyError(getErrorMessage(err, '답변 회신 등록 중 오류가 발생했습니다.'));
+    } finally {
+      setSubmittingPendingReply(false);
     }
   };
 
@@ -903,20 +941,55 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                       <p className="text-xs text-purple-800 mt-1.5 whitespace-pre-wrap leading-relaxed">
                         {ticket.pending_reason || '추가 확인 사항에 대해 요청 직원의 확인 및 답변을 기다리고 있습니다.'}
                       </p>
-                      {isAuthor && !showRestartForm && (
-                        <div className="mt-2.5">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowRestartForm(true);
-                              setRestartReason('');
-                              setRestartError('');
-                            }}
-                            className="inline-flex items-center text-xs font-semibold text-purple-700 bg-white border border-purple-300 hover:bg-purple-100/50 px-3 py-1.5 rounded-lg shadow-xs transition-all cursor-pointer"
-                          >
-                            <MessageSquare className="w-3.5 h-3.5 mr-1.5" />
-                            추가 답변 / 정보 입력하기
-                          </button>
+                      {isAuthor && (
+                        <div className="mt-3 pt-3 border-t border-purple-200/80">
+                          {!showPendingReplyForm ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowPendingReplyForm(true);
+                                setPendingReplyText('');
+                                setPendingReplyError('');
+                              }}
+                              className="inline-flex items-center text-xs font-semibold text-purple-700 bg-white border border-purple-300 hover:bg-purple-100/50 px-3 py-1.5 rounded-lg shadow-xs transition-all cursor-pointer"
+                            >
+                              <MessageSquare className="w-3.5 h-3.5 mr-1.5" />
+                              추가 답변 / 정보 입력하기
+                            </button>
+                          ) : (
+                            <form onSubmit={handlePendingReplySubmit} className="space-y-2.5">
+                              <div className="text-xs font-bold text-purple-900">
+                                답변 대기 요청에 대한 추가 정보/답변 입력
+                              </div>
+                              <textarea
+                                rows={3}
+                                value={pendingReplyText}
+                                onChange={(e) => setPendingReplyText(e.target.value)}
+                                placeholder="IT 담당자가 요청한 추가 정보나 확인 사항에 대해 답변을 입력하세요 (최소 5자)..."
+                                className="w-full px-3.5 py-2 text-xs border border-purple-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-slate-800"
+                                required
+                              />
+                              {pendingReplyError && (
+                                <p className="text-xs text-rose-600 font-medium">{pendingReplyError}</p>
+                              )}
+                              <div className="flex justify-end space-x-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setShowPendingReplyForm(false)}
+                                  className="px-3 py-1.5 text-xs text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
+                                >
+                                  취소
+                                </button>
+                                <button
+                                  type="submit"
+                                  disabled={submittingPendingReply}
+                                  className="flex items-center px-3.5 py-1.5 text-xs font-semibold text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-all cursor-pointer shadow-xs"
+                                >
+                                  {submittingPendingReply ? '등록 중...' : '답변 회신 등록'}
+                                </button>
+                              </div>
+                            </form>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1065,60 +1138,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 </div>
               )}
 
-              {/* Cancel Inquiry Action (Author or Officer, when not closed/canceled) */}
-              {ticket && !['closed', 'canceled'].includes(ticket.status) && (isAuthor || user?.is_officer) && (
-                <div className="flex items-center justify-end">
-                  {!showCancelModal ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowCancelModal(true);
-                        setCancelReason('');
-                        setCancelError('');
-                      }}
-                      className="flex items-center text-xs text-rose-600 hover:text-rose-800 hover:bg-rose-50 px-2.5 py-1 rounded-lg transition-all cursor-pointer border border-transparent hover:border-rose-200"
-                    >
-                      <Ban className="w-3.5 h-3.5 mr-1" />
-                      문의 취소
-                    </button>
-                  ) : (
-                    <div className="w-full p-3.5 bg-rose-50/80 border border-rose-200 rounded-xl animate-in fade-in">
-                      <div className="text-xs font-bold text-rose-900 mb-1">문의 취소 확인</div>
-                      <p className="text-xs text-rose-700 mb-2">
-                        문의를 취소하면 추가 처리가 중단되며 티켓이 취소 상태로 변경됩니다.
-                      </p>
-                      <form onSubmit={handleCancelSubmit} className="space-y-2">
-                        <input
-                          type="text"
-                          value={cancelReason}
-                          onChange={(e) => setCancelReason(e.target.value)}
-                          placeholder="취소 사유를 입력하세요 (선택)..."
-                          className="w-full px-3 py-1.5 text-xs border border-rose-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800"
-                        />
-                        {cancelError && <p className="text-xs text-rose-600 font-medium">{cancelError}</p>}
-                        <div className="flex justify-end space-x-1.5">
-                          <button
-                            type="button"
-                            onClick={() => setShowCancelModal(false)}
-                            className="px-2.5 py-1 text-xs text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
-                          >
-                            취소 철회
-                          </button>
-                          <button
-                            type="submit"
-                            disabled={submittingCancel}
-                            className="px-3.5 py-1 text-xs font-semibold text-white bg-rose-600 rounded-lg hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
-                          >
-                            {submittingCancel ? '취소 중...' : '문의 취소 확정'}
-                          </button>
-                        </div>
-                      </form>
-                    </div>
-                  )}
-                </div>
-              )}
-
-                            {/* Attachments Section */}
+              {/* Attachments Section */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-1.5">
@@ -1274,6 +1294,8 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                     ticket.timeline.map((item, idx) => {
                       const isInquiry = item.type === 'inquiry';
                       const isInitial = isInquiry && item.round === 1;
+                      const isPendingReq = item.type === 'pending_request';
+                      const isPendingResp = item.type === 'pending_response';
 
                       return (
                         <div
@@ -1281,6 +1303,10 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                           className={`p-4 rounded-xl border space-y-2 shadow-xs transition-all ${
                             isInitial
                               ? 'bg-slate-50 border-slate-200 text-slate-800'
+                              : isPendingReq
+                              ? 'bg-amber-50/90 border-amber-200 text-amber-950'
+                              : isPendingResp
+                              ? 'bg-blue-50/90 border-blue-200 text-blue-950'
                               : isInquiry
                               ? 'bg-purple-50/90 border-purple-200 text-purple-950'
                               : 'bg-emerald-50/80 border-emerald-200 text-emerald-950'
@@ -1288,7 +1314,17 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                         >
                           <div className="flex items-center justify-between text-xs">
                             <span className="font-bold flex items-center">
-                              {isInquiry ? (
+                              {isPendingReq ? (
+                                <span className="bg-amber-200 text-amber-900 text-[10px] px-2 py-0.5 rounded-full mr-2 font-mono font-semibold flex items-center border border-amber-300">
+                                  <PauseCircle className="w-3 h-3 mr-1 text-amber-700" />
+                                  IT 담당자 답변 대기 요청
+                                </span>
+                              ) : isPendingResp ? (
+                                <span className="bg-blue-200 text-blue-900 text-[10px] px-2 py-0.5 rounded-full mr-2 font-mono font-semibold flex items-center border border-blue-300">
+                                  <MessageSquare className="w-3 h-3 mr-1 text-blue-700" />
+                                  답변 대기 회신
+                                </span>
+                              ) : isInquiry ? (
                                 <span className={`text-[10px] px-2 py-0.5 rounded-full mr-2 font-mono font-semibold flex items-center ${
                                   isInitial ? 'bg-slate-200 text-slate-700' : 'bg-purple-200 text-purple-800'
                                 }`}>
@@ -1301,7 +1337,12 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                                   답변 {item.round}차
                                 </span>
                               )}
-                              <span className={isInquiry ? (isInitial ? 'text-slate-800' : 'text-purple-900') : 'text-emerald-900'}>
+                              <span className={
+                                isPendingReq ? 'text-amber-950' :
+                                isPendingResp ? 'text-blue-950' :
+                                isInquiry ? (isInitial ? 'text-slate-800' : 'text-purple-900') :
+                                'text-emerald-900'
+                              }>
                                 {item.author_name}
                               </span>
                             </span>
@@ -1324,8 +1365,8 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 </div>
               </div>
 
-              {/* Employee Follow-up Inquiry (재문의) Section */}
-              {isAuthor && ['pending', 'resolved', 'closed'].includes(ticket.status) && (
+              {/* Employee Follow-up Inquiry (재문의) Section: 해결 완료 상태에서만 재문의 가능 (종결 건 재문의 불가) */}
+              {isAuthor && ticket.status === 'resolved' && (
                 <div className="p-4 bg-purple-50/70 border border-purple-200 rounded-xl">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-1.5">
@@ -1391,9 +1432,17 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                     </form>
                   ) : (
                     <p className="text-xs text-purple-700 mt-1">
-                      조치가 완료되었거나 추가 확인이 필요한 경우 언제든지 재문의를 통해 다시 처리를 요청하실 수 있습니다.
+                      조치 결과에 대해 추가 확인이 필요한 경우 재문의를 통해 다시 처리를 요청하실 수 있습니다.
                     </p>
                   )}
+                </div>
+              )}
+
+              {/* Closed Ticket Notice: 종결 상태일 땐 재문의 불가 안내 */}
+              {isClosed && (
+                <div className="p-3.5 bg-slate-100 border border-slate-200 rounded-xl text-slate-600 text-xs flex items-center">
+                  <CheckCircle2 className="w-4 h-4 mr-2 text-slate-500 shrink-0" />
+                  <span>본 문의는 최종 종결 처리되어 추가 재문의가 불가합니다.</span>
                 </div>
               )}
 
@@ -1552,12 +1601,19 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 </div>
               )}
 
-              {/* Regular User Pending Message */}
+              {/* Regular User In-Progress / Pending Message */}
               {!isResolved && !isClosed && !user?.is_officer && (
-                <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-xl text-blue-800 text-xs flex items-center">
-                  <Clock className="w-4 h-4 mr-2 text-blue-600 shrink-0" />
-                  <span>현재 IT 지원팀에서 담당자 배정 및 문의 처리를 진행 중입니다.</span>
-                </div>
+                ticket.status === 'pending' ? (
+                  <div className="p-3.5 bg-purple-50 border border-purple-200 rounded-xl text-purple-900 text-xs flex items-center">
+                    <PauseCircle className="w-4 h-4 mr-2 text-purple-600 shrink-0" />
+                    <span>IT 담당자의 답변 대기 요청이 등록되었습니다. 상단 안내를 확인하시고 추가 답변을 등록해 주세요.</span>
+                  </div>
+                ) : (
+                  <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-xl text-blue-800 text-xs flex items-center">
+                    <Clock className="w-4 h-4 mr-2 text-blue-600 shrink-0" />
+                    <span>현재 IT 지원팀에서 담당자 배정 및 문의 처리를 진행 중입니다.</span>
+                  </div>
+                )
               )}
 
               {/* Officer-Only Activity & Audit Logs Section */}

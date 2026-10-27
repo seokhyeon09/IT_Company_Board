@@ -259,7 +259,7 @@ class HelpDeskTicket(models.Model):
                         # 1) 본인 티켓 취소
                         (record.status in ('submitted', 'assigned', 'in_progress', 'pending', 'resolved') and new_status == 'canceled') or
                         # 2) 본인 티켓 재문의
-                        (record.status in ('pending', 'resolved', 'closed') and new_status == 'in_progress') or
+                        (record.status in ('pending', 'resolved') and new_status == 'in_progress') or
                         # 3) 본인 티켓 만족도 평가 완료 후 종결
                         (record.status == 'resolved' and new_status == 'closed')
                     )
@@ -345,25 +345,30 @@ class HelpDeskTicket(models.Model):
             record.status = "pending"
 
     def action_restart_ticket(self):
-        """직원의 추가 문의(재문의: 답변대기, 해결완료, 종결 건 재개)"""
+        """직원의 추가 문의 (답변대기 회신 또는 해결완료 건 재문의)"""
         for record in self:
             is_officer = self.env.is_admin() or self.env.user.has_group('it_helpdesk.group_helpdesk_officer')
             if record.author_id != self.env.user and not is_officer:
                 raise UserError("추가 문의는 문의를 등록한 본인만 요청할 수 있습니다.")
-            if record.status not in ('pending', 'resolved', 'closed'):
-                raise UserError("답변 대기, 해결 완료 또는 종결된 티켓에 대해서만 추가 문의를 진행할 수 있습니다.")
+            if record.status not in ('pending', 'resolved'):
+                raise UserError("답변 대기 또는 해결 완료된 티켓에 대해서만 추가 문의를 진행할 수 있습니다. (종결된 티켓은 재문의 불가)")
+
+            was_pending = record.status == 'pending'
 
             # 다음 차수 평가를 위해 현재 별점 입력값 초기화 (기존 rating_ids는 테이블에 안전하게 보존됨)
             record.sudo().write({'rating': '0', 'rating_comment': False})
 
             record.status = "in_progress"
-            record.message_post(body="요청 직원이 추가 문의(재문의)를 등록하여 처리가 다시 진행됩니다.")
+            if was_pending:
+                record.message_post(body="요청 직원이 답변 대기 요청에 대해 회신을 등록하여 처리가 다시 진행됩니다.")
+            else:
+                record.message_post(body="요청 직원이 추가 문의(재문의)를 등록하여 처리가 다시 진행됩니다.")
 
             # RC-05: 담당자에게 새 Activity 자동 스케줄링
             if record.assignee_id:
                 record.activity_schedule(
                     'mail.mail_activity_data_todo',
-                    summary=f"직원 재문의 확인 필요: {record.title}",
+                    summary=f"직원 답변 대기 회신 확인 필요: {record.title}" if was_pending else f"직원 재문의 확인 필요: {record.title}",
                     user_id=record.assignee_id.id,
                     date_deadline=fields.Date.today()
                 )

@@ -153,8 +153,13 @@ class TestHelpdeskUIUXAudit(TransactionCase):
         self.assertEqual(ticket.rating_ids[0].round, 1)
         self.assertEqual(ticket.rating_ids[0].rating, '3')
 
-        # 3. 직원의 추가 문의 (재문의)
-        ticket.with_user(self.user_employee).action_restart_ticket()
+        # 3. 종결(closed) 상태에서는 직원 재문의 불가 검증 (UserError 발생)
+        with self.assertRaises(UserError):
+            ticket.with_user(self.user_employee).action_restart_ticket()
+        self.assertEqual(ticket.status, 'closed')
+
+        # 4. IT 담당자의 티켓 재오픈(action_reopen) 후 2차 조치 진행
+        ticket.with_user(self.user_officer).action_reopen()
         self.assertEqual(ticket.status, 'in_progress')
         # 기존 평가 이력(1차)은 그대로 보존되어 있어야 함
         self.assertEqual(len(ticket.rating_ids), 1)
