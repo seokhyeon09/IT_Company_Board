@@ -40,7 +40,7 @@ services:
       - "8000:8000"
     environment:
       - ODOO_RPC_URL=http://web:8069
-      - ODOO_DB=${DB_NAME}
+      - ODOO_DB=helpdesk_db
       - GATEWAY_SHARED_SECRET=secure_inter_tier_hmac_secret_key_32_chars
       - JWT_SECRET_KEY=it_company_board_super_secret_jwt_key_2026_xyz
     restart: unless-stopped

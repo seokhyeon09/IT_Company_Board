@@ -2,8 +2,8 @@ import { create } from 'zustand';
 
 export interface UserProfile {
   uid: number;
-  name: str;
-  login: str;
+  name: string;
+  login: string;
   is_officer: boolean;
 }
 

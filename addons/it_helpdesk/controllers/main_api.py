@@ -108,11 +108,13 @@ class ITHelpdeskAPIController(http.Controller):
     def api_login(self, db, login, password):
         """Odoo 사용자 인증 및 세션 정보 반환"""
         try:
-            uid = request.session.authenticate(db, login, password)
+            credential = {'login': login, 'password': password, 'type': 'password'}
+            auth_info = request.session.authenticate(db, credential)
+            uid = auth_info.get('uid') if isinstance(auth_info, dict) else auth_info
             if not uid:
                 return {'status': 'error', 'message': 'Invalid credentials'}
             
-            user = request.env['res.users'].browse(uid)
+            user = request.env['res.users'].sudo().browse(uid)
             is_officer = user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()
             
             return {
@@ -190,20 +192,20 @@ class ITHelpdeskAPIController(http.Controller):
             "id": ticket.id,
             "ticket_number": ticket.ticket_number,
             "title": ticket.title,
-            "content": ticket.content,
+            "content": ticket.content or "",
             "category": ticket.category,
             "status": ticket.status,
             "priority": ticket.priority,
             "deadline": _format_datetime_utc(ticket.deadline),
             "is_overdue": ticket.is_overdue,
-            "author_id": ticket.author_id.id,
-            "author_name": ticket.author_id.name,
+            "author_id": ticket.author_id.id if ticket.author_id else None,
+            "author_name": ticket.author_id.name if ticket.author_id else None,
             "assignee_id": ticket.assignee_id.id if ticket.assignee_id else None,
-            "assignee_name": ticket.assignee_name,
-            "resolution_note": ticket.resolution_note,
-            "is_faq": ticket.is_faq,
-            "rating": ticket.rating,
-            "rating_comment": ticket.rating_comment,
+            "assignee_name": ticket.assignee_name or "배정 대기",
+            "resolution_note": ticket.resolution_note or None,
+            "is_faq": bool(ticket.is_faq),
+            "rating": ticket.rating or None,
+            "rating_comment": ticket.rating_comment or None,
             "create_date": _format_datetime_utc(ticket.create_date),
             "write_date": _format_datetime_utc(ticket.write_date),
         }
@@ -233,6 +235,8 @@ class ITHelpdeskAPIController(http.Controller):
             "data": {
                 "id": ticket.id,
                 "ticket_number": ticket.ticket_number,
+                "title": ticket.title,
+                "category": ticket.category,
                 "status": ticket.status,
                 "priority": ticket.priority,
                 "deadline": _format_datetime_utc(ticket.deadline),
@@ -271,6 +275,11 @@ class ITHelpdeskAPIController(http.Controller):
                 )
 
         ticket.resolution_note = resolution_note
+        if ticket.status == 'submitted':
+            ticket.action_assign_to_me()
+            ticket.action_start_progress()
+        elif ticket.status == 'assigned':
+            ticket.action_start_progress()
         ticket.action_resolve()
 
         return {

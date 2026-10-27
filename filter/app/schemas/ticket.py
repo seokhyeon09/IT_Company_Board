@@ -58,8 +58,8 @@ class TicketResolveDTO(BaseModel):
 class TicketResponseDTO(BaseModel):
     id: int
     ticket_number: str
-    title: str
-    category: str
+    title: Optional[str] = None
+    category: Optional[str] = None
     status: str
     priority: str
     deadline: Optional[str] = None
@@ -73,10 +73,17 @@ class TicketResponseDTO(BaseModel):
     rating: Optional[str] = None
 
 class TicketDetailResponseDTO(TicketResponseDTO):
-    content: Optional[str] = None
-    resolution_note: Optional[str] = None
-    author_name: Optional[str] = None
-    rating_comment: Optional[str] = None
+    content: Optional[Any] = None
+    resolution_note: Optional[Any] = None
+    author_name: Optional[Any] = None
+    rating_comment: Optional[Any] = None
+
+    @field_validator("content", "resolution_note", "author_name", "rating_comment", mode="before")
+    @classmethod
+    def clean_false_to_none(cls, v: Any):
+        if v is False or v == "False":
+            return None
+        return v
 
 class TicketListResponseDTO(BaseModel):
     status: str = "success"
