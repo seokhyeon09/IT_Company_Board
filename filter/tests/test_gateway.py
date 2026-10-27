@@ -39,3 +39,49 @@ def test_hmac_signature_generation():
     assert headers["X-Gateway-User-Id"] == "42"
     assert "X-Gateway-Timestamp" in headers
     assert len(headers["X-Gateway-Signature"]) == 64
+
+def test_ticket_rate_dto_validation():
+    """만족도 평가 DTO 유효성 검증 (1~5 별점, 500자 이하 코멘트)"""
+    from app.schemas.ticket import TicketRateDTO
+    # 정상 별점
+    rate_ok = TicketRateDTO(rating="5", rating_comment="친절한 조치 감사합니다.")
+    assert rate_ok.rating == "5"
+
+    # 유효하지 않은 별점 (0 또는 6 또는 문자)
+    with pytest.raises(ValidationError):
+        TicketRateDTO(rating="0")
+    with pytest.raises(ValidationError):
+        TicketRateDTO(rating="6")
+    with pytest.raises(ValidationError):
+        TicketRateDTO(rating="최고")
+
+def test_ticket_resolve_dto_validation():
+    """조치 완료 DTO 유효성 검증 (최소 5자 이상 조치 노트)"""
+    from app.schemas.ticket import TicketResolveDTO
+    resolve_ok = TicketResolveDTO(resolution_note="하드웨어 부품 교체 완료")
+    assert resolve_ok.resolution_note == "하드웨어 부품 교체 완료"
+
+    # 5자 미만 실패
+    with pytest.raises(ValidationError):
+        TicketResolveDTO(resolution_note="완료")
+
+def test_odoo_false_to_none_normalization():
+    """Odoo의 False 직렬화 값이 Pydantic DTO에서 None으로 안전 변환되는지 검증"""
+    from app.schemas.ticket import TicketDetailResponseDTO
+    raw_data = {
+        "id": 100,
+        "ticket_number": "TKT-2026-9999",
+        "title": "테스트 티켓",
+        "category": "hw",
+        "status": "submitted",
+        "priority": "1",
+        "content": False,          # Odoo boolean False
+        "resolution_note": False,  # Odoo boolean False
+        "author_name": False,      # Odoo boolean False
+        "rating_comment": False,   # Odoo boolean False
+    }
+    dto = TicketDetailResponseDTO(**raw_data)
+    assert dto.content is None
+    assert dto.resolution_note is None
+    assert dto.author_name is None
+    assert dto.rating_comment is None

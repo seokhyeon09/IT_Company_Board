@@ -165,3 +165,66 @@ class TestHelpdeskAPIController(TransactionCase):
                     resolution_note='<p>해결 완료</p>',
                     if_match_write_date='2020-01-01T00:00:00Z'
                 )
+
+    def test_05_ticket_rating_and_close(self):
+        """해결 완료된 티켓에 대해 본인 평가 제출 시 closed 상태로 자동 전이 검증"""
+        from unittest.mock import patch, MagicMock
+
+        # 1. 먼저 담당자가 해결 완료
+        h_resolve = self._generate_hmac_headers(self.user_officer.id, path='/api/v1/tickets/resolve')
+        mock_req_officer = MagicMock()
+        mock_req_officer.httprequest.headers = h_resolve
+        mock_req_officer.httprequest.method = 'POST'
+        mock_req_officer.httprequest.path = '/api/v1/tickets/resolve'
+        mock_req_officer.httprequest.get_data.return_value = b''
+        mock_req_officer.env = self.env
+        mock_req_officer.session.uid = None
+
+        with patch('odoo.addons.it_helpdesk.controllers.main_api.request', mock_req_officer):
+            self.controller.resolve_ticket(
+                ticket_id=self.ticket_emp1.id,
+                resolution_note='<p>점검 및 해결 완료</p>'
+            )
+
+        # 2. 사원 본인이 만족도 평가 제출 -> closed 전이 확인
+        h_rate = self._generate_hmac_headers(self.user_employee.id, path='/api/v1/tickets/rate')
+        mock_req_emp = MagicMock()
+        mock_req_emp.httprequest.headers = h_rate
+        mock_req_emp.httprequest.method = 'POST'
+        mock_req_emp.httprequest.path = '/api/v1/tickets/rate'
+        mock_req_emp.httprequest.get_data.return_value = b''
+        mock_req_emp.env = self.env
+        mock_req_emp.session.uid = None
+
+        with patch('odoo.addons.it_helpdesk.controllers.main_api.request', mock_req_emp):
+            res = self.controller.rate_ticket(
+                ticket_id=self.ticket_emp1.id,
+                rating='5',
+                rating_comment='친절한 조치 감사합니다.'
+            )
+            self.assertEqual(res['status'], 'success')
+            self.assertEqual(res['data']['status'], 'closed')
+            self.assertEqual(res['data']['rating'], '5')
+            self.assertEqual(res['data']['rating_comment'], '친절한 조치 감사합니다.')
+
+    def test_06_toggle_faq(self):
+        """IT 담당자가 해결된 티켓을 FAQ로 등록/해제 토글 검증"""
+        from unittest.mock import patch, MagicMock
+
+        # FAQ 등록을 위해 조치 내역 설정
+        self.ticket_emp1.sudo().write({'resolution_note': '<p>공식 조치 완료 내용</p>'})
+
+        headers = self._generate_hmac_headers(self.user_officer.id, path='/api/v1/tickets/toggle-faq')
+        mock_req = MagicMock()
+        mock_req.httprequest.headers = headers
+        mock_req.httprequest.method = 'POST'
+        mock_req.httprequest.path = '/api/v1/tickets/toggle-faq'
+        mock_req.httprequest.get_data.return_value = b''
+        mock_req.env = self.env
+        mock_req.session.uid = None
+
+        with patch('odoo.addons.it_helpdesk.controllers.main_api.request', mock_req):
+            initial_faq = self.ticket_emp1.is_faq
+            res = self.controller.toggle_faq(ticket_id=self.ticket_emp1.id)
+            self.assertEqual(res['status'], 'success')
+            self.assertNotEqual(res['data']['is_faq'], initial_faq)
