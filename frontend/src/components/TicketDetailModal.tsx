@@ -860,7 +860,24 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                           <span className="font-semibold text-slate-700">{log.author_name}</span>
                           <span>{log.date ? log.date.substring(0, 16).replace('T', ' ') : '-'}</span>
                         </div>
-                        <p className="text-slate-800 whitespace-pre-wrap leading-relaxed">{log.body}</p>
+                        {log.body.includes('[답변 내용 수정 이력]') ? (
+                          <div className="space-y-1.5 mt-1 bg-amber-50/70 p-2.5 rounded-lg border border-amber-200 text-xs">
+                            <div className="font-bold text-amber-900 flex items-center text-[11px]">
+                              <Edit3 className="w-3 h-3 mr-1 text-amber-700" />
+                              답변 내용 수정 내역
+                            </div>
+                            <div className="text-[11px] text-slate-500 line-through bg-white/70 p-1.5 rounded border border-slate-200">
+                              <span className="font-semibold text-slate-600 mr-1">[수정 전]</span>
+                              {log.body.split('[수정 전]')[1]?.split('[수정 후]')[0]?.trim()}
+                            </div>
+                            <div className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 p-1.5 rounded border border-emerald-200">
+                              <span className="font-bold text-emerald-700 mr-1">[수정 후]</span>
+                              {log.body.split('[수정 후]')[1]?.trim()}
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-slate-800 whitespace-pre-wrap leading-relaxed">{log.body}</p>
+                        )}
                       </div>
                     ))}
                   </div>

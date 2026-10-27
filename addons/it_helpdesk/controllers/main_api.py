@@ -582,8 +582,33 @@ class ITHelpdeskAPIController(http.Controller):
         if not clean_note or len(clean_note) < 5:
             raise UserError("Resolution note must be at least 5 characters.")
 
+        old_note = ticket.resolution_note or ""
+        old_preview = _clean_html(old_note)
         ticket.resolution_note = clean_note
-        ticket.message_post(body=f'<div data-msg-type="resolution"><b>[조치 답변 (수정)]</b><br/>{clean_note}</div>')
+
+        # 1. 기존 최신 조치 메시지의 본문 자체를 갱신 (신규 답변 카드 추가 방지 -> 차수 유지)
+        latest_res_msg = False
+        for msg in ticket.message_ids.sorted(key=lambda m: m.id, reverse=True):
+            body = msg.body or ""
+            if 'data-msg-type="resolution"' in body or "IT 담당자 조치 내용:" in body:
+                latest_res_msg = msg
+                break
+
+        if latest_res_msg:
+            latest_res_msg.sudo().write({
+                'body': f'<div data-msg-type="resolution"><b>[조치 답변]</b><br/>{clean_note}</div>'
+            })
+        else:
+            ticket.message_post(body=f'<div data-msg-type="resolution"><b>[조치 답변]</b><br/>{clean_note}</div>')
+
+        # 2. 담당자 전용 감사 로그에 변경 전/후(Before -> After) diff 기록 (Q&A 타임라인에는 미포함)
+        ticket.message_post(
+            body=(
+                f'<b>[답변 내용 수정 이력]</b><br/>'
+                f'<span style="color:#64748b; text-decoration:line-through;">[수정 전] {old_preview}</span><br/>'
+                f'<span style="color:#059669; font-weight:bold;">[수정 후] {clean_note}</span>'
+            )
+        )
 
         return {
             "status": "success",
