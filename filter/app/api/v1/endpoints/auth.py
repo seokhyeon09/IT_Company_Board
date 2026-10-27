@@ -11,9 +11,20 @@ router = APIRouter()
 async def login(req: LoginRequest):
     """Authenticate with Odoo backend and issue JWT Bearer Token."""
     target_db = req.db or settings.ODOO_DB
+
+    # 사용자 편의를 위한 숏컷 별칭 매핑 (이메일 도메인 생략 허용)
+    raw_login = req.login.strip().lower()
+    alias_map = {
+        "admin": "admin@helpdesk.com",
+        "officer": "officer@test.com",
+        "user1": "user1@test.com",
+        "user": "user1@test.com",
+    }
+    resolved_login = alias_map.get(raw_login, req.login.strip())
+
     result = await odoo_client.call_json(
         "/api/v1/auth/login",
-        params={"db": target_db, "login": req.login, "password": req.password}
+        params={"db": target_db, "login": resolved_login, "password": req.password}
     )
 
     if result.get("status") != "success":

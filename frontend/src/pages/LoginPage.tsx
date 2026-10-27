@@ -94,7 +94,49 @@ export const LoginPage: React.FC = () => {
           </button>
         </form>
 
-        <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+        {/* Quick Test Account Selector */}
+        <div className="mt-6 pt-5 border-t border-slate-100">
+          <p className="text-xs font-bold text-slate-500 mb-2.5 text-center">
+            테스트 계정 빠른 선택
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setLoginId('admin');
+                setPassword('admin');
+              }}
+              className="p-2 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 border border-slate-200 rounded-xl text-left transition-all cursor-pointer"
+            >
+              <div className="text-xs font-bold text-slate-800">관리자</div>
+              <div className="text-[10px] text-slate-400 font-mono mt-0.5">admin / admin</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setLoginId('officer');
+                setPassword('1234');
+              }}
+              className="p-2 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 border border-slate-200 rounded-xl text-left transition-all cursor-pointer"
+            >
+              <div className="text-xs font-bold text-slate-800">IT 담당자</div>
+              <div className="text-[10px] text-slate-400 font-mono mt-0.5">officer / 1234</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setLoginId('user1');
+                setPassword('1234');
+              }}
+              className="p-2 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 border border-slate-200 rounded-xl text-left transition-all cursor-pointer"
+            >
+              <div className="text-xs font-bold text-slate-800">일반 사원</div>
+              <div className="text-[10px] text-slate-400 font-mono mt-0.5">user1 / 1234</div>
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-4 text-center">
           <p className="text-xs text-slate-400">
             사내 포털 계정(Odoo DB)으로 자동 인증 및 Bearer JWT가 발급됩니다.
           </p>
