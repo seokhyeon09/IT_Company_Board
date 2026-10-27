@@ -12,6 +12,20 @@ _logger = logging.getLogger(__name__)
 class OdooClient:
     def __init__(self):
         self.base_url = settings.ODOO_RPC_URL
+        self._client: Optional[httpx.AsyncClient] = None
+
+    async def start(self):
+        """Initialize persistent connection pool on FastAPI startup."""
+        if self._client is None or self._client.is_closed:
+            limits = httpx.Limits(max_keepalive_connections=20, max_connections=50, keepalive_expiry=30.0)
+            self._client = httpx.AsyncClient(timeout=10.0, limits=limits)
+            _logger.info("Odoo connection pool started (max_keepalive=20, max_connections=50).")
+
+    async def close(self):
+        """Close connection pool on FastAPI shutdown."""
+        if self._client and not self._client.is_closed:
+            await self._client.aclose()
+            _logger.info("Odoo connection pool closed cleanly.")
 
     async def call_json(
         self,
@@ -20,7 +34,7 @@ class OdooClient:
         user_id: Optional[int] = None,
         timeout: float = 10.0
     ) -> Dict[str, Any]:
-        """Make an asynchronous JSON-RPC call to Odoo with HMAC identity propagation."""
+        """Make an asynchronous JSON-RPC call to Odoo with HMAC identity propagation using connection pool."""
         url = f"{self.base_url.rstrip('/')}{endpoint}"
         raw_body = json.dumps({"jsonrpc": "2.0", "method": "call", "params": params, "id": 1}).encode('utf-8')
 
@@ -33,8 +47,12 @@ class OdooClient:
             headers.update(hmac_headers)
 
         try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                resp = await client.post(url, content=raw_body, headers=headers)
+            # Use connection pool if started, otherwise fallback to transient client
+            if self._client and not self._client.is_closed:
+                resp = await self._client.post(url, content=raw_body, headers=headers)
+            else:
+                async with httpx.AsyncClient(timeout=timeout) as client:
+                    resp = await client.post(url, content=raw_body, headers=headers)
                 
             if resp.status_code == 409:
                 data = resp.json()

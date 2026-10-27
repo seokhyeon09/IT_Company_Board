@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import os
+import html
 import hmac
 import hashlib
 import json
@@ -14,7 +16,7 @@ from odoo.exceptions import AccessError, UserError
 
 _logger = logging.getLogger(__name__)
 
-GATEWAY_SHARED_SECRET = "secure_inter_tier_hmac_secret_key_32_chars"
+GATEWAY_SHARED_SECRET = os.environ.get("GATEWAY_SHARED_SECRET", "secure_inter_tier_hmac_secret_key_32_chars")
 
 class ConcurrencyError(UserError):
     """Raised when an optimistic concurrency check detects a collision (HTTP 409)."""
@@ -37,14 +39,21 @@ def parse_iso_utc(dt_str: str) -> Optional[datetime]:
         raise UserError(f"Invalid datetime format: '{dt_str}'. Expected ISO-8601 UTC format.") from exc
 
 
+def _safe_html_text(text: Optional[str]) -> str:
+    """Escape HTML special characters to prevent Stored XSS while converting line breaks to <br/>."""
+    if not text:
+        return ""
+    escaped = html.escape(str(text).strip())
+    return escaped.replace("\r\n", "<br/>").replace("\n", "<br/>")
+
 def _clean_html(raw: Optional[str]) -> str:
-    """Strip HTML tags and convert line breaks for clean plain text display."""
+    """Strip HTML tags and convert line breaks for clean plain text display, preserving escaped entities."""
     if not raw:
         return ""
     text = re.sub(r'<br\s*/?>', '\n', raw, flags=re.IGNORECASE)
     text = re.sub(r'</p>', '\n', text, flags=re.IGNORECASE)
     text = re.sub(r'<[^>]+>', '', text)
-    text = text.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
+    text = text.replace('&nbsp;', ' ')
     return text.strip()
 
 
@@ -58,8 +67,9 @@ def _extract_thread_content(raw_html: str, markers: list) -> str:
             parts = text.split(m, 1)
             if len(parts) > 1 and parts[1].strip():
                 text = parts[1]
-    # Strip residual closing tags before clean_html
+    # Strip residual opening/closing tags before clean_html
     text = re.sub(r'^(?:</b>|</strong>|</div>|</span>|<br\s*/?>)+', '', text.strip(), flags=re.IGNORECASE)
+    text = re.sub(r'(?:</b>|</strong>|</div>|</span>|<br\s*/?>)+$', '', text.strip(), flags=re.IGNORECASE)
     clean = _clean_html(text)
     clean = re.sub(r'^(?:\[(?:추가 재문의|조치 답변|조치 답변 \(수정\))\]\s*)+', '', clean).strip()
     return clean
@@ -106,11 +116,9 @@ def verify_gateway_request():
         payload = f"{method}:{path}:{user_id_str}:{timestamp_str}:{body_hash}".encode('utf-8')
         expected_sig = hmac.new(GATEWAY_SHARED_SECRET.encode('utf-8'), payload, hashlib.sha256).hexdigest()
 
+        # Strict HMAC verification: Reject all legacy payloads lacking body hash
         if not hmac.compare_digest(signature, expected_sig):
-            legacy_payload = f"{user_id_str}:{timestamp_str}".encode('utf-8')
-            legacy_sig = hmac.new(GATEWAY_SHARED_SECRET.encode('utf-8'), legacy_payload, hashlib.sha256).hexdigest()
-            if not hmac.compare_digest(signature, legacy_sig):
-                raise AccessError("Unauthorized: Invalid gateway signature.")
+            raise AccessError("Unauthorized: Invalid gateway signature.")
 
         user = request.env['res.users'].sudo().browse(uid)
         if not user.exists() or not user.active:
@@ -441,14 +449,15 @@ class ITHelpdeskAPIController(http.Controller):
                     current_write_date=current_iso
                 )
 
-        ticket.resolution_note = resolution_note
+        safe_note = _safe_html_text(resolution_note)
+        ticket.resolution_note = safe_note
         if ticket.status == 'submitted':
             ticket.action_assign_to_me()
             ticket.action_start_progress()
         elif ticket.status == 'assigned':
             ticket.action_start_progress()
         ticket.action_resolve()
-        ticket.message_post(body=f'<div data-msg-type="resolution"><b>[조치 답변]</b><br/>{resolution_note}</div>')
+        ticket.message_post(body=f'<div data-msg-type="resolution"><b>[조치 답변]</b><br/>{safe_note}</div>')
 
         return {
             "status": "success",
@@ -536,8 +545,8 @@ class ITHelpdeskAPIController(http.Controller):
 
         ticket.action_restart_ticket()
         if reason and str(reason).strip():
-            clean_reason = str(reason).strip()
-            ticket.message_post(body=f'<div data-msg-type="inquiry"><b>[추가 재문의]</b><br/>{clean_reason}</div>')
+            safe_reason = _safe_html_text(reason)
+            ticket.message_post(body=f'<div data-msg-type="inquiry"><b>[추가 재문의]</b><br/>{safe_reason}</div>')
 
         return {
             "status": "success",
@@ -584,7 +593,9 @@ class ITHelpdeskAPIController(http.Controller):
 
         old_note = ticket.resolution_note or ""
         old_preview = _clean_html(old_note)
-        ticket.resolution_note = clean_note
+        safe_clean_note = _safe_html_text(clean_note)
+        safe_old_preview = html.escape(old_preview)
+        ticket.resolution_note = safe_clean_note
 
         # 1. 기존 최신 조치 메시지의 본문 자체를 갱신 (신규 답변 카드 추가 방지 -> 차수 유지)
         latest_res_msg = False
@@ -596,17 +607,17 @@ class ITHelpdeskAPIController(http.Controller):
 
         if latest_res_msg:
             latest_res_msg.sudo().write({
-                'body': f'<div data-msg-type="resolution"><b>[조치 답변]</b><br/>{clean_note}</div>'
+                'body': f'<div data-msg-type="resolution"><b>[조치 답변]</b><br/>{safe_clean_note}</div>'
             })
         else:
-            ticket.message_post(body=f'<div data-msg-type="resolution"><b>[조치 답변]</b><br/>{clean_note}</div>')
+            ticket.message_post(body=f'<div data-msg-type="resolution"><b>[조치 답변]</b><br/>{safe_clean_note}</div>')
 
         # 2. 담당자 전용 감사 로그에 변경 전/후(Before -> After) diff 기록 (Q&A 타임라인에는 미포함)
         ticket.message_post(
             body=(
                 f'<b>[답변 내용 수정 이력]</b><br/>'
-                f'<span style="color:#64748b; text-decoration:line-through;">[수정 전] {old_preview}</span><br/>'
-                f'<span style="color:#059669; font-weight:bold;">[수정 후] {clean_note}</span>'
+                f'<span style="color:#64748b; text-decoration:line-through;">[수정 전] {safe_old_preview}</span><br/>'
+                f'<span style="color:#059669; font-weight:bold;">[수정 후] {safe_clean_note}</span>'
             )
         )
 
@@ -704,13 +715,17 @@ class ITHelpdeskAPIController(http.Controller):
             raise UserError("Ticket not found.")
 
         if note and str(note).strip():
-            clean_note = str(note).strip()
-            ticket.resolution_note = clean_note
+            safe_note = _safe_html_text(note)
+            ticket.resolution_note = safe_note
         elif not ticket.resolution_note or not _clean_html(ticket.resolution_note).strip():
-            ticket.resolution_note = "IT 담당자에 의해 직권 종결 처리되었습니다."
+            safe_note = "IT 담당자에 의해 직권 종결 처리되었습니다."
+            ticket.resolution_note = safe_note
+        else:
+            safe_note = _clean_html(ticket.resolution_note)
 
         ticket.action_close()
-        ticket.message_post(body=f"<b>[직권 종결]</b><br/>IT 담당자({user.name})에 의해 문의가 최종 종결되었습니다.")
+        safe_user_name = html.escape(user.name)
+        ticket.message_post(body=f"<b>[직권 종결]</b><br/>IT 담당자({safe_user_name})에 의해 문의가 최종 종결되었습니다.<br/>종결 사유: {safe_note}")
 
         return {
             "status": "success",
@@ -735,8 +750,9 @@ class ITHelpdeskAPIController(http.Controller):
             raise AccessError("Only the author or helpdesk officers can cancel this ticket.")
 
         ticket.action_cancel()
-        clean_reason = str(reason).strip() if reason and str(reason).strip() else "사유 미기재"
-        ticket.message_post(body=f"<b>[문의 취소]</b><br/>취소자: {user.name}<br/>취소 사유: {clean_reason}")
+        safe_reason = _safe_html_text(reason) if reason and str(reason).strip() else "사유 미기재"
+        safe_user_name = html.escape(user.name)
+        ticket.message_post(body=f"<b>[문의 취소]</b><br/>취소자: {safe_user_name}<br/>취소 사유: {safe_reason}")
 
         return {
             "status": "success",

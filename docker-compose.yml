@@ -10,6 +10,7 @@ services:
       - HOST=db
       - USER=${DB_USER}
       - PASSWORD=${DB_PASSWORD}
+      - GATEWAY_SHARED_SECRET=secure_inter_tier_hmac_secret_key_32_chars
     volumes:
       - odoo-web-data:/var/lib/odoo
       - ./addons:/mnt/extra-addons

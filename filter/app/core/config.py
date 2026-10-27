@@ -11,7 +11,7 @@ class Settings(BaseSettings):
 
     # Odoo Configuration
     ODOO_RPC_URL: str = "http://localhost:8069"
-    ODOO_DB: str = "it_helpdesk_db"
+    ODOO_DB: str = "helpdesk_db"
     GATEWAY_SHARED_SECRET: str = "secure_inter_tier_hmac_secret_key_32_chars"
 
     # JWT Security Configuration
