@@ -60,7 +60,7 @@ export const LoginPage: React.FC = () => {
                 type="text"
                 value={loginId}
                 onChange={(e) => setLoginId(e.target.value)}
-                placeholder="예: admin"
+                placeholder="예: user1@test.com"
                 className="w-full pl-10 pr-3 py-2.5 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
                 required
               />
@@ -99,39 +99,57 @@ export const LoginPage: React.FC = () => {
           <p className="text-xs font-bold text-slate-500 mb-2.5 text-center">
             테스트 계정 빠른 선택
           </p>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => {
-                setLoginId('admin');
+                setLoginId('admin@helpdesk.com');
                 setPassword('admin');
               }}
-              className="p-2 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 border border-slate-200 rounded-xl text-left transition-all cursor-pointer"
+              className="p-2.5 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 border border-slate-200 rounded-xl text-left transition-all cursor-pointer"
             >
               <div className="text-xs font-bold text-slate-800">관리자</div>
-              <div className="text-[10px] text-slate-400 font-mono mt-0.5">admin / admin</div>
+              <div className="text-[10px] text-slate-400 font-mono mt-0.5">admin@helpdesk.com</div>
+              <div className="text-[10px] text-indigo-600 font-semibold mt-0.5">비번: admin</div>
             </button>
+
             <button
               type="button"
               onClick={() => {
-                setLoginId('officer');
+                setLoginId('officer@test.com');
                 setPassword('1234');
               }}
-              className="p-2 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 border border-slate-200 rounded-xl text-left transition-all cursor-pointer"
+              className="p-2.5 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 border border-slate-200 rounded-xl text-left transition-all cursor-pointer"
             >
               <div className="text-xs font-bold text-slate-800">IT 담당자</div>
-              <div className="text-[10px] text-slate-400 font-mono mt-0.5">officer / 1234</div>
+              <div className="text-[10px] text-slate-400 font-mono mt-0.5">officer@test.com</div>
+              <div className="text-[10px] text-indigo-600 font-semibold mt-0.5">비번: 1234</div>
             </button>
+
             <button
               type="button"
               onClick={() => {
-                setLoginId('user1');
+                setLoginId('user1@test.com');
                 setPassword('1234');
               }}
-              className="p-2 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 border border-slate-200 rounded-xl text-left transition-all cursor-pointer"
+              className="p-2.5 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 border border-slate-200 rounded-xl text-left transition-all cursor-pointer"
             >
-              <div className="text-xs font-bold text-slate-800">일반 사원</div>
-              <div className="text-[10px] text-slate-400 font-mono mt-0.5">user1 / 1234</div>
+              <div className="text-xs font-bold text-slate-800">사원 1 (user1)</div>
+              <div className="text-[10px] text-slate-400 font-mono mt-0.5">user1@test.com</div>
+              <div className="text-[10px] text-emerald-600 font-semibold mt-0.5">비번: 1234</div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setLoginId('user2@test.com');
+                setPassword('1234');
+              }}
+              className="p-2.5 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 border border-slate-200 rounded-xl text-left transition-all cursor-pointer"
+            >
+              <div className="text-xs font-bold text-slate-800">사원 2 (user2)</div>
+              <div className="text-[10px] text-slate-400 font-mono mt-0.5">user2@test.com</div>
+              <div className="text-[10px] text-emerald-600 font-semibold mt-0.5">비번: 1234</div>
             </button>
           </div>
         </div>
