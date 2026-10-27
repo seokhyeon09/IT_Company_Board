@@ -250,6 +250,21 @@ class ITHelpdeskAPIController(http.Controller):
             "rating_comment": ticket.rating_comment or None,
             "create_date": _format_datetime_utc(ticket.create_date),
             "write_date": _format_datetime_utc(ticket.write_date),
+            "resolutions": [
+                {
+                    "id": msg.id,
+                    "date": _format_datetime_utc(msg.date),
+                    "author_name": msg.author_id.name if msg.author_id else "IT 담당자",
+                    "content": _clean_html(msg.body).split("IT 담당자 조치 내용:", 1)[1].strip() if "IT 담당자 조치 내용:" in _clean_html(msg.body) else _clean_html(msg.body).strip()
+                }
+                for msg in ticket.message_ids.sorted(key=lambda m: m.id, reverse=False)
+                if "IT 담당자 조치 내용:" in (msg.body or "")
+            ] or ([{
+                "id": 0,
+                "date": _format_datetime_utc(ticket.write_date),
+                "author_name": ticket.assignee_id.name if ticket.assignee_id else "IT 담당자",
+                "content": _clean_html(ticket.resolution_note)
+            }] if ticket.resolution_note else []),
             "follow_ups": [
                 {
                     "id": msg.id,
@@ -344,6 +359,7 @@ class ITHelpdeskAPIController(http.Controller):
         elif ticket.status == 'assigned':
             ticket.action_start_progress()
         ticket.action_resolve()
+        ticket.message_post(body=f"<b>IT 담당자 조치 내용:</b><br/>{resolution_note}")
 
         return {
             "status": "success",
@@ -478,7 +494,7 @@ class ITHelpdeskAPIController(http.Controller):
             raise UserError("Resolution note must be at least 5 characters.")
 
         ticket.resolution_note = clean_note
-        ticket.message_post(body="<b>IT 담당자가 조치 내용(답변)을 수정하였습니다.</b>")
+        ticket.message_post(body=f"<b>IT 담당자 조치 내용:</b><br/>{clean_note}")
 
         return {
             "status": "success",

@@ -57,6 +57,13 @@ class TicketResolveDTO(BaseModel):
 
 
 
+
+class ResolutionNoteDTO(BaseModel):
+    id: int
+    date: Optional[str] = None
+    author_name: Optional[str] = "IT 담당자"
+    content: str
+
 class FollowUpInquiryDTO(BaseModel):
     id: int
     date: Optional[str] = None
@@ -107,6 +114,7 @@ class TicketDetailResponseDTO(TicketResponseDTO):
     resolution_note: Optional[Any] = None
     author_name: Optional[Any] = None
     rating_comment: Optional[Any] = None
+    resolutions: List[ResolutionNoteDTO] = []
     follow_ups: List[FollowUpInquiryDTO] = []
     logs: List[TicketLogDTO] = []
 

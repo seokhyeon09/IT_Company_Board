@@ -22,6 +22,13 @@ import {
   MessageSquare,
 } from 'lucide-react';
 
+export interface ResolutionNote {
+  id: number;
+  date?: string;
+  author_name?: string;
+  content: string;
+}
+
 export interface FollowUpInquiry {
   id: number;
   date?: string;
@@ -57,6 +64,7 @@ export interface TicketDetail {
   resolution_note?: string;
   rating?: string;
   rating_comment?: string;
+  resolutions?: ResolutionNote[];
   follow_ups?: FollowUpInquiry[];
   logs?: TicketLog[];
 }
@@ -501,19 +509,24 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 </div>
               )}
 
-              {/* Resolution Area: Display note with edit button for officer */}
-              {ticket.resolution_note && (
-                <div className="p-4 bg-emerald-50/80 border border-emerald-200 rounded-xl">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center text-emerald-800 font-bold text-xs uppercase tracking-wider">
-                      <CheckCircle2 className="w-4 h-4 mr-1.5 text-emerald-600" />
-                      IT 담당자 조치 내용
+              {/* Resolution Area: Display resolutions list (조치 1차, 2차...) with edit button for officer */}
+              {((ticket.resolutions && ticket.resolutions.length > 0) || ticket.resolution_note) && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-900">
+                        IT 담당자 조치 내용 ({ticket.resolutions && ticket.resolutions.length > 0 ? ticket.resolutions.length : 1}건)
+                      </h4>
                     </div>
                     {user?.is_officer && !isEditingResolution && (
                       <button
                         type="button"
                         onClick={() => {
-                          setEditResolutionNote(formatHtmlContent(ticket.resolution_note));
+                          const latestNote = (ticket.resolutions && ticket.resolutions.length > 0)
+                            ? ticket.resolutions[ticket.resolutions.length - 1].content
+                            : (ticket.resolution_note || '');
+                          setEditResolutionNote(formatHtmlContent(latestNote));
                           setIsEditingResolution(true);
                           setEditResolutionError('');
                         }}
@@ -525,47 +538,86 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                     )}
                   </div>
 
-                  {isEditingResolution ? (
-                    <form onSubmit={handleUpdateResolutionSubmit} className="space-y-3 mt-3">
-                      <textarea
-                        rows={3}
-                        value={editResolutionNote}
-                        onChange={(e) => setEditResolutionNote(e.target.value)}
-                        className="w-full px-3.5 py-2.5 text-xs border border-emerald-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none text-slate-800"
-                        placeholder="수정할 조치 내용을 입력하세요 (최소 5자)..."
-                      />
-                      {editResolutionError && (
-                        <p className="text-xs text-rose-600 font-medium">{editResolutionError}</p>
-                      )}
-                      <div className="flex justify-end space-x-2">
-                        <button
-                          type="button"
-                          onClick={() => setIsEditingResolution(false)}
-                          className="px-3 py-1.5 text-xs text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
-                        >
-                          취소
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={submittingEditResolution}
-                          className="flex items-center px-3.5 py-1.5 text-xs font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-all cursor-pointer"
-                        >
-                          {submittingEditResolution ? (
-                            <>
-                              <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
-                              저장 중...
-                            </>
-                          ) : (
-                            '수정 저장'
-                          )}
-                        </button>
-                      </div>
-                    </form>
-                  ) : (
-                    <div className="text-emerald-950 text-sm whitespace-pre-wrap leading-relaxed">
-                      {formatHtmlContent(ticket.resolution_note)}
+                  {isEditingResolution && (
+                    <div className="p-4 bg-emerald-50/90 border border-emerald-300 rounded-xl shadow-xs">
+                      <div className="text-xs font-bold text-emerald-900 mb-2">최신 조치 내용 수정</div>
+                      <form onSubmit={handleUpdateResolutionSubmit} className="space-y-3">
+                        <textarea
+                          rows={3}
+                          value={editResolutionNote}
+                          onChange={(e) => setEditResolutionNote(e.target.value)}
+                          className="w-full px-3.5 py-2.5 text-xs border border-emerald-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none text-slate-800"
+                          placeholder="수정할 조치 내용을 입력하세요 (최소 5자)..."
+                        />
+                        {editResolutionError && (
+                          <p className="text-xs text-rose-600 font-medium">{editResolutionError}</p>
+                        )}
+                        <div className="flex justify-end space-x-2">
+                          <button
+                            type="button"
+                            onClick={() => setIsEditingResolution(false)}
+                            className="px-3 py-1.5 text-xs text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
+                          >
+                            취소
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={submittingEditResolution}
+                            className="flex items-center px-3.5 py-1.5 text-xs font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-all cursor-pointer"
+                          >
+                            {submittingEditResolution ? (
+                              <>
+                                <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+                                저장 중...
+                              </>
+                            ) : (
+                              '수정 저장'
+                            )}
+                          </button>
+                        </div>
+                      </form>
                     </div>
                   )}
+
+                  <div className="space-y-2.5">
+                    {ticket.resolutions && ticket.resolutions.length > 0 ? (
+                      ticket.resolutions.map((resItem, idx) => (
+                        <div
+                          key={resItem.id || idx}
+                          className="p-4 bg-emerald-50/80 border border-emerald-200 rounded-xl space-y-1.5 shadow-xs"
+                        >
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-bold text-emerald-900 flex items-center">
+                              <span className="bg-emerald-200 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full mr-2 font-mono font-semibold">
+                                조치 {idx + 1}차
+                              </span>
+                              {resItem.author_name || 'IT 담당자'}
+                            </span>
+                            <span className="text-[11px] text-emerald-600">
+                              {resItem.date ? resItem.date.substring(0, 16).replace('T', ' ') : '-'}
+                            </span>
+                          </div>
+                          <p className="text-emerald-950 text-sm whitespace-pre-wrap leading-relaxed">
+                            {formatHtmlContent(resItem.content)}
+                          </p>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-4 bg-emerald-50/80 border border-emerald-200 rounded-xl space-y-1.5 shadow-xs">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-emerald-900 flex items-center">
+                            <span className="bg-emerald-200 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full mr-2 font-mono font-semibold">
+                              조치 1차
+                            </span>
+                            {ticket.assignee_name || 'IT 담당자'}
+                          </span>
+                        </div>
+                        <p className="text-emerald-950 text-sm whitespace-pre-wrap leading-relaxed">
+                          {formatHtmlContent(ticket.resolution_note)}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
