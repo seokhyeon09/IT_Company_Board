@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuthStore } from '../stores/authStore';
-import { apiClient } from '../api/client';
+import { apiClient, getErrorMessage } from '../api/client';
 import { Layers, Lock, User, AlertCircle, ArrowRight } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
@@ -25,7 +25,7 @@ export const LoginPage: React.FC = () => {
       const { access_token, user } = res.data;
       setAuth(access_token, user);
     } catch (err: any) {
-      setError(err.response?.data?.detail || '로그인에 실패했습니다. 아이디와 비밀번호를 확인해주세요.');
+      setError(getErrorMessage(err, '로그인에 실패했습니다. 아이디와 비밀번호를 확인해주세요.'));
     } finally {
       setLoading(false);
     }

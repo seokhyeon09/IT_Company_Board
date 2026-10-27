@@ -32,3 +32,17 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// Helper to safely format error messages from FastAPI (including 422 array details)
+export function getErrorMessage(error: any, fallback = '오류가 발생했습니다.'): string {
+  if (!error) return fallback;
+  const detail = error.response?.data?.detail;
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    return detail.map((d: any) => `${d.loc ? d.loc.slice(1).join('.') + ': ' : ''}${d.msg}`).join(', ');
+  }
+  if (detail && typeof detail === 'object') {
+    return JSON.stringify(detail);
+  }
+  return error.message || fallback;
+}

@@ -28,9 +28,9 @@ class TicketStatusEnum(str, Enum):
 class TicketCreateDTO(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    title: str = Field(..., min_length=2, max_length=150, description="문의 제목")
+    title: str = Field(..., min_length=1, max_length=150, description="문의 제목")
     category: TicketCategoryEnum = Field(..., description="문의 분류")
-    content: str = Field(..., min_length=5, description="문의 상세 내용")
+    content: str = Field(..., min_length=1, description="문의 상세 내용")
     priority: TicketPriorityEnum = Field(default=TicketPriorityEnum.NORMAL, description="우선순위 (0: 낮음, 1: 보통, 2: 높음, 3: 긴급)")
 
     @field_validator("priority", mode="before")

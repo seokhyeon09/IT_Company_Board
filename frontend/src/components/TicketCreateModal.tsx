@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Send, AlertCircle } from 'lucide-react';
-import { apiClient } from '../api/client';
+import { apiClient, getErrorMessage } from '../api/client';
 
 interface TicketCreateModalProps {
   isOpen: boolean;
@@ -39,7 +39,7 @@ export const TicketCreateModal: React.FC<TicketCreateModalProps> = ({ isOpen, on
       onSuccess();
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.detail || '문의 등록 중 오류가 발생했습니다.');
+      setError(getErrorMessage(err, '문의 등록 중 오류가 발생했습니다.'));
     } finally {
       setLoading(false);
     }
