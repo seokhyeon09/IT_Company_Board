@@ -566,20 +566,17 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                         >
                           <div className="flex items-center justify-between text-xs">
                             <span className="font-bold flex items-center">
-                              {isInitial ? (
-                                <span className="bg-slate-200 text-slate-700 text-[10px] px-2 py-0.5 rounded-full mr-2 font-mono font-semibold flex items-center">
-                                  <FileText className="w-3 h-3 mr-1" />
-                                  최초 문의
-                                </span>
-                              ) : isInquiry ? (
-                                <span className="bg-purple-200 text-purple-800 text-[10px] px-2 py-0.5 rounded-full mr-2 font-mono font-semibold flex items-center">
-                                  <RotateCcw className="w-3 h-3 mr-1" />
-                                  재문의 {item.round - 1}차
+                              {isInquiry ? (
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full mr-2 font-mono font-semibold flex items-center ${
+                                  isInitial ? 'bg-slate-200 text-slate-700' : 'bg-purple-200 text-purple-800'
+                                }`}>
+                                  <MessageSquare className="w-3 h-3 mr-1" />
+                                  문의 {item.round}차
                                 </span>
                               ) : (
                                 <span className="bg-emerald-200 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full mr-2 font-mono font-semibold flex items-center">
                                   <CheckCircle2 className="w-3 h-3 mr-1" />
-                                  조치 {item.round}차
+                                  답변 {item.round}차
                                 </span>
                               )}
                               <span className={isInquiry ? (isInitial ? 'text-slate-800' : 'text-purple-900') : 'text-emerald-900'}>
@@ -612,7 +609,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                     <div className="flex items-center space-x-1.5">
                       <RotateCcw className="w-4 h-4 text-purple-600" />
                       <span className="text-xs font-bold text-purple-900 uppercase tracking-wider">
-                        추가 문의 (재문의)
+                        추가 문의하기 (문의 {(ticket.timeline?.filter(t => t.type === 'inquiry').length || 1) + 1}차)
                       </span>
                     </div>
                     {!showRestartForm && (
@@ -626,7 +623,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                         className="flex items-center px-3 py-1.5 text-xs font-semibold text-purple-700 bg-white border border-purple-300 rounded-lg hover:bg-purple-100/50 transition-all cursor-pointer shadow-xs"
                       >
                         <MessageSquare className="w-3.5 h-3.5 mr-1" />
-                        추가 재문의하기
+                        추가 문의하기 (문의 {(ticket.timeline?.filter(t => t.type === 'inquiry').length || 1) + 1}차)
                       </button>
                     )}
                   </div>

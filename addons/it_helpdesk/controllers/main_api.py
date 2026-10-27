@@ -315,44 +315,42 @@ class ITHelpdeskAPIController(http.Controller):
                 if _clean_html(msg.body)
             ] if is_officer else []
         }
-        # Dynamic Sequential Timeline (최초문의 -> 조치1 -> 재문의1 -> 조치2 ...)
+        # Dynamic Sequential Timeline (시간순 정렬 및 문의 N차 / 답변 N차 체계)
         seq_timeline = [data["timeline"][0]]
-        inq_rnd = 1
-        res_rnd = 0
+        has_resolution_msg = False
 
-        for msg in ticket.message_ids.sorted(key=lambda m: m.id, reverse=False):
+        for msg in ticket.message_ids.sorted(key=lambda m: (m.date, m.id), reverse=False):
             body = msg.body or ""
             author_name = msg.author_id.name if msg.author_id else "시스템"
             clean_b = _clean_html(body)
 
             if 'data-msg-type="resolution"' in body or "IT 담당자 조치 내용:" in body or "[조치 답변]" in clean_b:
-                res_rnd += 1
+                has_resolution_msg = True
                 c = _extract_thread_content(body, ['data-msg-type="resolution">', 'IT 담당자 조치 내용:', '[조치 답변]', '[조치 답변 (수정)]'])
                 if c:
                     seq_timeline.append({
                         "id": msg.id,
                         "type": "resolution",
-                        "round": res_rnd,
+                        "round": 1,  # will be computed after sort
                         "author_id": msg.author_id.id if msg.author_id else None,
                         "author_name": author_name,
                         "date": _format_datetime_utc(msg.date),
                         "content": c
                     })
             elif 'data-msg-type="inquiry"' in body or "직원 추가 재문의 내용:" in body or "[추가 재문의]" in clean_b:
-                inq_rnd += 1
                 c = _extract_thread_content(body, ['data-msg-type="inquiry">', '직원 추가 재문의 내용:', '[추가 재문의]'])
                 if c:
                     seq_timeline.append({
                         "id": msg.id,
                         "type": "inquiry",
-                        "round": inq_rnd,
+                        "round": 1,  # will be computed after sort
                         "author_id": msg.author_id.id if msg.author_id else None,
                         "author_name": author_name,
                         "date": _format_datetime_utc(msg.date),
                         "content": c
                     })
 
-        if res_rnd == 0 and ticket.resolution_note:
+        if not has_resolution_msg and ticket.resolution_note:
             seq_timeline.append({
                 "id": 0,
                 "type": "resolution",
@@ -362,6 +360,20 @@ class ITHelpdeskAPIController(http.Controller):
                 "date": _format_datetime_utc(ticket.write_date),
                 "content": _clean_html(ticket.resolution_note)
             })
+
+        # 엄격한 시간순 정렬 (최초 문의 -> 답변 1차 -> 문의 2차 -> 답변 2차 ...)
+        seq_timeline.sort(key=lambda x: (x.get("date") or "", x.get("id", 0)))
+
+        # 시간순 정렬 후 각각 타입별 차수(Round: 문의 1차, 2차... / 답변 1차, 2차...) 순차 부여
+        inq_cnt = 0
+        res_cnt = 0
+        for item in seq_timeline:
+            if item["type"] == "inquiry":
+                inq_cnt += 1
+                item["round"] = inq_cnt
+            elif item["type"] == "resolution":
+                res_cnt += 1
+                item["round"] = res_cnt
 
         data["timeline"] = seq_timeline
         return {"status": "success", "data": data}
