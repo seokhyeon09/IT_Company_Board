@@ -1,36 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../stores/authStore';
-import { apiClient } from '../api/client';
-import { TicketCard, Ticket } from '../components/TicketCard';
-import { TicketCreateModal } from '../components/TicketCreateModal';
-import { TicketDetailModal } from '../components/TicketDetailModal';
-import { DashboardStats, TicketStats } from '../components/DashboardStats';
-import { FaqAccordion } from '../components/FaqAccordion';
-import {
-  Plus,
-  Search,
-  RefreshCw,
-  BookOpen,
-  Inbox,
-  X,
-  RotateCcw,
-  ChevronLeft,
-  ChevronRight,
-  AlertTriangle,
-} from 'lucide-react';
+import { apiClient, getErrorMessage } from '../api/client';
+import { DashboardStats, StatsData } from '../components/DashboardStats';
+import { TicketCard, Ticket } from '../features/ticket/components/TicketCard';
+import { FaqAccordion, FaqItem } from '../components/FaqAccordion';
+import { TicketDetailModal } from '../features/ticket/components/TicketDetailModal';
+import { TicketCreateModal } from '../features/ticket/components/TicketCreateModal';
+import { DashboardFilterBar } from '../features/dashboard/components/DashboardFilterBar';
+import { DashboardPagination } from '../features/dashboard/components/DashboardPagination';
+import { Plus, Loader2, Inbox } from 'lucide-react';
 
 const PAGE_SIZE = 12;
 
 export const DashboardPage: React.FC = () => {
   const { user } = useAuthStore();
+  const [stats, setStats] = useState<StatsData>({
+    total: 0,
+    waiting: 0,
+    in_progress: 0,
+    resolved: 0,
+    overdue: 0,
+  });
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [faqs, setFaqs] = useState<FaqItem[]>([]);
   const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [stats, setStats] = useState<TicketStats | null>(null);
-
-  // Modals
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Filters
   const [activeTab, setActiveTab] = useState<'all' | 'faq'>('all');
@@ -45,28 +40,23 @@ export const DashboardPage: React.FC = () => {
   // Pagination
   const [page, setPage] = useState(1);
 
-  // Debounce search input (300ms)
+  // Modals
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
+
+  // Search debounce
   useEffect(() => {
-    const handler = setTimeout(() => {
+    const timer = setTimeout(() => {
       setDebouncedSearch(search);
       setPage(1);
     }, 300);
-    return () => clearTimeout(handler);
+    return () => clearTimeout(timer);
   }, [search]);
 
-  // Fetch KPI Stats
-  const fetchStats = async () => {
-    try {
-      const res = await apiClient.get('/tickets/stats');
-      setStats(res.data.data);
-    } catch (err) {
-      console.error('Failed to fetch ticket stats:', err);
-    }
-  };
-
-  // Fetch Tickets List
+  // Fetch Tickets
   const fetchTickets = async () => {
     setLoading(true);
+    setError(null);
     try {
       const params: any = {
         offset: (page - 1) * PAGE_SIZE,
@@ -82,32 +72,38 @@ export const DashboardPage: React.FC = () => {
 
       if (activeTab === 'faq') {
         params.is_faq = true;
+        const res = await apiClient.get('/tickets', { params });
+        setFaqs(res.data.data || []);
+        setTotal(res.data.total || 0);
+      } else {
+        const res = await apiClient.get('/tickets', { params });
+        setTickets(res.data.data || []);
+        setTotal(res.data.total || 0);
       }
-
-      const res = await apiClient.get('/tickets', { params });
-      setTickets(res.data.data || []);
-      setTotal(res.data.total || 0);
-    } catch (err) {
-      console.error('Failed to fetch tickets:', err);
+    } catch (err: any) {
+      setError(getErrorMessage(err, '티켓 목록을 불러오지 못했습니다.'));
     } finally {
       setLoading(false);
     }
   };
 
-  // Trigger list fetch when filter states change
   useEffect(() => {
     fetchTickets();
   }, [activeTab, debouncedSearch, statusFilter, categoryFilter, priorityFilter, isOverdueOnly, sortBy, page]);
 
-  // Initial stats fetch
+  // Fetch Stats
+  const fetchStats = async () => {
+    try {
+      const res = await apiClient.get('/tickets/stats');
+      setStats(res.data.data);
+    } catch (err) {
+      console.error('Failed to fetch stats:', err);
+    }
+  };
+
   useEffect(() => {
     fetchStats();
   }, []);
-
-  const refreshAll = () => {
-    fetchStats();
-    fetchTickets();
-  };
 
   const handleStatsCardClick = (targetStatus: string) => {
     setPage(1);
@@ -116,7 +112,6 @@ export const DashboardPage: React.FC = () => {
       setStatusFilter('');
     } else {
       setIsOverdueOnly(false);
-    setSortBy('id desc');
       setStatusFilter((prev) => (prev === targetStatus ? '' : targetStatus));
     }
   };
@@ -137,237 +132,103 @@ export const DashboardPage: React.FC = () => {
     search || statusFilter || categoryFilter || priorityFilter || isOverdueOnly || activeTab !== 'all'
   );
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-
-  const getPageNumbers = () => {
-    if (totalPages <= 7) {
-      return Array.from({ length: totalPages }, (_, i) => i + 1);
-    }
-    if (page <= 4) {
-      return [1, 2, 3, 4, 5, '...', totalPages];
-    }
-    if (page >= totalPages - 3) {
-      return [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
-    }
-    return [1, '...', page - 2, page - 1, page, page + 1, page + 2, '...', totalPages];
-  };
-
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Top Banner & Action */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      {/* Top Banner & Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-black text-slate-900 tracking-tight">IT 지원 대시보드</h2>
-          <p className="text-sm text-slate-500 mt-1">
-            {user?.is_officer
-              ? 'IT 담당자 전용: 전체 티켓 현황, SLA 모니터링 및 조치 관리를 수행합니다.'
-              : '사원 전용: 내 문의 내역 및 사내 FAQ 지식창고를 확인합니다.'}
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+            {user?.is_officer ? 'IT 헬프데스크 관리 센터' : '사내 IT 지원 센터'}
+          </h1>
+          <p className="text-xs text-slate-500 mt-1 font-medium">
+            {user?.name}님 환영합니다. 전산/계정/하드웨어 요청을 신속히 지원합니다.
           </p>
         </div>
 
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={refreshAll}
-            className="p-2.5 text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition-all shadow-xs"
-            title="새로고침"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl shadow-md shadow-indigo-500/20 transition-all cursor-pointer"
-          >
-            <Plus className="w-4 h-4 mr-1.5" />
-            새 문의 접수
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setIsCreateOpen(true)}
+          className="flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-md shadow-indigo-100 hover:shadow-indigo-200 transition-all cursor-pointer"
+        >
+          <Plus className="w-4 h-4" />
+          <span>새 문의 접수</span>
+        </button>
       </div>
 
-      {/* KPI Stats Widgets */}
+      {/* KPI Stats Widget */}
       <DashboardStats
         stats={stats}
         selectedStatus={isOverdueOnly ? 'overdue' : statusFilter}
         onSelectStatus={handleStatsCardClick}
       />
 
-      {/* Filter and Search Bar */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-4 mb-6 shadow-xs space-y-3.5">
-        {/* Row 1: Left Tabs & Right Search/Overdue */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          {/* Left: View Tabs */}
-          <div className="flex space-x-2">
-            <button
-              onClick={() => {
-                setActiveTab('all');
-                setPage(1);
-              }}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'all'
-                  ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-xs'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              {user?.is_officer ? '전체 문의 목록' : '내 문의 내역'}
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab('faq');
-                setPage(1);
-              }}
-              className={`flex items-center px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'faq'
-                  ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-xs'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <BookOpen className="w-3.5 h-3.5 mr-1.5" />
-              FAQ 지식창고
-            </button>
-          </div>
+      {/* 2-Row Filter Bar */}
+      <DashboardFilterBar
+        isOfficer={Boolean(user?.is_officer)}
+        activeTab={activeTab}
+        onTabChange={(tab) => {
+          setActiveTab(tab);
+          setPage(1);
+        }}
+        search={search}
+        onSearchChange={setSearch}
+        isOverdueOnly={isOverdueOnly}
+        onToggleOverdue={() => {
+          setIsOverdueOnly((prev) => !prev);
+          setStatusFilter('');
+          setPage(1);
+        }}
+        statusFilter={statusFilter}
+        onStatusChange={(val) => {
+          setStatusFilter(val);
+          setIsOverdueOnly(false);
+          setPage(1);
+        }}
+        categoryFilter={categoryFilter}
+        onCategoryChange={(val) => {
+          setCategoryFilter(val);
+          setPage(1);
+        }}
+        priorityFilter={priorityFilter}
+        onPriorityChange={(val) => {
+          setPriorityFilter(val);
+          setPage(1);
+        }}
+        sortBy={sortBy}
+        onSortByChange={(val) => {
+          setSortBy(val);
+          setPage(1);
+        }}
+        hasActiveFilters={hasActiveFilters}
+        onResetFilters={resetFilters}
+      />
 
-          {/* Right: Search & Overdue Toggle */}
-          <div className="flex items-center gap-2.5">
-            {/* Debounced Search Input */}
-            <div className="relative">
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="접수번호, 제목 실시간 검색..."
-                className="pl-8 pr-7 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 w-44 sm:w-56 transition-all bg-white"
-              />
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-3" />
-              {search && (
-                <button
-                  onClick={() => setSearch('')}
-                  className="absolute right-2 top-2.5 text-slate-400 hover:text-slate-600 p-0.5"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-
-            {/* Overdue Quick Filter Toggle */}
-            <button
-              onClick={() => {
-                setIsOverdueOnly((prev) => !prev);
-                setPage(1);
-              }}
-              className={`flex items-center px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                isOverdueOnly
-                  ? 'bg-rose-50 border-rose-300 text-rose-700 shadow-xs'
-                  : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              <AlertTriangle className={`w-3.5 h-3.5 mr-1.5 ${isOverdueOnly ? 'text-rose-600' : 'text-slate-400'}`} />
-              기한 초과만
-            </button>
-          </div>
-        </div>
-
-        {/* Row 2: Multi Filter Selects & Sort */}
-        <div className="border-t border-slate-100 pt-3 flex flex-wrap items-center justify-between gap-2.5">
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Status Dropdown */}
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setIsOverdueOnly(false);
-                setPage(1);
-              }}
-              className="text-xs border border-slate-300 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-            >
-              <option value="">전체 상태</option>
-              <option value="submitted">접수대기</option>
-              <option value="assigned">배정완료</option>
-              <option value="in_progress">처리중</option>
-              <option value="pending">답변대기</option>
-              <option value="resolved">해결완료</option>
-              <option value="closed">종결</option>
-              <option value="canceled">취소</option>
-            </select>
-
-            {/* Category Dropdown */}
-            <select
-              value={categoryFilter}
-              onChange={(e) => {
-                setCategoryFilter(e.target.value);
-                setPage(1);
-              }}
-              className="text-xs border border-slate-300 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-            >
-              <option value="">전체 카테고리</option>
-              <option value="hw">하드웨어</option>
-              <option value="sw">소프트웨어</option>
-              <option value="network">네트워크</option>
-              <option value="account">계정/권한</option>
-              <option value="etc">기타</option>
-            </select>
-
-            {/* Priority Dropdown */}
-            <select
-              value={priorityFilter}
-              onChange={(e) => {
-                setPriorityFilter(e.target.value);
-                setPage(1);
-              }}
-              className="text-xs border border-slate-300 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-            >
-              <option value="">전체 우선순위</option>
-              <option value="3">긴급</option>
-              <option value="2">높음</option>
-              <option value="1">보통</option>
-              <option value="0">낮음</option>
-            </select>
-
-            {/* Sort Dropdown */}
-            <select
-              value={sortBy}
-              onChange={(e) => {
-                setSortBy(e.target.value);
-                setPage(1);
-              }}
-              className="text-xs border border-slate-300 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer font-medium text-slate-700"
-            >
-              <option value="id desc">최신 등록순</option>
-              <option value="id asc">오래된 등록순</option>
-              <option value="deadline asc">SLA 마감 임박순</option>
-              <option value="priority desc">긴급도 높은순</option>
-              <option value="write_date desc">최근 업데이트순</option>
-            </select>
-          </div>
-
-          {/* Reset Filters */}
-          {hasActiveFilters && (
-            <button
-              onClick={resetFilters}
-              className="text-xs font-semibold text-slate-500 hover:text-slate-800 flex items-center px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-all cursor-pointer shrink-0 ml-auto"
-            >
-              <RotateCcw className="w-3.5 h-3.5 mr-1" />
-              필터 초기화
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Ticket Grid List */}
+      {/* Content Area */}
       {loading ? (
-        <div className="py-20 text-center text-slate-400 text-sm flex flex-col items-center justify-center">
-          <RefreshCw className="w-8 h-8 animate-spin text-indigo-500 mb-3" />
-          티켓 목록을 불러오는 중입니다...
+        <div className="py-24 flex flex-col items-center justify-center space-y-3">
+          <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+          <p className="text-xs text-slate-500 font-medium">티켓 목록을 불러오는 중입니다...</p>
         </div>
+      ) : error ? (
+        <div className="p-8 text-center bg-rose-50 border border-rose-200 rounded-2xl">
+          <p className="text-xs text-rose-700 font-semibold">{error}</p>
+        </div>
+      ) : activeTab === 'faq' ? (
+        <FaqAccordion items={faqs} onSelectTicket={(id) => setSelectedTicketId(id)} />
       ) : tickets.length === 0 ? (
-        <div className="py-24 text-center bg-white rounded-3xl border border-slate-200 shadow-xs flex flex-col items-center justify-center">
-          <Inbox className="w-12 h-12 text-slate-300 mb-3" />
-          <h3 className="font-bold text-slate-700 text-base">조회된 문의 내역이 없습니다</h3>
+        <div className="py-20 flex flex-col items-center justify-center text-center bg-white rounded-2xl border border-slate-200/80 p-6">
+          <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 mb-3">
+            <Inbox className="w-6 h-6" />
+          </div>
+          <h3 className="text-sm font-bold text-slate-700">조회된 티켓이 없습니다</h3>
           <p className="text-xs text-slate-400 mt-1 max-w-sm">
             {hasActiveFilters
-              ? '지정한 검색어나 필터 조건에 일치하는 항목이 없습니다.'
-              : '등록된 티켓이 없습니다. 상단의 "새 문의 접수" 버튼을 눌러 티켓을 등록해보세요.'}
+              ? '지정한 검색어나 필터 조건에 일치하는 티켓이 없습니다.'
+              : '등록된 티켓이 없습니다. 상단 "새 문의 접수" 버튼을 눌러 티켓을 등록해보세요.'}
           </p>
           {hasActiveFilters && (
             <button
+              type="button"
               onClick={resetFilters}
               className="mt-4 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-xl transition-all cursor-pointer"
             >
@@ -377,93 +238,43 @@ export const DashboardPage: React.FC = () => {
         </div>
       ) : (
         <>
-          {activeTab === 'faq' ? (
-            <FaqAccordion
-              tickets={tickets}
-              onSelectTicket={(id) => setSelectedTicketId(id)}
-            />
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {tickets.map((ticket) => (
-                <TicketCard
-                  key={ticket.id}
-                  ticket={ticket}
-                  onClick={(t) => setSelectedTicketId(t.id)}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Pagination Controls */}
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-200 pt-6">
-            <div className="text-xs text-slate-500 font-medium">
-              전체 <span className="font-bold text-slate-900">{total}</span>개 중{' '}
-              <span className="font-bold text-slate-900">{(page - 1) * PAGE_SIZE + 1}</span>-
-              <span className="font-bold text-slate-900">{Math.min(page * PAGE_SIZE, total)}</span>개 표시
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <button
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="flex items-center px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-              >
-                <ChevronLeft className="w-3.5 h-3.5 mr-1" />
-                이전
-              </button>
-
-              <div className="flex items-center space-x-1">
-                {getPageNumbers().map((item, idx) => {
-                  if (item === '...') {
-                    return (
-                      <span key={`ellipsis-${idx}`} className="text-slate-400 px-1 text-xs select-none">
-                        ...
-                      </span>
-                    );
-                  }
-                  const pageNum = item as number;
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => setPage(pageNum)}
-                      className={`w-8 h-8 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                        page === pageNum
-                          ? 'bg-indigo-600 text-white shadow-xs'
-                          : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <button
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                className="flex items-center px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-              >
-                다음
-                <ChevronRight className="w-3.5 h-3.5 ml-1" />
-              </button>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {tickets.map((ticket) => (
+              <TicketCard
+                key={ticket.id}
+                ticket={ticket}
+                onClick={(t) => setSelectedTicketId(t.id)}
+              />
+            ))}
           </div>
+
+          <DashboardPagination
+            page={page}
+            total={total}
+            pageSize={PAGE_SIZE}
+            onPageChange={(newPage) => setPage(newPage)}
+          />
         </>
       )}
 
-      {/* Ticket Create Modal */}
+      {/* Modals */}
       <TicketCreateModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={refreshAll}
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        onSuccess={() => {
+          fetchTickets();
+          fetchStats();
+        }}
       />
 
-      {/* Ticket Detail Modal */}
       <TicketDetailModal
         isOpen={selectedTicketId !== null}
         ticketId={selectedTicketId}
         onClose={() => setSelectedTicketId(null)}
-        onSuccess={refreshAll}
+        onSuccess={() => {
+          fetchTickets();
+          fetchStats();
+        }}
       />
     </div>
   );

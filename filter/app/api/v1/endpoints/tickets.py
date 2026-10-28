@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, HTTPException, status
+from fastapi import APIRouter, Depends, Query, status
 from app.core.security import get_current_user_claims
-from app.client.odoo_client import odoo_client
+from app.services import ticket_service, workflow_service
 from app.schemas.ticket import (
     TicketCreateDTO,
     TicketResolveDTO,
@@ -19,7 +19,7 @@ from app.schemas.ticket import (
     TicketResponseDTO,
     TicketDetailResponseDTO,
     TicketListResponseDTO,
-    TicketStatsResponseDTO
+    TicketStatsResponseDTO,
 )
 
 router = APIRouter()
@@ -32,29 +32,23 @@ async def list_tickets(
     search: Optional[str] = Query(None, description="검색어"),
     is_faq: Optional[bool] = Query(None, description="FAQ 여부"),
     is_overdue: Optional[bool] = Query(None, description="기한 초과 여부"),
-    sort_by: Optional[str] = Query("id desc", description="정렬 옵션 (id desc, id asc, deadline asc, priority desc, write_date desc)"),
+    sort_by: Optional[str] = Query("id desc", description="정렬 옵션"),
     offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     claims: dict = Depends(get_current_user_claims),
 ):
-    """Retrieve tickets with role-based isolation (regular users see own + FAQ, officers see all)."""
-    user_id = int(claims["sub"])
-    params = {
-        "category": category,
-        "priority": priority,
-        "status": status,
-        "search": search,
-        "is_faq": is_faq,
-        "is_overdue": is_overdue,
-        "sort_by": sort_by,
-        "offset": offset,
-        "limit": limit,
-    }
-    result = await odoo_client.call_json("/api/v1/tickets/list", params=params, user_id=user_id)
-    return TicketListResponseDTO(
-        status="success",
-        total=result.get("total", 0),
-        data=result.get("data", [])
+    """Retrieve tickets with role-based isolation."""
+    return await ticket_service.list_tickets(
+        user_id=int(claims["sub"]),
+        category=category,
+        priority=priority,
+        status=status,
+        search=search,
+        is_faq=is_faq,
+        is_overdue=is_overdue,
+        sort_by=sort_by,
+        offset=offset,
+        limit=limit,
     )
 
 @router.post("", response_model=TicketResponseDTO, status_code=status.HTTP_201_CREATED)
@@ -62,23 +56,15 @@ async def create_ticket(
     dto: TicketCreateDTO,
     claims: dict = Depends(get_current_user_claims),
 ):
-    """Create a new ticket with automatic SLA calculation and authentic author binding."""
-    user_id = int(claims["sub"])
-    params = dto.model_dump()
-    result = await odoo_client.call_json("/api/v1/tickets/create", params=params, user_id=user_id)
-    return result.get("data", {})
+    """Create a new ticket with automatic SLA calculation."""
+    return await ticket_service.create_ticket(dto, user_id=int(claims["sub"]))
 
 @router.get("/stats", response_model=TicketStatsResponseDTO)
 async def get_ticket_stats(
     claims: dict = Depends(get_current_user_claims),
 ):
     """Retrieve ticket metrics (total, waiting, in_progress, resolved, overdue)."""
-    user_id = int(claims["sub"])
-    result = await odoo_client.call_json("/api/v1/tickets/stats", params={}, user_id=user_id)
-    return TicketStatsResponseDTO(
-        status="success",
-        data=result.get("data", {})
-    )
+    return await ticket_service.get_stats(user_id=int(claims["sub"]))
 
 @router.get("/{ticket_id}", response_model=TicketDetailResponseDTO)
 async def get_ticket(
@@ -86,177 +72,7 @@ async def get_ticket(
     claims: dict = Depends(get_current_user_claims),
 ):
     """Retrieve full details of a single ticket."""
-    user_id = int(claims["sub"])
-    result = await odoo_client.call_json("/api/v1/tickets/detail", params={"ticket_id": ticket_id}, user_id=user_id)
-    return result.get("data", {})
-
-@router.post("/{ticket_id}/resolve")
-async def resolve_ticket(
-    ticket_id: int,
-    dto: TicketResolveDTO,
-    claims: dict = Depends(get_current_user_claims),
-):
-    """Resolve an IT ticket (Restricted to Helpdesk Officers, Optimistic Concurrency Protected)."""
-    if not claims.get("is_officer", False):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only IT Helpdesk Officers are authorized to resolve tickets"
-        )
-    user_id = int(claims["sub"])
-    params = {
-        "ticket_id": ticket_id,
-        "resolution_note": dto.resolution_note,
-        "if_match_write_date": dto.if_match_write_date,
-    }
-    result = await odoo_client.call_json("/api/v1/tickets/resolve", params=params, user_id=user_id)
-    return result
-
-@router.post("/{ticket_id}/rate")
-async def rate_ticket(
-    ticket_id: int,
-    dto: TicketRateDTO,
-    claims: dict = Depends(get_current_user_claims),
-):
-    """Rate a resolved IT ticket and close it (Restricted to ticket author)."""
-    user_id = int(claims["sub"])
-    params = {
-        "ticket_id": ticket_id,
-        "rating": dto.rating,
-        "rating_comment": dto.rating_comment,
-        "if_match_write_date": dto.if_match_write_date,
-    }
-    result = await odoo_client.call_json("/api/v1/tickets/rate", params=params, user_id=user_id)
-    return result
-
-@router.post("/{ticket_id}/toggle-faq")
-async def toggle_faq(
-    ticket_id: int,
-    claims: dict = Depends(get_current_user_claims),
-):
-    """Toggle FAQ recommendation status (Restricted to IT Helpdesk Officers)."""
-    if not claims.get("is_officer", False):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only IT Helpdesk Officers are authorized to manage FAQ tickets"
-        )
-    user_id = int(claims["sub"])
-    params = {"ticket_id": ticket_id}
-    result = await odoo_client.call_json("/api/v1/tickets/toggle-faq", params=params, user_id=user_id)
-    return result
-
-@router.post("/{ticket_id}/restart")
-async def restart_ticket(
-    ticket_id: int,
-    dto: TicketRestartDTO,
-    claims: dict = Depends(get_current_user_claims),
-):
-    """Employee follow-up inquiry (Restarts ticket to in_progress)."""
-    user_id = int(claims["sub"])
-    params = {
-        "ticket_id": ticket_id,
-        "reason": dto.reason,
-    }
-    result = await odoo_client.call_json("/api/v1/tickets/restart", params=params, user_id=user_id)
-    return result
-
-@router.post("/{ticket_id}/update-resolution")
-async def update_resolution(
-    ticket_id: int,
-    dto: TicketUpdateResolutionDTO,
-    claims: dict = Depends(get_current_user_claims),
-):
-    """Update resolution note (Restricted to IT Helpdesk Officers, Optimistic Concurrency Protected)."""
-    if not claims.get("is_officer", False):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only IT Helpdesk Officers are authorized to update resolution notes"
-        )
-    user_id = int(claims["sub"])
-    params = {
-        "ticket_id": ticket_id,
-        "resolution_note": dto.resolution_note,
-        "if_match_write_date": dto.if_match_write_date,
-    }
-    result = await odoo_client.call_json("/api/v1/tickets/update-resolution", params=params, user_id=user_id)
-    return result
-
-@router.post("/{ticket_id}/assign")
-async def assign_ticket(
-    ticket_id: int,
-    claims: dict = Depends(get_current_user_claims),
-):
-    """Assign ticket to current IT Helpdesk Officer."""
-    if not claims.get("is_officer", False):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only IT Helpdesk Officers are authorized to assign tickets"
-        )
-    user_id = int(claims["sub"])
-    result = await odoo_client.call_json("/api/v1/tickets/assign", params={"ticket_id": ticket_id}, user_id=user_id)
-    return result
-
-@router.post("/{ticket_id}/start-progress")
-async def start_progress_ticket(
-    ticket_id: int,
-    claims: dict = Depends(get_current_user_claims),
-):
-    """Transition ticket status to in_progress (Restricted to IT Helpdesk Officers)."""
-    if not claims.get("is_officer", False):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only IT Helpdesk Officers are authorized to update ticket status"
-        )
-    user_id = int(claims["sub"])
-    result = await odoo_client.call_json("/api/v1/tickets/start-progress", params={"ticket_id": ticket_id}, user_id=user_id)
-    return result
-
-@router.post("/{ticket_id}/pending")
-async def pending_ticket(
-    ticket_id: int,
-    dto: Optional[TicketPendingDTO] = None,
-    claims: dict = Depends(get_current_user_claims),
-):
-    """Transition ticket status to pending (Restricted to IT Helpdesk Officers)."""
-    if not claims.get("is_officer", False):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only IT Helpdesk Officers are authorized to set ticket to pending"
-        )
-    user_id = int(claims["sub"])
-    reason = dto.reason if dto else None
-    params = {"ticket_id": ticket_id, "reason": reason}
-    result = await odoo_client.call_json("/api/v1/tickets/pending", params=params, user_id=user_id)
-    return result
-
-@router.post("/{ticket_id}/close")
-async def close_ticket(
-    ticket_id: int,
-    dto: TicketCloseDTO,
-    claims: dict = Depends(get_current_user_claims),
-):
-    """Close ticket authoritatively (Restricted to IT Helpdesk Officers)."""
-    if not claims.get("is_officer", False):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only IT Helpdesk Officers are authorized to close tickets"
-        )
-    user_id = int(claims["sub"])
-    params = {"ticket_id": ticket_id, "note": dto.note}
-    result = await odoo_client.call_json("/api/v1/tickets/close", params=params, user_id=user_id)
-    return result
-
-@router.post("/{ticket_id}/cancel")
-async def cancel_ticket(
-    ticket_id: int,
-    dto: Optional[TicketCancelDTO] = None,
-    claims: dict = Depends(get_current_user_claims),
-):
-    """Cancel ticket (Author or IT Helpdesk Officers)."""
-    user_id = int(claims["sub"])
-    reason = dto.reason if dto else None
-    params = {"ticket_id": ticket_id, "reason": reason}
-    result = await odoo_client.call_json("/api/v1/tickets/cancel", params=params, user_id=user_id)
-    return result
+    return await ticket_service.get_detail(ticket_id, user_id=int(claims["sub"]))
 
 @router.post("/{ticket_id}/update", response_model=TicketResponseDTO)
 async def update_ticket(
@@ -264,11 +80,95 @@ async def update_ticket(
     dto: TicketUpdateDTO,
     claims: dict = Depends(get_current_user_claims),
 ):
-    """Update ticket content when in submitted (waiting) status (Author or IT Officers)."""
-    user_id = int(claims["sub"])
-    params = {"ticket_id": ticket_id, **dto.model_dump(exclude_unset=True)}
-    result = await odoo_client.call_json("/api/v1/tickets/update", params=params, user_id=user_id)
-    return result.get("data", {})
+    """Update a submitted ticket by author."""
+    return await ticket_service.update_ticket(ticket_id, dto, user_id=int(claims["sub"]))
+
+@router.post("/{ticket_id}/resolve")
+async def resolve_ticket(
+    ticket_id: int,
+    dto: TicketResolveDTO,
+    claims: dict = Depends(get_current_user_claims),
+):
+    """Resolve an IT ticket (Officer restricted, Optimistic concurrency guarded)."""
+    return await workflow_service.resolve_ticket(ticket_id, dto, claims)
+
+@router.post("/{ticket_id}/restart")
+async def restart_ticket(
+    ticket_id: int,
+    dto: TicketRestartDTO,
+    claims: dict = Depends(get_current_user_claims),
+):
+    """Restart a ticket for follow-up inquiry."""
+    return await workflow_service.restart_ticket(ticket_id, dto, claims)
+
+@router.post("/{ticket_id}/update-resolution")
+async def update_resolution(
+    ticket_id: int,
+    dto: TicketUpdateResolutionDTO,
+    claims: dict = Depends(get_current_user_claims),
+):
+    """Update existing resolution notes."""
+    return await workflow_service.update_resolution(ticket_id, dto, claims)
+
+@router.post("/{ticket_id}/assign")
+async def assign_ticket(
+    ticket_id: int,
+    claims: dict = Depends(get_current_user_claims),
+):
+    """Assign ticket to current officer."""
+    return await workflow_service.assign_ticket(ticket_id, claims)
+
+@router.post("/{ticket_id}/start-progress")
+async def start_progress_ticket(
+    ticket_id: int,
+    claims: dict = Depends(get_current_user_claims),
+):
+    """Start progress on an assigned or pending ticket."""
+    return await workflow_service.start_progress_ticket(ticket_id, claims)
+
+@router.post("/{ticket_id}/pending")
+async def pending_ticket(
+    ticket_id: int,
+    dto: TicketPendingDTO,
+    claims: dict = Depends(get_current_user_claims),
+):
+    """Request employee additional response (status -> pending)."""
+    return await workflow_service.pending_ticket(ticket_id, dto, claims)
+
+@router.post("/{ticket_id}/close")
+async def close_ticket(
+    ticket_id: int,
+    dto: TicketCloseDTO,
+    claims: dict = Depends(get_current_user_claims),
+):
+    """Force close a ticket by officer."""
+    return await workflow_service.close_ticket(ticket_id, dto, claims)
+
+@router.post("/{ticket_id}/cancel")
+async def cancel_ticket(
+    ticket_id: int,
+    dto: TicketCancelDTO,
+    claims: dict = Depends(get_current_user_claims),
+):
+    """Cancel ticket inquiry by author or officer."""
+    return await workflow_service.cancel_ticket(ticket_id, dto, claims)
+
+@router.post("/{ticket_id}/toggle-faq")
+async def toggle_faq(
+    ticket_id: int,
+    claims: dict = Depends(get_current_user_claims),
+):
+    """Toggle FAQ recommendation."""
+    return await workflow_service.toggle_faq(ticket_id, claims)
+
+@router.post("/{ticket_id}/rate")
+async def rate_ticket(
+    ticket_id: int,
+    dto: TicketRateDTO,
+    claims: dict = Depends(get_current_user_claims),
+):
+    """Rate resolved ticket by author."""
+    return await workflow_service.rate_ticket(ticket_id, dto, claims)
 
 @router.post("/{ticket_id}/attachments", response_model=AttachmentDTO, status_code=status.HTTP_201_CREATED)
 async def upload_attachment(
@@ -276,16 +176,8 @@ async def upload_attachment(
     dto: AttachmentUploadDTO,
     claims: dict = Depends(get_current_user_claims),
 ):
-    """Upload Base64 attachment to ticket (Author or IT Officers)."""
-    user_id = int(claims["sub"])
-    params = {
-        "ticket_id": ticket_id,
-        "name": dto.name,
-        "datas": dto.datas,
-        "mimetype": dto.mimetype,
-    }
-    result = await odoo_client.call_json("/api/v1/tickets/upload-attachment", params=params, user_id=user_id)
-    return result.get("data", {})
+    """Upload Base64 attachment for a ticket."""
+    return await ticket_service.upload_attachment(ticket_id, dto, user_id=int(claims["sub"]))
 
 @router.get("/{ticket_id}/attachments/{attachment_id}", response_model=AttachmentDetailDTO)
 async def get_attachment(
@@ -293,8 +185,5 @@ async def get_attachment(
     attachment_id: int,
     claims: dict = Depends(get_current_user_claims),
 ):
-    """Retrieve single attachment with Base64 data (Author or IT Officers)."""
-    user_id = int(claims["sub"])
-    params = {"ticket_id": ticket_id, "attachment_id": attachment_id}
-    result = await odoo_client.call_json("/api/v1/tickets/get-attachment", params=params, user_id=user_id)
-    return result.get("data", {})
+    """Retrieve Base64 attachment data."""
+    return await ticket_service.get_attachment(ticket_id, attachment_id, user_id=int(claims["sub"]))
