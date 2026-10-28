@@ -185,6 +185,7 @@ class TicketStatsDataDTO(BaseModel):
     total: int = 0
     waiting: int = 0
     in_progress: int = 0
+    pending: int = 0
     resolved: int = 0
     overdue: int = 0
 
