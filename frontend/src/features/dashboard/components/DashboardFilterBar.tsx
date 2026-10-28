@@ -5,6 +5,7 @@ import {
   X,
   RotateCcw,
   AlertTriangle,
+  UserCheck,
 } from 'lucide-react';
 
 interface DashboardFilterBarProps {
@@ -15,6 +16,8 @@ interface DashboardFilterBarProps {
   onSearchChange: (val: string) => void;
   isOverdueOnly: boolean;
   onToggleOverdue: () => void;
+  assignedToMe?: boolean;
+  onToggleAssignedToMe?: () => void;
   statusFilter: string;
   onStatusChange: (val: string) => void;
   categoryFilter: string;
@@ -35,6 +38,8 @@ export const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
   onSearchChange,
   isOverdueOnly,
   onToggleOverdue,
+  assignedToMe = false,
+  onToggleAssignedToMe,
   statusFilter,
   onStatusChange,
   categoryFilter,
@@ -99,6 +104,39 @@ export const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
               </button>
             )}
           </div>
+
+          {/* Officer: Assigned To Me Toggle Switch */}
+          {isOfficer && (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={assignedToMe}
+              onClick={onToggleAssignedToMe}
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                assignedToMe
+                  ? 'bg-indigo-50 border-indigo-300 text-indigo-700 shadow-xs'
+                  : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <div
+                className={`w-7 h-4 flex items-center rounded-full p-0.5 transition-colors ${
+                  assignedToMe ? 'bg-indigo-600' : 'bg-slate-300'
+                }`}
+              >
+                <div
+                  className={`bg-white w-3 h-3 rounded-full shadow-xs transform transition-transform ${
+                    assignedToMe ? 'translate-x-3' : 'translate-x-0'
+                  }`}
+                />
+              </div>
+              <UserCheck
+                className={`w-3.5 h-3.5 ${
+                  assignedToMe ? 'text-indigo-600' : 'text-slate-400'
+                }`}
+              />
+              <span>내 담당만</span>
+            </button>
+          )}
 
           {/* Overdue Toggle Switch */}
           <button

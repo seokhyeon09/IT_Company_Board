@@ -17,6 +17,13 @@ export interface TicketListQueryParams {
   priorityFilter?: TicketPriority | '';
   searchQuery?: string;
   isOverdueOnly?: boolean;
+  assignedToMe?: boolean;
+  sortBy?: string;
+  isFaq?: boolean;
+  is_overdue?: boolean;
+  assigned_to_me?: boolean;
+  sort_by?: string;
+  is_faq?: boolean;
 }
 
 export interface OfficerStatItem {

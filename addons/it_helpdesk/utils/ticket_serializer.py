@@ -170,7 +170,6 @@ def serialize_ticket_detail(ticket, user, req_env) -> dict:
 
     read_records = req_env['it.helpdesk.notification.read'].sudo().search([
         ('user_id', '=', user.id),
-        ('ticket_id', '=', ticket.id)
     ])
     read_notification_ids = set(read_records.mapped('notification_id'))
 
@@ -208,8 +207,8 @@ def serialize_ticket_detail(ticket, user, req_env) -> dict:
             for msg in ticket.message_ids.sorted(key=lambda m: m.id, reverse=True)[:50]
             if _clean_html(msg.body)
         ] if is_officer else [],
-        "related_tickets": find_related_tickets(ticket, req_env),
-        "email_notifications": build_mock_emails(ticket, user, read_notification_ids),
+        "related_tickets": find_related_tickets(user, ticket, is_officer),
+        "email_notifications": build_mock_emails(ticket, user, is_officer, read_ids=read_notification_ids),
     }
 
     return data

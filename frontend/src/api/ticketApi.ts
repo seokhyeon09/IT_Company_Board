@@ -38,7 +38,10 @@ export const ticketApi = {
     if (params.categoryFilter) queryParams.category = params.categoryFilter;
     if (params.priorityFilter) queryParams.priority = params.priorityFilter;
     if (params.searchQuery) queryParams.search = params.searchQuery;
-    if (params.isOverdueOnly) queryParams.overdue_only = true;
+    if (params.isOverdueOnly || params.is_overdue) queryParams.is_overdue = true;
+    if (params.assignedToMe || params.assigned_to_me) queryParams.assigned_to_me = true;
+    if (params.sortBy || params.sort_by) queryParams.sort_by = params.sortBy || params.sort_by;
+    if (params.isFaq || params.is_faq) queryParams.is_faq = true;
 
     const response = await apiClient.get<TicketListResponse>('/tickets', { params: queryParams });
     return response.data;

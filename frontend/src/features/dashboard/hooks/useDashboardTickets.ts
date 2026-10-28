@@ -22,6 +22,7 @@ export function useDashboardTickets() {
   const [priorityFilter, setPriorityFilter] = useState('');
   const [sortBy, setSortBy] = useState('id desc');
   const [isOverdueOnly, setIsOverdueOnly] = useState(false);
+  const [assignedToMe, setAssignedToMe] = useState(false);
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -60,6 +61,7 @@ export function useDashboardTickets() {
       if (categoryFilter) params.category = categoryFilter;
       if (priorityFilter) params.priority = priorityFilter;
       if (isOverdueOnly) params.is_overdue = true;
+      if (assignedToMe) params.assigned_to_me = true;
       if (sortBy) params.sort_by = sortBy;
       if (activeTab === 'faq') params.is_faq = true;
 
@@ -71,7 +73,7 @@ export function useDashboardTickets() {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, statusFilter, categoryFilter, priorityFilter, isOverdueOnly, sortBy, activeTab]);
+  }, [page, debouncedSearch, statusFilter, categoryFilter, priorityFilter, isOverdueOnly, assignedToMe, sortBy, activeTab]);
 
   useEffect(() => {
     fetchTickets();
@@ -99,13 +101,14 @@ export function useDashboardTickets() {
     setCategoryFilter('');
     setPriorityFilter('');
     setIsOverdueOnly(false);
+    setAssignedToMe(false);
     setSortBy('id desc');
     setActiveTab('all');
     setPage(1);
   };
 
   const hasActiveFilters = Boolean(
-    search || statusFilter || categoryFilter || priorityFilter || isOverdueOnly || activeTab !== 'all'
+    search || statusFilter || categoryFilter || priorityFilter || isOverdueOnly || assignedToMe || activeTab !== 'all'
   );
 
   return {
@@ -131,6 +134,8 @@ export function useDashboardTickets() {
     setSortBy,
     isOverdueOnly,
     setIsOverdueOnly,
+    assignedToMe,
+    setAssignedToMe,
     handleStatsCardClick,
     resetFilters,
     hasActiveFilters,

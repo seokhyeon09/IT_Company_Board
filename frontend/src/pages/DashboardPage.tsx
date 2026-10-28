@@ -104,6 +104,8 @@ export const DashboardPage: React.FC = () => {
         onSearchChange={dash.setSearch}
         isOverdueOnly={dash.isOverdueOnly}
         onToggleOverdue={() => dash.setIsOverdueOnly(!dash.isOverdueOnly)}
+        assignedToMe={dash.assignedToMe}
+        onToggleAssignedToMe={() => dash.setAssignedToMe(!dash.assignedToMe)}
         statusFilter={dash.statusFilter}
         onStatusChange={dash.setStatusFilter}
         categoryFilter={dash.categoryFilter}
