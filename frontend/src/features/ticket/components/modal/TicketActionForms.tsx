@@ -9,6 +9,7 @@ interface TicketActionFormsProps {
   ticket: TicketDetail;
   isOfficer: boolean;
   isAuthor: boolean;
+  isOwnerOrAdmin?: boolean;
 
   // Resolve (new)
   resolutionNote: string;
@@ -38,11 +39,11 @@ interface TicketActionFormsProps {
 }
 
 export const TicketActionForms: React.FC<TicketActionFormsProps> = (props) => {
-  const { ticket, isOfficer, isAuthor } = props;
+  const { ticket, isOfficer, isAuthor, isOwnerOrAdmin = true } = props;
   const isResolved = ticket.status === 'resolved';
   const isClosed = ticket.status === 'closed';
   const isCanceled = ticket.status === 'canceled';
-  const canResolve = !isResolved && !isClosed && !isCanceled && isOfficer;
+  const canResolve = !isResolved && !isClosed && !isCanceled && isOfficer && isOwnerOrAdmin;
 
   return (
     <div className="space-y-4">

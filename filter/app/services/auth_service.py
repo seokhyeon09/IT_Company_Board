@@ -27,6 +27,7 @@ class AuthService:
             "name": user_info["name"],
             "login": user_info["login"],
             "is_officer": user_info["is_officer"],
+            "is_admin": user_info.get("is_admin", False),
         }
         token = create_access_token(claims)
 
@@ -38,6 +39,7 @@ class AuthService:
                 name=user_info["name"],
                 login=user_info["login"],
                 is_officer=user_info["is_officer"],
+                is_admin=user_info.get("is_admin", False),
             )
         )
 
@@ -47,6 +49,7 @@ class AuthService:
             name=claims.get("name", ""),
             login=claims.get("login", ""),
             is_officer=bool(claims.get("is_officer", False)),
+            is_admin=bool(claims.get("is_admin", False)),
         )
 
 auth_service = AuthService()

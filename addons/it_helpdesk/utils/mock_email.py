@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import re
 """모의 이메일 알림 생성기 (역할별 수신 규칙 적용).
 
 수신 규칙:
@@ -96,6 +97,34 @@ def _collect_events(ticket):
                     f"{s_name} 담당자님,\n'{title}' ({num}) 문의를 접수하여 담당자로 배정되었습니다.",
                     at,
                 ))
+        elif 'data-msg-type="reassign"' in body_un or "[담당자 변경]" in clean_b:
+            c = _extract_thread_content(body, ['data-msg-type="reassign">', '[담당자 변경]']) or clean_b
+            # 1. 사원(요청자) 알림 메일
+            events.append(_mail(
+                ticket, f"{sfx}-reassign-a", "reassigned", "author", author,
+                f"[IT 헬프데스크] 문의 ({num})의 담당자가 {s_name}님으로 변경되었습니다",
+                f"안녕하세요 {a_name}님,\n문의하신 '{title}' ({num}) 건의 담당자가 {s_name} 담당자님으로 변경되어 안내드립니다.\n\n{c}",
+                at,
+            ))
+            # 2. 새 담당자(B) 알림 메일
+            events.append(_mail(
+                ticket, f"{sfx}-reassign-n", "reassigned", "assignee", assignee,
+                f"[IT 헬프데스크] 문의 ({num})가 회원님께 인계되었습니다",
+                f"{s_name} 담당자님,\n'{title}' ({num}) 건의 담당자로 회원님이 지정/인계되었습니다. 확인 후 처리를 진행해 주세요.\n\n{c}",
+                at,
+            ))
+            # 3. 이전 담당자(A) 알림 메일
+            old_uid_match = re.search(r'data-old-user-id="(\d+)"', body_un)
+            if old_uid_match:
+                old_uid = int(old_uid_match.group(1))
+                old_user = ticket.env['res.users'].sudo().browse(old_uid)
+                if old_user.exists():
+                    events.append(_mail(
+                        ticket, f"{sfx}-reassign-o", "reassigned", "officer", old_user,
+                        f"[IT 헬프데스크] 담당 문의 ({num})가 {s_name}님에게 인계되었습니다",
+                        f"{old_user.name} 담당자님,\n기존에 담당하시던 '{title}' ({num}) 건이 {s_name} 담당자님에게 인계되었습니다.\n\n{c}",
+                        at,
+                    ))
         elif 'data-msg-type="pending_request"' in body_un or "[답변 대기 요청]" in clean_b:
             c = _extract_thread_content(body, ['data-msg-type="pending_request">', '[답변 대기 요청]']) or clean_b
             events.append(_mail(
@@ -173,11 +202,13 @@ def build_mock_emails(ticket, user, is_officer, read_ids=None):
     for ev in _collect_events(ticket):
         aud = ev["audience"]
         matched = False
-        if aud == "author" and ticket.author_id.id == user.id:
+        if ev.get("recipient_id") == user.id:
+            matched = True
+        elif aud == "author" and ticket.author_id.id == user.id:
             matched = True
         elif aud == "assignee" and ticket.assignee_id and ticket.assignee_id.id == user.id:
             matched = True
-        elif aud == "officer" and is_officer:
+        elif aud == "officer" and is_officer and not ev.get("recipient_id"):
             matched = True
 
         if matched:

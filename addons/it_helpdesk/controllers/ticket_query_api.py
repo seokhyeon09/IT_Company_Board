@@ -282,6 +282,17 @@ class TicketQueryAPIController(http.Controller):
                         "date": _format_datetime_utc(msg.date),
                         "content": c
                     })
+            elif 'data-msg-type="reassign"' in body_un or "[담당자 변경]" in clean_b:
+                c = _extract_thread_content(body, ['data-msg-type="reassign">', '[담당자 변경]']) or clean_b
+                seq_timeline.append({
+                    "id": msg.id,
+                    "type": "reassign",
+                    "round": 0,
+                    "author_id": msg.author_id.id if msg.author_id else None,
+                    "author_name": author_name,
+                    "date": _format_datetime_utc(msg.date),
+                    "content": c
+                })
 
         if not has_resolution_msg and ticket.resolution_note:
             seq_timeline.append({

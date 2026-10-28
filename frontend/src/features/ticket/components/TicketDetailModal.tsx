@@ -111,6 +111,10 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
               <TicketWorkflowBar
                 status={s.ticket.status}
                 isOfficer={s.isOfficer}
+                isOwnerOrAdmin={s.isOwnerOrAdmin}
+                isAssignee={s.isAssignee}
+                isAdmin={s.isAdmin}
+                currentAssigneeName={s.ticket.assignee_name}
                 transitioningStatus={s.transitioningStatus}
                 onAssignToMe={s.handleAssignToMe}
                 onStartProgress={s.handleStartProgress}
@@ -123,6 +127,8 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 }}
                 selectedAssignOfficerId={s.selectedAssignOfficerId}
                 onSelectAssignOfficer={s.setSelectedAssignOfficerId}
+                assignReason={s.assignReason}
+                onSetAssignReason={s.setAssignReason}
                 submittingDesignate={s.submittingDesignate}
                 designateError={s.designateError}
                 onSubmitDesignate={() => s.handleAssignToOfficer()}
@@ -192,6 +198,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 ticket={s.ticket}
                 isOfficer={s.isOfficer}
                 isAuthor={s.isAuthor}
+                isOwnerOrAdmin={s.isOwnerOrAdmin}
                 resolutionNote={s.resolutionNote}
                 setResolutionNote={s.setResolutionNote}
                 submittingResolve={s.submittingResolve}

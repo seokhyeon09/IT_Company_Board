@@ -1,6 +1,6 @@
 export interface ThreadItem {
   id: number;
-  type: 'inquiry' | 'resolution' | 'pending_request' | 'pending_response';
+  type: 'inquiry' | 'resolution' | 'pending_request' | 'pending_response' | 'reassign';
   round: number;
   author_id?: any;
   author_name: string;

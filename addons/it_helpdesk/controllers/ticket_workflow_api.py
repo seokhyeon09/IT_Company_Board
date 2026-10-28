@@ -31,6 +31,11 @@ class TicketWorkflowAPIController(http.Controller):
         if not ticket.exists():
             raise UserError("Ticket not found.")
 
+        is_admin = user._is_admin()
+        is_assignee = bool(ticket.assignee_id and ticket.assignee_id.id == user.id)
+        if not (is_admin or is_assignee):
+            raise AccessError("Only the assigned officer or an administrator can resolve tickets.")
+
         if if_match_write_date:
             client_dt = parse_iso_utc(if_match_write_date)
             record_dt = ticket.write_date
@@ -172,6 +177,11 @@ class TicketWorkflowAPIController(http.Controller):
         if not ticket.exists():
             raise UserError("Ticket not found.")
 
+        is_admin = user._is_admin()
+        is_assignee = bool(ticket.assignee_id and ticket.assignee_id.id == user.id)
+        if not (is_admin or is_assignee):
+            raise AccessError("Only the assigned officer or an administrator can update resolution notes.")
+
         if if_match_write_date:
             client_dt = parse_iso_utc(if_match_write_date)
             record_dt = ticket.write_date
@@ -234,8 +244,8 @@ class TicketWorkflowAPIController(http.Controller):
         }
 
     @http.route('/api/v1/tickets/assign', type='json', auth='none', methods=['POST'], csrf=False)
-    def assign_ticket(self, ticket_id: int, assignee_id: int = None):
-        """IT 담당자 티켓 배정 (본인 셀프 배정 또는 타 담당자 지정 배정)"""
+    def assign_ticket(self, ticket_id: int, assignee_id: int = None, reason: str = None):
+        """IT 담당자 티켓 배정 및 인계 (시작 전 자유 인계 / 시작 후 본인 및 관리자만 인계 + 사유 필수)"""
         req_env = get_current_request().env
         user = verify_gateway_request()
         if not (user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()):
@@ -245,28 +255,82 @@ class TicketWorkflowAPIController(http.Controller):
         if not ticket.exists():
             raise UserError("Ticket not found.")
 
-        target_user = None
+        if ticket.status in ('resolved', 'closed', 'canceled'):
+            raise UserError("이미 완료되거나 종결된 티켓은 담당자를 변경할 수 없습니다.")
+
+        old_assignee = ticket.assignee_id
+        is_admin = user._is_admin()
+
         if assignee_id and int(assignee_id) != user.id:
             target_user = req_env['res.users'].sudo().browse(int(assignee_id))
             if not target_user.exists():
                 raise UserError("Target officer not found.")
             if not (target_user.has_group('it_helpdesk.group_helpdesk_officer') or target_user._is_admin()):
                 raise UserError("Designated user is not an IT officer.")
-            ticket.action_assign_to_user(target_user)
-            ticket.message_post(
-                body=f"<b>[담당자 배정]</b><br/>{html.escape(user.name)} 담당자가 {html.escape(target_user.name)} 담당자에게 문의를 지정 배정하였습니다."
+        else:
+            target_user = user
+
+        if old_assignee and old_assignee.id == target_user.id:
+            return {
+                "status": "success",
+                "data": {
+                    "id": ticket.id,
+                    "ticket_number": ticket.ticket_number,
+                    "status": ticket.status,
+                    "assignee_id": ticket.assignee_id.id,
+                    "assignee_name": ticket.assignee_name,
+                    "write_date": _format_datetime_utc(ticket.write_date)
+                }
+            }
+
+        # 상태별 가로채기 방지 락 (시작 후에는 원 담당자 본인 및 관리자만 인계 가능)
+        if old_assignee and ticket.status in ('in_progress', 'pending'):
+            is_current_assignee = (old_assignee.id == user.id)
+            if not (is_admin or is_current_assignee):
+                raise AccessError("처리 중인 티켓은 원 담당자 본인 또는 관리자만 변경(인계)할 수 있습니다.")
+
+        # 담당자 변경 시 관리자 포함 사유 필수 체크
+        clean_reason = str(reason).strip() if reason else ""
+        if old_assignee and not clean_reason:
+            raise UserError("담당자 변경(인계) 사유를 반드시 입력해야 합니다.")
+
+        safe_reason = _safe_html_text(clean_reason) if clean_reason else "사유 미기재"
+
+        # 실제 담당자 배정 실행
+        ticket.action_assign_to_user(target_user)
+
+        # 타임라인 메시지 발행
+        if old_assignee:
+            post_msg = ticket.message_post(
+                body=(
+                    f'<div data-msg-type="reassign" data-old-user-id="{old_assignee.id}" data-new-user-id="{target_user.id}">'
+                    f'<b>[담당자 변경]</b><br/>'
+                    f'{html.escape(user.name)}님이 담당자를 '
+                    f'<b>{html.escape(old_assignee.name)}</b> 담당자에서 '
+                    f'<b>{html.escape(target_user.name)}</b> 담당자(으)로 변경하였습니다.<br/>'
+                    f'<b>변경 사유:</b> {safe_reason}'
+                    f'</div>'
+                ),
+                subtype_xmlid='mail.mt_note',
             )
         else:
-            ticket.action_assign_to_me()
-            post_msg = ticket.message_post(
-                body=f"<b>[담당자 배정]</b><br/>{html.escape(user.name)} 담당자가 본인에게 문의를 배정하였습니다."
-            )
-            # 셀프 배정 메일도 다른 메일과 똑같이 DB 읽음 기록(it.helpdesk.notification.read) 테이블에 생성
-            if post_msg:
-                req_env['it.helpdesk.notification.read'].sudo().create({
-                    'user_id': user.id,
-                    'notification_id': f"{ticket.id}-msg-{post_msg.id}-s",
-                })
+            if target_user.id == user.id:
+                post_msg = ticket.message_post(
+                    body=f"<b>[담당자 배정]</b><br/>{html.escape(user.name)} 담당자가 본인에게 문의를 배정하였습니다.",
+                    subtype_xmlid='mail.mt_note',
+                )
+            else:
+                post_msg = ticket.message_post(
+                    body=f"<b>[담당자 배정]</b><br/>{html.escape(user.name)} 담당자가 {html.escape(target_user.name)} 담당자에게 문의를 지정 배정하였습니다.",
+                    subtype_xmlid='mail.mt_note',
+                )
+
+        # 변경 조작자 본인의 알림함에는 자동 읽음 처리
+        if post_msg:
+            req_env['it.helpdesk.notification.read'].sudo().create({
+                'user_id': user.id,
+                'notification_id': f"{ticket.id}-msg-{post_msg.id}-s",
+            })
 
         return {
             "status": "success",
@@ -291,6 +355,11 @@ class TicketWorkflowAPIController(http.Controller):
         if not ticket.exists():
             raise UserError("Ticket not found.")
 
+        is_admin = user._is_admin()
+        is_assignee = bool(ticket.assignee_id and ticket.assignee_id.id == user.id)
+        if not (is_admin or is_assignee):
+            raise AccessError("Only the assigned officer or an administrator can start progress on this ticket.")
+
         ticket.action_start_progress()
 
         return {
@@ -313,6 +382,11 @@ class TicketWorkflowAPIController(http.Controller):
         ticket = get_current_request().env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
         if not ticket.exists():
             raise UserError("Ticket not found.")
+
+        is_admin = user._is_admin()
+        is_assignee = bool(ticket.assignee_id and ticket.assignee_id.id == user.id)
+        if not (is_admin or is_assignee):
+            raise AccessError("Only the assigned officer or an administrator can request pending response.")
 
         ticket.action_pending()
         clean_reason = str(reason).strip() if reason and str(reason).strip() else "추가 정보 및 확인 요청"
@@ -342,6 +416,11 @@ class TicketWorkflowAPIController(http.Controller):
         ticket = get_current_request().env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
         if not ticket.exists():
             raise UserError("Ticket not found.")
+
+        is_admin = user._is_admin()
+        is_assignee = bool(ticket.assignee_id and ticket.assignee_id.id == user.id)
+        if not (is_admin or is_assignee):
+            raise AccessError("Only the assigned officer or an administrator can close tickets.")
 
         if note and str(note).strip():
             safe_note = _safe_html_text(note)

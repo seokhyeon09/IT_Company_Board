@@ -84,6 +84,7 @@ export function useTicketModalState(
   const [selectedAssignOfficerId, setSelectedAssignOfficerId] = useState<number | ''>('');
   const [submittingDesignate, setSubmittingDesignate] = useState(false);
   const [designateError, setDesignateError] = useState('');
+  const [assignReason, setAssignReason] = useState('');
 
   useEffect(() => {
     if (isOpen && ticketId) {
@@ -140,6 +141,7 @@ export function useTicketModalState(
     setShowDesignateModal(false);
     setSelectedAssignOfficerId('');
     setDesignateError('');
+    setAssignReason('');
   };
 
   const fetchDetail = async (id: number) => {
@@ -164,6 +166,17 @@ export function useTicketModalState(
         (ticket.author_name && user.name && ticket.author_name === user.name))
   );
   const isOfficer = Boolean(user?.is_officer);
+
+  const isAssignee = Boolean(
+    ticket &&
+      user &&
+      (ticket.assignee_id === user.uid ||
+        String(ticket.assignee_id) === String(user.uid) ||
+        (Array.isArray(ticket.assignee_id) && String(ticket.assignee_id[0]) === String(user.uid)) ||
+        (ticket.assignee_name && user.name && ticket.assignee_name === user.name))
+  );
+  const isAdmin = Boolean(user?.is_admin || (user as any)?.role === 'admin' || user?.name === 'Administrator');
+  const isOwnerOrAdmin = isAssignee || isAdmin;
 
   // Handlers
   const handleToggleFaq = async () => {
@@ -310,23 +323,32 @@ export function useTicketModalState(
     }
   };
 
-  const handleAssignToOfficer = async (targetOfficerId?: number) => {
+  const handleAssignToOfficer = async (targetOfficerId?: number, reasonInput?: string) => {
     if (!ticket) return;
     const targetId = targetOfficerId || selectedAssignOfficerId;
     if (!targetId) {
       setDesignateError('배정할 담당자를 선택해주세요.');
       return;
     }
+    const finalReason = (reasonInput !== undefined ? reasonInput : assignReason).trim();
+    if (ticket.assignee_id && !finalReason) {
+      setDesignateError('담당자 변경(인계) 사유를 반드시 입력해주세요.');
+      return;
+    }
     setSubmittingDesignate(true);
     setDesignateError('');
     try {
-      await apiClient.post(`/tickets/${ticket.id}/assign`, { assignee_id: Number(targetId) });
+      await apiClient.post(`/tickets/${ticket.id}/assign`, {
+        assignee_id: Number(targetId),
+        reason: finalReason || undefined,
+      });
       await fetchDetail(ticket.id);
       setShowDesignateModal(false);
       setSelectedAssignOfficerId('');
+      setAssignReason('');
       if (onSuccess) onSuccess();
     } catch (err: any) {
-      setDesignateError(getErrorMessage(err, '담당자 지정 배정에 실패했습니다.'));
+      setDesignateError(getErrorMessage(err, '담당자 지정/인계 처리에 실패했습니다.'));
     } finally {
       setSubmittingDesignate(false);
     }
@@ -498,6 +520,9 @@ export function useTicketModalState(
     fetchError,
     isAuthor,
     isOfficer,
+    isAssignee,
+    isAdmin,
+    isOwnerOrAdmin,
     fetchDetail,
 
     // Resolve
@@ -573,6 +598,8 @@ export function useTicketModalState(
     setSelectedAssignOfficerId,
     submittingDesignate,
     designateError,
+    assignReason,
+    setAssignReason,
     handleAssignToOfficer,
 
     // Modals

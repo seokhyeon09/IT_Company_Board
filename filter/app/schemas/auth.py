@@ -12,6 +12,7 @@ class UserProfile(BaseModel):
     name: str
     login: str
     is_officer: bool
+    is_admin: bool = False
 
 class TokenResponse(BaseModel):
     access_token: str

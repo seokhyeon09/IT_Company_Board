@@ -61,8 +61,11 @@ class WorkflowService:
             )
         user_id = int(claims["sub"])
         params = {"ticket_id": ticket_id}
-        if dto and dto.assignee_id:
-            params["assignee_id"] = dto.assignee_id
+        if dto:
+            if dto.assignee_id:
+                params["assignee_id"] = dto.assignee_id
+            if dto.reason:
+                params["reason"] = dto.reason
         result = await odoo_client.call_json("/api/v1/tickets/assign", params=params, user_id=user_id)
         return result.get("data", {})
 

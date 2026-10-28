@@ -4,6 +4,7 @@ import {
   Edit3,
   CheckCircle2,
   PauseCircle,
+  ArrowRightLeft,
   Loader2,
 } from 'lucide-react';
 import { ThreadItem } from '../../types/ticket';
@@ -111,6 +112,7 @@ export const TicketTimeline: React.FC<TicketTimelineProps> = ({
             const isInitial = isInquiry && item.round === 1;
             const isPendingReq = item.type === 'pending_request';
             const isPendingResp = item.type === 'pending_response';
+            const isReassign = item.type === 'reassign';
 
             return (
               <div
@@ -122,6 +124,8 @@ export const TicketTimeline: React.FC<TicketTimelineProps> = ({
                     ? 'bg-amber-50/90 border-amber-200 text-amber-950'
                     : isPendingResp
                     ? 'bg-blue-50/90 border-blue-200 text-blue-950'
+                    : isReassign
+                    ? 'bg-purple-50/90 border-purple-200 text-purple-950'
                     : isInquiry
                     ? 'bg-purple-50/90 border-purple-200 text-purple-950'
                     : 'bg-emerald-50/80 border-emerald-200 text-emerald-950'
@@ -138,6 +142,11 @@ export const TicketTimeline: React.FC<TicketTimelineProps> = ({
                       <span className="bg-blue-200 text-blue-900 text-[10px] px-2 py-0.5 rounded-full mr-2 font-mono font-semibold flex items-center border border-blue-300">
                         <MessageSquare className="w-3 h-3 mr-1 text-blue-700" />
                         답변 대기 회신
+                      </span>
+                    ) : isReassign ? (
+                      <span className="bg-purple-200 text-purple-900 text-[10px] px-2 py-0.5 rounded-full mr-2 font-mono font-semibold flex items-center border border-purple-300">
+                        <ArrowRightLeft className="w-3 h-3 mr-1 text-purple-700" />
+                        담당자 변경 안내
                       </span>
                     ) : isInquiry ? (
                       <span

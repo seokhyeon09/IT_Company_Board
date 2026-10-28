@@ -125,6 +125,7 @@ class TicketUpdateResolutionDTO(BaseModel):
 class TicketAssignDTO(BaseModel):
     model_config = ConfigDict(extra="ignore")
     assignee_id: Optional[int] = Field(default=None, description="지정할 IT 담당자 ID (미입력 시 본인 배정)")
+    reason: Optional[str] = Field(default=None, description="담당자 변경 및 인계 사유")
 
 class OfficerItemDTO(BaseModel):
     id: int
