@@ -1,10 +1,18 @@
 import React from 'react';
-import { Layers, Clock, Activity, CheckCircle2, AlertTriangle } from 'lucide-react';
+import {
+  Layers,
+  Clock,
+  Activity,
+  PauseCircle,
+  CheckCircle2,
+  AlertTriangle,
+} from 'lucide-react';
 
 export interface TicketStats {
   total: number;
   waiting: number;
   in_progress: number;
+  pending: number;
   resolved: number;
   overdue: number;
 }
@@ -32,7 +40,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
     },
     {
       id: 'submitted',
-      title: '접수/대기',
+      title: '접수 대기',
       count: stats?.waiting ?? 0,
       icon: Clock,
       color: 'text-amber-600',
@@ -47,6 +55,15 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
       activeRing: 'ring-2 ring-blue-500 bg-blue-50/50',
+    },
+    {
+      id: 'pending',
+      title: '답변 대기',
+      count: stats?.pending ?? 0,
+      icon: PauseCircle,
+      color: 'text-purple-600',
+      bgColor: 'bg-purple-50',
+      activeRing: 'ring-2 ring-purple-500 bg-purple-50/50',
     },
     {
       id: 'resolved',
@@ -69,7 +86,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 mb-8">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5 mb-8">
       {cards.map((card) => {
         const Icon = card.icon;
         const isSelected = selectedStatus === card.id;
@@ -77,6 +94,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
         return (
           <button
             key={card.id}
+            type="button"
             onClick={() => onSelectStatus(card.id)}
             className={`p-4 rounded-2xl border text-left transition-all bg-white shadow-xs hover:shadow-md cursor-pointer ${
               isSelected

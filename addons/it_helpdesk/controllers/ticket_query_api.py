@@ -88,19 +88,20 @@ class TicketQueryAPIController(http.Controller):
 
     @http.route('/api/v1/tickets/stats', type='json', auth='none', methods=['POST'], csrf=False)
     def get_ticket_stats(self):
-        """티켓 현황 통계 조회 (총 건수, 대기, 처리중, 해결완료, 기한초과)"""
+        """티켓 현황 통계 조회 (총 건수, 접수대기, 처리중, 답변대기, 해결완료, 기한초과 - FAQ 포함 및 단일 상태 1:1 매칭)"""
         req_env = get_current_request().env
         user = verify_gateway_request()
         ticket_env = req_env['it.helpdesk.ticket'].with_user(user)
         is_officer = user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()
-        base_domain = [('is_faq', '=', False)]
+        base_domain = []
         if not is_officer:
             base_domain.append(('author_id', '=', user.id))
 
         total = ticket_env.search_count(base_domain)
-        waiting = ticket_env.search_count(base_domain + [('status', 'in', ['submitted', 'assigned'])])
-        in_progress = ticket_env.search_count(base_domain + [('status', 'in', ['in_progress', 'pending'])])
-        resolved = ticket_env.search_count(base_domain + [('status', 'in', ['resolved', 'closed'])])
+        waiting = ticket_env.search_count(base_domain + [('status', '=', 'submitted')])
+        in_progress = ticket_env.search_count(base_domain + [('status', '=', 'in_progress')])
+        pending = ticket_env.search_count(base_domain + [('status', '=', 'pending')])
+        resolved = ticket_env.search_count(base_domain + [('status', '=', 'resolved')])
         overdue = ticket_env.search_count(base_domain + [('is_overdue', '=', True), ('status', 'not in', ['resolved', 'closed'])])
 
         return {
@@ -109,6 +110,7 @@ class TicketQueryAPIController(http.Controller):
                 "total": total,
                 "waiting": waiting,
                 "in_progress": in_progress,
+                "pending": pending,
                 "resolved": resolved,
                 "overdue": overdue,
             }

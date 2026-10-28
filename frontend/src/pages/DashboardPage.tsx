@@ -104,6 +104,7 @@ export const DashboardPage: React.FC = () => {
   };
 
   const handleStatsCardClick = (targetStatus: string) => {
+    setActiveTab('all');
     setPage(1);
     if (targetStatus === 'overdue') {
       setIsOverdueOnly((prev) => !prev);
