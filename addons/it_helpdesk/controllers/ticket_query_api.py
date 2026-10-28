@@ -51,6 +51,9 @@ class TicketQueryAPIController(http.Controller):
             domain.append(('priority', '=', str(priority)))
         if status == 'waiting':
             domain.append(('status', 'in', ['submitted', 'assigned']))
+        elif status == 'overdue':
+            domain.append(('is_overdue', '=', True))
+            domain.append(('status', 'not in', ['resolved', 'closed']))
         elif status in ('submitted', 'assigned', 'in_progress', 'pending', 'resolved', 'closed', 'canceled'):
             domain.append(('status', '=', status))
         if is_overdue is True or str(is_overdue).lower() == 'true':

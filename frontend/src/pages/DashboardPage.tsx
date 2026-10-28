@@ -107,12 +107,8 @@ export const DashboardPage: React.FC = () => {
     setActiveTab('all');
     setPage(1);
     setSortBy('id desc');
-    if (targetStatus === 'overdue') {
-      setIsOverdueOnly((prev) => !prev);
+    if (targetStatus === '') {
       setStatusFilter('');
-    } else if (targetStatus === '') {
-      setStatusFilter('');
-      setIsOverdueOnly(false);
     } else {
       setStatusFilter((prev) => (prev === targetStatus ? '' : targetStatus));
     }
@@ -170,7 +166,7 @@ export const DashboardPage: React.FC = () => {
       {/* KPI Stats Widgets */}
       <DashboardStats
         stats={stats}
-        selectedStatus={isOverdueOnly && !statusFilter ? 'overdue' : statusFilter}
+        selectedStatus={statusFilter}
         onSelectStatus={handleStatsCardClick}
       />
 

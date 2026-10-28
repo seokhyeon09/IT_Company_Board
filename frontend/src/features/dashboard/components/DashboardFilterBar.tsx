@@ -138,7 +138,7 @@ export const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
         <div className="flex flex-wrap items-center gap-2">
           {/* Status Dropdown */}
           <select
-            value={statusFilter}
+            value={statusFilter === 'overdue' ? '' : statusFilter}
             onChange={(e) => onStatusChange(e.target.value)}
             className="text-xs border border-slate-300 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
           >
