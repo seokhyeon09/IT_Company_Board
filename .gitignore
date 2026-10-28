@@ -27,7 +27,7 @@ frontend/node_modules/
 frontend/dist/
 frontend/.vite/
 
-# Temporary test scripts
-scripts/test_step*.py
+# Test scripts (isolated to local-md/)
+scripts/
 
 
