@@ -24,6 +24,8 @@ from app.schemas.ticket import (
     OfficerStatsResponseDTO,
     OfficerListResponseDTO,
     EmailNotificationListResponseDTO,
+    NotificationReadDTO,
+    NotificationReadResponseDTO,
 )
 
 router = APIRouter()
@@ -91,6 +93,14 @@ async def get_mock_notifications(
 ):
     """Retrieve mock email dispatch logs for the current user."""
     return await ticket_service.get_notifications(user_id=int(claims["sub"]), limit=limit)
+
+@router.post("/notifications/read", response_model=NotificationReadResponseDTO)
+async def mark_notifications_read(
+    dto: NotificationReadDTO,
+    claims: dict = Depends(get_current_user_claims),
+):
+    """Mark email notifications as read (persisted to backend database)."""
+    return await ticket_service.mark_notifications_read(user_id=int(claims["sub"]), dto=dto)
 
 @router.get("/officers", response_model=OfficerListResponseDTO)
 async def get_officers(

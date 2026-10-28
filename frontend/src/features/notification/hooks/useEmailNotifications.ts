@@ -2,28 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiClient } from '../../../api/client';
 import { EmailNotificationItem } from '../../ticket/types/ticket';
 
-const MAX_STORED_READ_IDS = 500;
 const POLL_INTERVAL_MS = 60000;
 
-const loadReadIds = (key: string): string[] => {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(key) || '[]');
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-};
-
-export const useEmailNotifications = (uid?: number) => {
-  const storageKey = `helpdesk_read_emails_${uid ?? 'anon'}`;
+export const useEmailNotifications = (_uid?: number) => {
   const [items, setItems] = useState<EmailNotificationItem[]>([]);
-  const [readIds, setReadIds] = useState<string[]>(() => loadReadIds(storageKey));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setReadIds(loadReadIds(storageKey));
-  }, [storageKey]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -44,38 +28,56 @@ export const useEmailNotifications = (uid?: number) => {
     return () => clearInterval(timer);
   }, [refresh]);
 
-  const persist = useCallback(
-    (ids: string[]) => {
-      const trimmed = ids.slice(-MAX_STORED_READ_IDS);
-      localStorage.setItem(storageKey, JSON.stringify(trimmed));
-      setReadIds(trimmed);
-    },
-    [storageKey]
-  );
-
-  const readSet = useMemo(() => new Set(readIds), [readIds]);
   const isRead = useCallback(
     (id: string) => {
       const item = items.find((i) => i.id === id);
-      return Boolean(item?.is_read || readSet.has(id));
+      return Boolean(item?.is_read);
     },
-    [items, readSet]
+    [items]
   );
 
   const markRead = useCallback(
-    (id: string) => {
-      if (!readSet.has(id)) persist([...readIds, id]);
+    async (id: string) => {
+      const target = items.find((i) => i.id === id);
+      if (target && target.is_read) return;
+
+      // 낙관적 UI 업데이트
+      setItems((prev) =>
+        prev.map((i) => (i.id === id ? { ...i, is_read: true } : i))
+      );
+
+      // 서버 DB에 읽음 기록 저장
+      try {
+        await apiClient.post('/tickets/notifications/read', {
+          notification_ids: [id],
+        });
+      } catch {
+        // 백그라운드 저장 실패 시 다음 refresh에서 자동 동기화
+      }
     },
-    [readSet, readIds, persist]
+    [items]
   );
 
-  const markAllRead = useCallback(() => {
-    persist(Array.from(new Set([...readIds, ...items.map((i) => i.id)])));
-  }, [readIds, items, persist]);
+  const markAllRead = useCallback(async () => {
+    const unreadIds = items.filter((i) => !i.is_read).map((i) => i.id);
+    if (unreadIds.length === 0) return;
+
+    // 낙관적 UI 업데이트
+    setItems((prev) => prev.map((i) => ({ ...i, is_read: true })));
+
+    // 서버 DB에 읽음 기록 저장
+    try {
+      await apiClient.post('/tickets/notifications/read', {
+        notification_ids: unreadIds,
+      });
+    } catch {
+      // 다음 refresh에서 동기화
+    }
+  }, [items]);
 
   const unreadCount = useMemo(
-    () => items.filter((i) => !i.is_read && !readSet.has(i.id)).length,
-    [items, readSet]
+    () => items.filter((i) => !i.is_read).length,
+    [items]
   );
 
   return { items, loading, error, refresh, isRead, markRead, markAllRead, unreadCount };

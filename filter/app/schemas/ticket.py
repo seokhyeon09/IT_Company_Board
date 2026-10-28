@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 from enum import Enum
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 class TicketCategoryEnum(str, Enum):
@@ -199,6 +199,13 @@ class EmailNotificationListResponseDTO(BaseModel):
     status: str = "success"
     total: int = 0
     data: List[EmailNotificationDTO] = []
+
+class NotificationReadDTO(BaseModel):
+    notification_ids: List[str]
+
+class NotificationReadResponseDTO(BaseModel):
+    status: str = "success"
+    data: Dict[str, Any] = {}
 
 class OfficerStatItemDTO(BaseModel):
     officer_id: int

@@ -12,6 +12,8 @@ from app.schemas.ticket import (
     OfficerStatsResponseDTO,
     OfficerListResponseDTO,
     EmailNotificationListResponseDTO,
+    NotificationReadDTO,
+    NotificationReadResponseDTO,
     AttachmentDTO,
     AttachmentDetailDTO,
 )
@@ -72,6 +74,17 @@ class TicketService:
             status="success",
             total=result.get("total", 0),
             data=result.get("data", []),
+        )
+
+    async def mark_notifications_read(self, user_id: int, dto: NotificationReadDTO) -> NotificationReadResponseDTO:
+        result = await odoo_client.call_json(
+            "/api/v1/tickets/notifications/read",
+            params={"notification_ids": dto.notification_ids},
+            user_id=user_id,
+        )
+        return NotificationReadResponseDTO(
+            status="success",
+            data=result.get("data", {}),
         )
 
     async def get_officers(self, user_id: int) -> OfficerListResponseDTO:

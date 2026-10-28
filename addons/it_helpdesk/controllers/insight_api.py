@@ -73,18 +73,46 @@ class InsightAPIController(http.Controller):
 
     @http.route('/api/v1/tickets/notifications', type='json', auth='none', methods=['POST'], csrf=False)
     def get_mock_notifications(self, limit=50):
-        """로그인 사용자 본인이 수신자인 모의 이메일 알림만 조회"""
+        """로그인 사용자 본인이 수신자인 모의 이메일 알림만 조회 (DB 읽음 기록 연동)"""
         req_env = get_current_request().env
         user = verify_gateway_request()
         is_officer = user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()
         tickets = req_env['it.helpdesk.ticket'].sudo().search([], order='write_date desc, id desc', limit=100)
 
+        # DB에서 해당 사용자의 읽은 알림 ID 조회
+        read_records = req_env['it.helpdesk.notification.read'].sudo().search([('user_id', '=', user.id)])
+        read_ids = set(read_records.mapped('notification_id'))
+
         emails = []
         for t in tickets:
-            emails.extend(build_mock_emails(t, user, is_officer))
+            emails.extend(build_mock_emails(t, user, is_officer, read_ids=read_ids))
         emails.sort(key=lambda x: x.get("sent_at") or "", reverse=True)
         max_items = min(max(1, int(limit or 50)), 100)
         return {"status": "success", "total": len(emails), "data": emails[:max_items]}
+
+    @http.route('/api/v1/tickets/notifications/read', type='json', auth='none', methods=['POST'], csrf=False)
+    def mark_notifications_read(self, notification_ids=None):
+        """알림 메일 읽음 처리 (DB 영구 저장)"""
+        req_env = get_current_request().env
+        user = verify_gateway_request()
+        if not notification_ids:
+            return {"status": "success", "message": "No notification IDs provided."}
+
+        target_ids = list(notification_ids) if isinstance(notification_ids, (list, tuple)) else [str(notification_ids)]
+        ReadModel = req_env['it.helpdesk.notification.read'].sudo()
+        existing = set(ReadModel.search([
+            ('user_id', '=', user.id),
+            ('notification_id', 'in', target_ids)
+        ]).mapped('notification_id'))
+
+        to_create = [
+            {'user_id': user.id, 'notification_id': nid}
+            for nid in target_ids if nid and nid not in existing
+        ]
+        if to_create:
+            ReadModel.create(to_create)
+
+        return {"status": "success", "data": {"marked_count": len(to_create)}}
 
     @http.route('/api/v1/tickets/officers', type='json', auth='none', methods=['POST'], csrf=False)
     def get_officers(self):

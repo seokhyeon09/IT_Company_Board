@@ -258,9 +258,15 @@ class TicketWorkflowAPIController(http.Controller):
             )
         else:
             ticket.action_assign_to_me()
-            ticket.message_post(
+            post_msg = ticket.message_post(
                 body=f"<b>[담당자 배정]</b><br/>{html.escape(user.name)} 담당자가 본인에게 문의를 배정하였습니다."
             )
+            # 셀프 배정 메일도 다른 메일과 똑같이 DB 읽음 기록(it.helpdesk.notification.read) 테이블에 생성
+            if post_msg:
+                req_env['it.helpdesk.notification.read'].sudo().create({
+                    'user_id': user.id,
+                    'notification_id': f"{ticket.id}-msg-{post_msg.id}-s",
+                })
 
         return {
             "status": "success",

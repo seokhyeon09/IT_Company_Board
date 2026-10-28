@@ -17,7 +17,7 @@ AUTHOR_EVENTS = ("assigned", "pending_request", "resolved")
 ASSIGNEE_EVENTS = ("assigned", "follow_up", "rated")
 
 
-def _mail(ticket, suffix, event_type, audience, recipient, subject, body, sent_at, is_read=False):
+def _mail(ticket, suffix, event_type, audience, recipient, subject, body, sent_at):
     return {
         "id": f"{ticket.id}-{suffix}",
         "ticket_id": ticket.id,
@@ -33,7 +33,7 @@ def _mail(ticket, suffix, event_type, audience, recipient, subject, body, sent_a
         "body_preview": body,
         "sent_at": sent_at,
         "status": SENT_STATUS,
-        "is_read": bool(is_read),
+        "is_read": False,
     }
 
 
@@ -74,9 +74,7 @@ def _collect_events(ticket):
                 f"안녕하세요 {a_name}님,\n문의하신 '{title}' ({num}) 건에 담당자({s_name})가 배정되어 확인을 시작했습니다.",
                 at,
             ))
-            # 담당자용 배정 메일 생성:
-            # - 타인 지정 배정: is_read=False (새 메일 알림)
-            # - 본인 셀프 배정: 다른 메일과 똑같이 메일함에 오되, 자동으로 읽음(is_read=True) 처리되어 기기 변경 시에도 빨간점 미점등
+            # 담당자용 배정 메일 생성: 타인 지정과 본인 배정 구분하여 문구 반영 (읽음 상태는 DB 조회로 일원화 판별)
             assigner = msg.author_id
             assigner_name = assigner.name if assigner else "관리자"
             is_designated = "지정 배정하였습니다" in clean_b
@@ -90,7 +88,6 @@ def _collect_events(ticket):
                     f"[IT 헬프데스크] {assigner_name}님이 회원님을 담당자로 지정했습니다 ({num})",
                     f"{s_name} 담당자님,\n{assigner_name}님이 '{title}' ({num}) 티켓의 담당자로 회원님을 지정 배정하였습니다. 확인 후 처리를 진행해 주세요.",
                     at,
-                    is_read=False,
                 ))
             else:
                 events.append(_mail(
@@ -98,7 +95,6 @@ def _collect_events(ticket):
                     f"[IT 헬프데스크] 담당자({s_name})가 배정되었습니다 ({num})",
                     f"{s_name} 담당자님,\n'{title}' ({num}) 문의를 접수하여 담당자로 배정되었습니다.",
                     at,
-                    is_read=True,
                 ))
         elif 'data-msg-type="pending_request"' in body_un or "[답변 대기 요청]" in clean_b:
             c = _extract_thread_content(body, ['data-msg-type="pending_request">', '[답변 대기 요청]']) or clean_b
@@ -145,7 +141,6 @@ def _collect_events(ticket):
             ticket, "assigned-s", "assigned", "assignee", assignee,
             f"[IT 헬프데스크] 담당자({s_name})가 배정되었습니다 ({num})",
             f"{s_name} 담당자님,\n'{title}' ({num}) 건의 담당자로 배정되었습니다.", at,
-            is_read=True,
         ))
 
     if not has_resolved and ticket.resolution_note:
@@ -169,16 +164,27 @@ def _collect_events(ticket):
     return events
 
 
-def build_mock_emails(ticket, user, is_officer):
-    """로그인 사용자 본인이 수신자인 모의 이메일만 반환 (최신순)."""
+def build_mock_emails(ticket, user, is_officer, read_ids=None):
+    """로그인 사용자 본인이 수신자인 모의 이메일만 반환 (최신순).
+    read_ids: it.helpdesk.notification.read 모델에서 조회된 해당 사용자의 읽은 메일 ID 집합
+    """
     result = []
+    read_set = read_ids if isinstance(read_ids, set) else set(read_ids or [])
     for ev in _collect_events(ticket):
         aud = ev["audience"]
+        matched = False
         if aud == "author" and ticket.author_id.id == user.id:
-            result.append(ev)
+            matched = True
         elif aud == "assignee" and ticket.assignee_id and ticket.assignee_id.id == user.id:
-            result.append(ev)
+            matched = True
         elif aud == "officer" and is_officer:
-            result.append(ev)
+            matched = True
+
+        if matched:
+            mail_item = dict(ev)
+            # 모든 메일은 DB에 읽음 기록이 존재하는지 여부로 동일하게 판별
+            mail_item["is_read"] = mail_item["id"] in read_set
+            result.append(mail_item)
+
     result.sort(key=lambda x: x.get("sent_at") or "", reverse=True)
     return result
