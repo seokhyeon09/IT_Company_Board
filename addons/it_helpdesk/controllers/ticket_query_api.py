@@ -11,6 +11,7 @@ from ..utils import (
     _clean_html,
     _extract_thread_content,
     verify_gateway_request,
+    get_current_request,
 )
 
 _logger = logging.getLogger(__name__)
@@ -21,14 +22,15 @@ LIST_FIELDS = [
     'assignee_id', 'assignee_name', 'create_date', 'write_date', 'rating', 'is_faq'
 ]
 
-class TicketQueryAPIController:
+class TicketQueryAPIController(http.Controller):
     """Ticket Search, Query, Detail, Creation and Updating API"""
 
     @http.route('/api/v1/tickets/list', type='json', auth='none', methods=['POST'], csrf=False)
     def list_tickets(self, category=None, priority=None, status=None, search=None, is_faq=None, is_overdue=None, sort_by=None, offset=0, limit=50, **kwargs):
         """티켓 목록 조회 (일반 사원은 본인 글 + FAQ 지식창고 열람 가능, 담당자는 전체 열람)"""
+        req_env = get_current_request().env
         user = verify_gateway_request()
-        ticket_env = request.env['it.helpdesk.ticket'].with_user(user)
+        ticket_env = req_env['it.helpdesk.ticket'].with_user(user)
 
         domain = []
         is_officer = user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()
@@ -87,8 +89,9 @@ class TicketQueryAPIController:
     @http.route('/api/v1/tickets/stats', type='json', auth='none', methods=['POST'], csrf=False)
     def get_ticket_stats(self):
         """티켓 현황 통계 조회 (총 건수, 대기, 처리중, 해결완료, 기한초과)"""
+        req_env = get_current_request().env
         user = verify_gateway_request()
-        ticket_env = request.env['it.helpdesk.ticket'].with_user(user)
+        ticket_env = req_env['it.helpdesk.ticket'].with_user(user)
         is_officer = user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()
         base_domain = [('is_faq', '=', False)]
         if not is_officer:
@@ -114,8 +117,9 @@ class TicketQueryAPIController:
     @http.route('/api/v1/tickets/detail', type='json', auth='none', methods=['POST'], csrf=False)
     def get_ticket_detail(self, ticket_id: int):
         """티켓 상세 조회 (write_date 낙관적 락킹 버전 포함)"""
+        req_env = get_current_request().env
         user = verify_gateway_request()
-        ticket = request.env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
+        ticket = req_env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
         if not ticket.exists():
             raise UserError("Ticket not found.")
 
@@ -123,7 +127,7 @@ class TicketQueryAPIController:
         if not is_officer and ticket.author_id.id != user.id and not ticket.is_faq:
             raise AccessError("You do not have permission to view this ticket.")
 
-        att_records = request.env['ir.attachment'].sudo().search([
+        att_records = req_env['ir.attachment'].sudo().search([
             ('res_model', '=', 'it.helpdesk.ticket'),
             ('res_id', '=', ticket.id)
         ])
@@ -311,8 +315,9 @@ class TicketQueryAPIController:
     @http.route('/api/v1/tickets/create', type='json', auth='none', methods=['POST'], csrf=False)
     def create_ticket(self, **kwargs):
         """새 티켓 접수 (진정 작성자 주입 및 안전한 필드 할당)"""
+        req_env = get_current_request().env
         user = verify_gateway_request()
-        ticket_env = request.env['it.helpdesk.ticket'].with_user(user)
+        ticket_env = req_env['it.helpdesk.ticket'].with_user(user)
 
         allowed = {'title', 'content', 'category', 'priority'}
         vals = {k: v for k, v in kwargs.items() if k in allowed}
@@ -331,7 +336,7 @@ class TicketQueryAPIController:
         if initial_attachments and isinstance(initial_attachments, list):
             for att in initial_attachments:
                 if isinstance(att, dict) and att.get('name') and att.get('datas'):
-                    request.env['ir.attachment'].sudo().create({
+                    req_env['ir.attachment'].sudo().create({
                         'name': os.path.basename(str(att['name'])),
                         'datas': att['datas'],
                         'res_model': 'it.helpdesk.ticket',
@@ -361,8 +366,9 @@ class TicketQueryAPIController:
     @http.route('/api/v1/tickets/update', type='json', auth='none', methods=['POST'], csrf=False)
     def update_ticket(self, ticket_id: int, **kwargs):
         """접수대기(submitted) 상태에서의 작성자 본인 티켓 내용 수정"""
+        req_env = get_current_request().env
         user = verify_gateway_request()
-        ticket = request.env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
+        ticket = req_env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
         if not ticket.exists():
             raise UserError("Ticket not found.")
 

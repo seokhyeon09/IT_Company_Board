@@ -9,18 +9,19 @@ from odoo.exceptions import AccessError, UserError
 from ..utils import (
     _format_datetime_utc,
     verify_gateway_request,
+    get_current_request,
 )
 
 _logger = logging.getLogger(__name__)
 
-class AttachmentAPIController:
+class AttachmentAPIController(http.Controller):
     """Ticket Attachment Upload and Download API"""
 
     @http.route('/api/v1/tickets/upload-attachment', type='json', auth='none', methods=['POST'], csrf=False)
     def upload_attachment(self, ticket_id: int, name: str, datas: str, mimetype: str = None):
         """티켓 첨부파일 업로드 (Base64)"""
         user = verify_gateway_request()
-        ticket = request.env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
+        ticket = get_current_request().env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
         if not ticket.exists():
             raise UserError("Ticket not found.")
 
@@ -32,7 +33,7 @@ class AttachmentAPIController:
         if not clean_name:
             clean_name = "attachment"
 
-        attachment = request.env['ir.attachment'].sudo().create({
+        attachment = get_current_request().env['ir.attachment'].sudo().create({
             'name': clean_name,
             'datas': datas,
             'res_model': 'it.helpdesk.ticket',
@@ -57,7 +58,7 @@ class AttachmentAPIController:
     def get_attachment(self, ticket_id: int, attachment_id: int):
         """티켓 첨부파일 다운로드/조회 (Base64 반환)"""
         user = verify_gateway_request()
-        ticket = request.env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
+        ticket = get_current_request().env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
         if not ticket.exists():
             raise UserError("Ticket not found.")
 
@@ -65,7 +66,7 @@ class AttachmentAPIController:
         if not is_officer and ticket.author_id.id != user.id and not ticket.is_faq:
             raise AccessError("Access denied to ticket attachment.")
 
-        attachment = request.env['ir.attachment'].sudo().browse(int(attachment_id))
+        attachment = get_current_request().env['ir.attachment'].sudo().browse(int(attachment_id))
         if not attachment.exists() or attachment.res_model != 'it.helpdesk.ticket' or attachment.res_id != ticket.id:
             raise UserError("Attachment not found.")
 

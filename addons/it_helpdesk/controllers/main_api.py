@@ -21,7 +21,6 @@ from .attachment_api import AttachmentAPIController
 _logger = logging.getLogger(__name__)
 
 class ITHelpdeskAPIController(
-    http.Controller,
     AuthAPIController,
     TicketQueryAPIController,
     TicketWorkflowAPIController,

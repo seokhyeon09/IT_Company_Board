@@ -95,10 +95,11 @@ async def resolve_ticket(
 @router.post("/{ticket_id}/restart")
 async def restart_ticket(
     ticket_id: int,
-    dto: TicketRestartDTO,
+    dto: Optional[TicketRestartDTO] = None,
     claims: dict = Depends(get_current_user_claims),
 ):
     """Restart a ticket for follow-up inquiry."""
+    dto = dto or TicketRestartDTO()
     return await workflow_service.restart_ticket(ticket_id, dto, claims)
 
 @router.post("/{ticket_id}/update-resolution")
@@ -129,27 +130,32 @@ async def start_progress_ticket(
 @router.post("/{ticket_id}/pending")
 async def pending_ticket(
     ticket_id: int,
-    dto: TicketPendingDTO,
+    dto: Optional[TicketPendingDTO] = None,
     claims: dict = Depends(get_current_user_claims),
 ):
     """Request employee additional response (status -> pending)."""
+    dto = dto or TicketPendingDTO()
     return await workflow_service.pending_ticket(ticket_id, dto, claims)
 
 @router.post("/{ticket_id}/close")
 async def close_ticket(
     ticket_id: int,
-    dto: TicketCloseDTO,
+    dto: Optional[TicketCloseDTO] = None,
     claims: dict = Depends(get_current_user_claims),
 ):
     """Force close a ticket by officer."""
+    dto = dto or TicketCloseDTO()
     return await workflow_service.close_ticket(ticket_id, dto, claims)
 
 @router.post("/{ticket_id}/cancel")
 async def cancel_ticket(
     ticket_id: int,
-    dto: TicketCancelDTO,
+    dto: Optional[TicketCancelDTO] = None,
     claims: dict = Depends(get_current_user_claims),
 ):
+    """Cancel ticket inquiry by author or officer."""
+    dto = dto or TicketCancelDTO()
+    return await workflow_service.cancel_ticket(ticket_id, dto, claims)
     """Cancel ticket inquiry by author or officer."""
     return await workflow_service.cancel_ticket(ticket_id, dto, claims)
 

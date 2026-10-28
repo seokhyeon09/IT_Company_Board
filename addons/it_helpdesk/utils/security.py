@@ -20,13 +20,22 @@ class ConcurrencyError(UserError):
         super().__init__(msg)
         self.current_write_date = current_write_date
 
+def get_current_request():
+    """Retrieve active Odoo request, checking main_api mock patch first."""
+    try:
+        from odoo.addons.it_helpdesk.controllers import main_api
+        return getattr(main_api, 'request', request)
+    except Exception:
+        return request
+
 def verify_gateway_request():
     """Verify HMAC signature from trusted FastAPI Gateway and switch user context.
     
     Hardened HMAC binds: HTTP Method, Path, User ID, Timestamp, and SHA-256 Body Hash.
     Falls back to current session user if authenticated directly.
     """
-    req = request.httprequest
+    req_proxy = get_current_request()
+    req = req_proxy.httprequest
     headers = req.headers
     user_id_str = headers.get("X-Gateway-User-Id")
     timestamp_str = headers.get("X-Gateway-Timestamp")
@@ -56,14 +65,14 @@ def verify_gateway_request():
         if not hmac.compare_digest(signature, expected_sig):
             raise AccessError("Unauthorized: Invalid gateway signature.")
 
-        user = request.env['res.users'].sudo().browse(uid)
+        user = req_proxy.env['res.users'].sudo().browse(uid)
         if not user.exists() or not user.active:
             raise AccessError("Unauthorized: Inactive or non-existent user identity.")
         return user
 
     # Fallback to direct session user if logged in
-    if request.session.uid:
-        user = request.env['res.users'].sudo().browse(request.session.uid)
+    if req_proxy.session.uid:
+        user = req_proxy.env['res.users'].sudo().browse(req_proxy.session.uid)
         if user.exists() and user.active:
             return user
 

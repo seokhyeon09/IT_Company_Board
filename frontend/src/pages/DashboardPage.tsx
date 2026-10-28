@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { apiClient, getErrorMessage } from '../api/client';
-import { DashboardStats, StatsData } from '../components/DashboardStats';
+import { DashboardStats, TicketStats } from '../components/DashboardStats';
 import { TicketCard, Ticket } from '../features/ticket/components/TicketCard';
-import { FaqAccordion, FaqItem } from '../components/FaqAccordion';
+import { FaqAccordion } from '../components/FaqAccordion';
 import { TicketDetailModal } from '../features/ticket/components/TicketDetailModal';
 import { TicketCreateModal } from '../features/ticket/components/TicketCreateModal';
 import { DashboardFilterBar } from '../features/dashboard/components/DashboardFilterBar';
@@ -14,7 +14,7 @@ const PAGE_SIZE = 12;
 
 export const DashboardPage: React.FC = () => {
   const { user } = useAuthStore();
-  const [stats, setStats] = useState<StatsData>({
+  const [stats, setStats] = useState<TicketStats>({
     total: 0,
     waiting: 0,
     in_progress: 0,
@@ -22,7 +22,7 @@ export const DashboardPage: React.FC = () => {
     overdue: 0,
   });
   const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [faqs, setFaqs] = useState<FaqItem[]>([]);
+  const [faqs, setFaqs] = useState<Ticket[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -214,7 +214,7 @@ export const DashboardPage: React.FC = () => {
           <p className="text-xs text-rose-700 font-semibold">{error}</p>
         </div>
       ) : activeTab === 'faq' ? (
-        <FaqAccordion items={faqs} onSelectTicket={(id) => setSelectedTicketId(id)} />
+        <FaqAccordion tickets={faqs} onSelectTicket={(id) => setSelectedTicketId(id)} />
       ) : tickets.length === 0 ? (
         <div className="py-20 flex flex-col items-center justify-center text-center bg-white rounded-2xl border border-slate-200/80 p-6">
           <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 mb-3">

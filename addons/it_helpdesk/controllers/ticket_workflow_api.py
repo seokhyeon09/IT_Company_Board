@@ -12,11 +12,12 @@ from ..utils import (
     parse_iso_utc,
     ConcurrencyError,
     verify_gateway_request,
+    get_current_request,
 )
 
 _logger = logging.getLogger(__name__)
 
-class TicketWorkflowAPIController:
+class TicketWorkflowAPIController(http.Controller):
     """Ticket Workflow State Transitions, Actions, and Resolutions API"""
 
     @http.route('/api/v1/tickets/resolve', type='json', auth='none', methods=['POST'], csrf=False)
@@ -26,7 +27,7 @@ class TicketWorkflowAPIController:
         if not (user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()):
             raise AccessError("Only helpdesk officers can resolve tickets.")
 
-        ticket = request.env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
+        ticket = get_current_request().env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
         if not ticket.exists():
             raise UserError("Ticket not found.")
 
@@ -72,7 +73,7 @@ class TicketWorkflowAPIController:
     def rate_ticket(self, ticket_id: int, rating: str, rating_comment: str = None, if_match_write_date: str = None):
         """요청 직원의 티켓 만족도 평가 및 자동 종결 처리"""
         user = verify_gateway_request()
-        ticket = request.env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
+        ticket = get_current_request().env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
         if not ticket.exists():
             raise UserError("Ticket not found.")
 
@@ -110,7 +111,7 @@ class TicketWorkflowAPIController:
         if not (user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()):
             raise AccessError("Only helpdesk officers can manage FAQ tickets.")
 
-        ticket = request.env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
+        ticket = get_current_request().env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
         if not ticket.exists():
             raise UserError("Ticket not found.")
 
@@ -130,7 +131,7 @@ class TicketWorkflowAPIController:
     def restart_ticket(self, ticket_id: int, reason: str = None):
         """직원의 추가 문의 (재문의: 답변대기, 해결완료, 종결 건 재개)"""
         user = verify_gateway_request()
-        ticket = request.env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
+        ticket = get_current_request().env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
         if not ticket.exists():
             raise UserError("Ticket not found.")
 
@@ -167,7 +168,7 @@ class TicketWorkflowAPIController:
         if not (user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()):
             raise AccessError("Only helpdesk officers can update resolution notes.")
 
-        ticket = request.env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
+        ticket = get_current_request().env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
         if not ticket.exists():
             raise UserError("Ticket not found.")
 
@@ -239,7 +240,7 @@ class TicketWorkflowAPIController:
         if not (user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()):
             raise AccessError("Only helpdesk officers can assign tickets.")
 
-        ticket = request.env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
+        ticket = get_current_request().env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
         if not ticket.exists():
             raise UserError("Ticket not found.")
 
@@ -264,7 +265,7 @@ class TicketWorkflowAPIController:
         if not (user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()):
             raise AccessError("Only helpdesk officers can change ticket status.")
 
-        ticket = request.env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
+        ticket = get_current_request().env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
         if not ticket.exists():
             raise UserError("Ticket not found.")
 
@@ -287,7 +288,7 @@ class TicketWorkflowAPIController:
         if not (user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()):
             raise AccessError("Only helpdesk officers can set ticket to pending.")
 
-        ticket = request.env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
+        ticket = get_current_request().env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
         if not ticket.exists():
             raise UserError("Ticket not found.")
 
@@ -316,7 +317,7 @@ class TicketWorkflowAPIController:
         if not (user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()):
             raise AccessError("Only helpdesk officers can close tickets.")
 
-        ticket = request.env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
+        ticket = get_current_request().env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
         if not ticket.exists():
             raise UserError("Ticket not found.")
 
@@ -347,7 +348,7 @@ class TicketWorkflowAPIController:
     def cancel_ticket(self, ticket_id: int, reason: str = None):
         """요청 직원 또는 IT 담당자의 문의 취소"""
         user = verify_gateway_request()
-        ticket = request.env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
+        ticket = get_current_request().env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
         if not ticket.exists():
             raise UserError("Ticket not found.")
 

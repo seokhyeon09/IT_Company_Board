@@ -10,4 +10,5 @@ from .security import (
     GATEWAY_SHARED_SECRET,
     ConcurrencyError,
     verify_gateway_request,
+    get_current_request,
 )
