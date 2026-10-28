@@ -32,6 +32,10 @@ export const DashboardPagination: React.FC<DashboardPaginationProps> = ({
   const currentBlock = Math.floor((page - 1) / BLOCK_SIZE);
   const startPage = currentBlock * BLOCK_SIZE + 1;
   const endPage = Math.min(startPage + BLOCK_SIZE - 1, totalPages);
+  const prevBlockPage = startPage - BLOCK_SIZE;
+  const nextBlockPage = startPage + BLOCK_SIZE;
+  const hasPrevBlock = startPage > 1;
+  const hasNextBlock = endPage < totalPages;
 
   const pageNumbers = Array.from(
     { length: endPage - startPage + 1 },
@@ -70,7 +74,7 @@ export const DashboardPagination: React.FC<DashboardPaginationProps> = ({
       </div>
 
       <div className="flex flex-wrap items-center justify-center gap-2">
-        {/* 처음 / 이전 버튼 */}
+        {/* 처음 / 이전 블록 버튼 */}
         <div className="flex items-center space-x-1">
           <button
             type="button"
@@ -83,8 +87,9 @@ export const DashboardPagination: React.FC<DashboardPaginationProps> = ({
           </button>
           <button
             type="button"
-            disabled={page <= 1}
-            onClick={() => onPageChange(Math.max(1, page - 1))}
+            disabled={!hasPrevBlock}
+            onClick={() => onPageChange(Math.max(1, prevBlockPage))}
+            title="이전 5개 페이지"
             className="flex items-center px-2.5 h-8 text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
           >
             <ChevronLeft className="w-3.5 h-3.5 mr-0.5" />
@@ -110,12 +115,13 @@ export const DashboardPagination: React.FC<DashboardPaginationProps> = ({
           ))}
         </div>
 
-        {/* 다음 / 끝 버튼 */}
+        {/* 다음 블록 / 끝 버튼 */}
         <div className="flex items-center space-x-1">
           <button
             type="button"
-            disabled={page >= totalPages}
-            onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+            disabled={!hasNextBlock}
+            onClick={() => onPageChange(Math.min(totalPages, nextBlockPage))}
+            title="다음 5개 페이지"
             className="flex items-center px-2.5 h-8 text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
           >
             다음
