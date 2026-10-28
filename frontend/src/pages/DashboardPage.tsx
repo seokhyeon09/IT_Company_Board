@@ -9,13 +9,15 @@ import { TicketCreateModal } from '../features/ticket/components/TicketCreateMod
 import { DashboardFilterBar } from '../features/dashboard/components/DashboardFilterBar';
 import { DashboardPagination } from '../features/dashboard/components/DashboardPagination';
 import { OfficerStatsModal } from '../features/dashboard/components/OfficerStatsModal';
-import { EmailNotificationModal } from '../features/dashboard/components/EmailNotificationModal';
+import { EmailNotificationModal } from '../features/notification/components/EmailNotificationModal';
+import { useEmailNotifications } from '../features/notification/hooks/useEmailNotifications';
 import { Plus, RefreshCw, Inbox, BarChart3, Mail } from 'lucide-react';
 
 const PAGE_SIZE = 12;
 
 export const DashboardPage: React.FC = () => {
   const { user } = useAuthStore();
+  const mail = useEmailNotifications(user?.uid);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -105,6 +107,7 @@ export const DashboardPage: React.FC = () => {
   const refreshAll = () => {
     fetchStats();
     fetchTickets();
+    mail.refresh();
   };
 
   const handleStatsCardClick = (targetStatus: string) => {
@@ -159,10 +162,18 @@ export const DashboardPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsEmailModalOpen(true)}
-            className="flex items-center px-3.5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-semibold text-xs rounded-xl shadow-xs transition-all cursor-pointer"
+            className="relative flex items-center px-3.5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-semibold text-xs rounded-xl shadow-xs transition-all cursor-pointer"
           >
             <Mail className="w-4 h-4 mr-1.5 text-indigo-600" />
             이메일 알림 내역
+            {mail.unreadCount > 0 && (
+              <span
+                className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-rose-500 text-white text-[10px] font-bold rounded-full ring-2 ring-white"
+                title={`미확인 메일 ${mail.unreadCount}건`}
+              >
+                {mail.unreadCount > 99 ? '99+' : mail.unreadCount}
+              </span>
+            )}
           </button>
           {user?.is_officer && (
             <button
@@ -315,6 +326,14 @@ export const DashboardPage: React.FC = () => {
       {/* Mock Email Notification Center Modal */}
       <EmailNotificationModal
         isOpen={isEmailModalOpen}
+        isOfficer={Boolean(user?.is_officer)}
+        items={mail.items}
+        loading={mail.loading}
+        error={mail.error}
+        isRead={mail.isRead}
+        onMarkRead={mail.markRead}
+        onMarkAllRead={mail.markAllRead}
+        onRefresh={mail.refresh}
         onClose={() => setIsEmailModalOpen(false)}
         onSelectTicket={(id) => setSelectedTicketId(id)}
       />
