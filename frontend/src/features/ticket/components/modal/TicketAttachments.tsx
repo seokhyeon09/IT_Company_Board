@@ -27,7 +27,7 @@ export const TicketAttachments: React.FC<TicketAttachmentsProps> = ({
         <div className="flex items-center space-x-1.5">
           <Paperclip className="w-4 h-4 text-slate-600" />
           <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-            첨부파일 ({count}개)
+            첨부파일 ({count}건)
           </h4>
         </div>
         {canUpload && (
@@ -40,7 +40,7 @@ export const TicketAttachments: React.FC<TicketAttachmentsProps> = ({
             ) : (
               <>
                 <Paperclip className="w-3.5 h-3.5 mr-1" />
-                파일 추가
+                파일 첨부
               </>
             )}
             <input
@@ -48,6 +48,7 @@ export const TicketAttachments: React.FC<TicketAttachmentsProps> = ({
               onChange={onFileUpload}
               disabled={uploadingAttachment}
               className="hidden"
+              accept="image/*,.log,.txt,.pdf"
             />
           </label>
         )}
@@ -64,13 +65,13 @@ export const TicketAttachments: React.FC<TicketAttachmentsProps> = ({
                 key={att.id}
                 className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs hover:bg-slate-100 transition-all"
               >
-                <div className="flex items-center space-x-2 truncate pr-2">
+                <div className="flex items-center space-x-2 truncate min-w-0">
                   {isImage ? (
                     <Image className="w-4 h-4 text-indigo-500 shrink-0" />
                   ) : (
-                    <FileText className="w-4 h-4 text-slate-500 shrink-0" />
+                    <FileText className="w-4 h-4 text-slate-400 shrink-0" />
                   )}
-                  <span className="font-medium text-slate-700 truncate" title={att.name}>
+                  <span className="truncate font-semibold text-slate-700" title={att.name}>
                     {att.name}
                   </span>
                   {att.file_size ? (
@@ -84,11 +85,11 @@ export const TicketAttachments: React.FC<TicketAttachmentsProps> = ({
                   type="button"
                   onClick={() => onFileDownload(att)}
                   disabled={isDownloading}
-                  className="flex items-center text-indigo-600 hover:text-indigo-800 p-1 rounded hover:bg-white transition-colors shrink-0 cursor-pointer"
+                  className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-white rounded-lg transition-all cursor-pointer shrink-0 ml-2"
                   title="다운로드"
                 >
                   {isDownloading ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
                   ) : (
                     <Download className="w-3.5 h-3.5" />
                   )}
@@ -98,7 +99,9 @@ export const TicketAttachments: React.FC<TicketAttachmentsProps> = ({
           })}
         </div>
       ) : (
-        <p className="text-xs text-slate-400 py-1 italic">첨부된 파일이 없습니다.</p>
+        <div className="text-xs text-slate-400 italic p-2 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 text-center">
+          등록된 첨부파일이 없습니다.
+        </div>
       )}
     </div>
   );

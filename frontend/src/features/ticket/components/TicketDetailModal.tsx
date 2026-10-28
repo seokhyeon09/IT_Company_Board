@@ -29,52 +29,44 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        {s.loading ? (
-          <div className="p-12 flex flex-col items-center justify-center space-y-3">
-            <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
-            <p className="text-xs text-slate-500 font-medium">상세 정보를 불러오는 중입니다...</p>
-          </div>
-        ) : s.fetchError ? (
-          <div className="p-8 text-center space-y-3">
-            <p className="text-sm text-rose-600 font-medium">{s.fetchError}</p>
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200"
-            >
-              닫기
-            </button>
-          </div>
-        ) : s.ticket ? (
-          <>
-            <TicketHeader
-              ticket={s.ticket}
-              isOfficer={s.isOfficer}
-              isAuthor={s.isAuthor}
-              togglingFaq={s.togglingFaq}
-              onToggleFaq={s.handleToggleFaq}
-              onClose={onClose}
-              onOpenCancel={() => {
-                s.setShowCancelModal(true);
-                s.setCancelReason('');
-              }}
-              isEditingTicket={s.isEditingTicket}
-              onStartEditTicket={() => {
-                s.setEditTitle(s.ticket?.title || '');
-                s.setEditCategory(s.ticket?.category || 'sw');
-                s.setEditPriority(s.ticket?.priority || '1');
-                s.setEditContent(s.ticket?.content || '');
-                s.setIsEditingTicket(true);
-              }}
-            />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-100">
+        {/* Header */}
+        <TicketHeader
+          ticket={s.ticket}
+          isOfficer={s.isOfficer}
+          togglingFaq={s.togglingFaq}
+          onToggleFaq={s.handleToggleFaq}
+          onClose={onClose}
+        />
 
-            <div className="p-6 overflow-y-auto flex-1 space-y-6">
+        {/* Content Body */}
+        <div className="p-6 overflow-y-auto space-y-6 flex-1 text-sm text-slate-700">
+          {s.loading ? (
+            <div className="py-20 text-center text-slate-400 flex flex-col items-center justify-center">
+              <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-3" />
+              티켓 상세 정보를 불러오는 중입니다...
+            </div>
+          ) : s.fetchError ? (
+            <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-center">
+              <p className="font-bold">오류</p>
+              <p className="text-xs mt-1">{s.fetchError}</p>
+            </div>
+          ) : s.ticket ? (
+            <>
               <TicketMainContent
                 ticket={s.ticket}
                 isAuthor={s.isAuthor}
+                isOfficer={s.isOfficer}
                 isEditingTicket={s.isEditingTicket}
+                onStartEditTicket={() => {
+                  s.setEditTitle(s.ticket?.title || '');
+                  s.setEditCategory(s.ticket?.category || 'sw');
+                  s.setEditPriority(s.ticket?.priority || '1');
+                  s.setEditContent(s.ticket?.content || '');
+                  s.setIsEditingTicket(true);
+                  s.setEditTicketError('');
+                }}
                 editTitle={s.editTitle}
                 setEditTitle={s.setEditTitle}
                 editCategory={s.editCategory}
@@ -87,8 +79,24 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 editTicketError={s.editTicketError}
                 onCancelEditTicket={() => s.setIsEditingTicket(false)}
                 onSubmitEditTicket={s.handleUpdateTicketSubmit}
+                showCancelModal={s.showCancelModal}
+                onOpenCancelModal={() => {
+                  s.setShowCancelModal(true);
+                  s.setCancelReason('');
+                  s.setCancelError('');
+                }}
+                onCloseCancelModal={() => s.setShowCancelModal(false)}
+                cancelReason={s.cancelReason}
+                setCancelReason={s.setCancelReason}
+                submittingCancel={s.submittingCancel}
+                cancelError={s.cancelError}
+                onSubmitCancel={s.handleCancelSubmit}
                 showPendingReplyForm={s.showPendingReplyForm}
-                onOpenPendingReply={() => s.setShowPendingReplyForm(true)}
+                onOpenPendingReply={() => {
+                  s.setShowPendingReplyForm(true);
+                  s.setPendingReplyText('');
+                  s.setPendingReplyError('');
+                }}
                 onClosePendingReply={() => s.setShowPendingReplyForm(false)}
                 pendingReplyText={s.pendingReplyText}
                 setPendingReplyText={s.setPendingReplyText}
@@ -103,14 +111,32 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 transitioningStatus={s.transitioningStatus}
                 onAssignToMe={s.handleAssignToMe}
                 onStartProgress={s.handleStartProgress}
-                onOpenPending={() => {
-                  s.setShowPendingModal(true);
+                showPendingModal={s.showPendingModal}
+                onTogglePending={() => {
+                  s.setShowPendingModal((prev) => !prev);
                   s.setPendingReason('');
+                  s.setPendingError('');
+                  s.setShowCloseModal(false);
                 }}
+                onClosePendingModal={() => s.setShowPendingModal(false)}
+                pendingReason={s.pendingReason}
+                setPendingReason={s.setPendingReason}
+                submittingPending={s.submittingPending}
+                pendingError={s.pendingError}
+                onSubmitPending={s.handlePendingSubmit}
+                showCloseModal={s.showCloseModal}
                 onOpenClose={() => {
                   s.setShowCloseModal(true);
                   s.setCloseNote('');
+                  s.setCloseError('');
+                  s.setShowPendingModal(false);
                 }}
+                onCloseCloseModal={() => s.setShowCloseModal(false)}
+                closeNote={s.closeNote}
+                setCloseNote={s.setCloseNote}
+                submittingClose={s.submittingClose}
+                closeError={s.closeError}
+                onSubmitClose={s.handleCloseSubmit}
               />
 
               <TicketAttachments
@@ -124,6 +150,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
 
               <TicketTimeline
                 timeline={s.ticket.timeline}
+                fallbackContent={s.ticket.content}
                 isOfficer={s.isOfficer}
                 isEditingResolution={s.isEditingResolution}
                 onStartEditResolution={() => {
@@ -134,20 +161,20 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                       : s.ticket?.resolution_note || '';
                   s.setEditResolutionNote(formatHtmlContent(latestNote));
                   s.setIsEditingResolution(true);
+                  s.setEditResolutionError('');
                 }}
-              />
-
-              <TicketActionForms
-                ticket={s.ticket}
-                isOfficer={s.isOfficer}
-                isAuthor={s.isAuthor}
-                isEditingResolution={s.isEditingResolution}
                 editResolutionNote={s.editResolutionNote}
                 setEditResolutionNote={s.setEditResolutionNote}
                 submittingEditResolution={s.submittingEditResolution}
                 editResolutionError={s.editResolutionError}
                 onCancelEditResolution={() => s.setIsEditingResolution(false)}
                 onSubmitEditResolution={s.handleUpdateResolutionSubmit}
+              />
+
+              <TicketActionForms
+                ticket={s.ticket}
+                isOfficer={s.isOfficer}
+                isAuthor={s.isAuthor}
                 resolutionNote={s.resolutionNote}
                 setResolutionNote={s.setResolutionNote}
                 submittingResolve={s.submittingResolve}
@@ -157,6 +184,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 onOpenRestart={() => {
                   s.setShowRestartForm(true);
                   s.setRestartReason('');
+                  s.setRestartError('');
                 }}
                 onCloseRestart={() => s.setShowRestartForm(false)}
                 restartReason={s.restartReason}
@@ -171,43 +199,23 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 submittingRating={s.submittingRating}
                 ratingError={s.ratingError}
                 onSubmitRating={s.handleRatingSubmit}
-                showCancelModal={s.showCancelModal}
-                onCloseCancelModal={() => s.setShowCancelModal(false)}
-                cancelReason={s.cancelReason}
-                setCancelReason={s.setCancelReason}
-                submittingCancel={s.submittingCancel}
-                cancelError={s.cancelError}
-                onSubmitCancel={s.handleCancelSubmit}
-                showCloseModal={s.showCloseModal}
-                onCloseCloseModal={() => s.setShowCloseModal(false)}
-                closeNote={s.closeNote}
-                setCloseNote={s.setCloseNote}
-                submittingClose={s.submittingClose}
-                closeError={s.closeError}
-                onSubmitClose={s.handleCloseSubmit}
-                showPendingModal={s.showPendingModal}
-                onClosePendingModal={() => s.setShowPendingModal(false)}
-                pendingReason={s.pendingReason}
-                setPendingReason={s.setPendingReason}
-                submittingPending={s.submittingPending}
-                pendingError={s.pendingError}
-                onSubmitPending={s.handlePendingSubmit}
               />
 
               <TicketOfficerLogs logs={s.ticket.logs} isOfficer={s.isOfficer} />
-            </div>
+            </>
+          ) : null}
+        </div>
 
-            <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex justify-end">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors shadow-2xs"
-              >
-                닫기
-              </button>
-            </div>
-          </>
-        ) : null}
+        {/* Footer */}
+        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 transition-all cursor-pointer"
+          >
+            닫기
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -1,10 +1,12 @@
 import React from 'react';
-import { RotateCcw, Loader2 } from 'lucide-react';
+import { RotateCcw, MessageSquare, CheckCircle2, Loader2 } from 'lucide-react';
+import { ThreadItem } from '../../../types/ticket';
 
 interface RestartInquiryFormProps {
   isAuthor: boolean;
   isResolved: boolean;
   isClosed: boolean;
+  timeline?: ThreadItem[];
   showRestartForm: boolean;
   onOpenRestart: () => void;
   onCloseRestart: () => void;
@@ -19,6 +21,7 @@ export const RestartInquiryForm: React.FC<RestartInquiryFormProps> = ({
   isAuthor,
   isResolved,
   isClosed,
+  timeline,
   showRestartForm,
   onOpenRestart,
   onCloseRestart,
@@ -28,6 +31,9 @@ export const RestartInquiryForm: React.FC<RestartInquiryFormProps> = ({
   restartError,
   onSubmitRestart,
 }) => {
+  const nextInquiryRound =
+    (timeline?.filter((t) => t.type === 'inquiry').length || 1) + 1;
+
   return (
     <>
       {isAuthor && isResolved && (
@@ -36,32 +42,32 @@ export const RestartInquiryForm: React.FC<RestartInquiryFormProps> = ({
             <div className="flex items-center space-x-1.5">
               <RotateCcw className="w-4 h-4 text-purple-600" />
               <span className="text-xs font-bold text-purple-900 uppercase tracking-wider">
-                추가 재문의가 필요하신가요?
+                추가 문의하기 (문의 {nextInquiryRound}차)
               </span>
             </div>
             {!showRestartForm && (
               <button
                 type="button"
                 onClick={onOpenRestart}
-                className="flex items-center text-xs font-semibold text-purple-700 bg-white border border-purple-300 hover:bg-purple-100/70 px-2.5 py-1 rounded-lg transition-all cursor-pointer shadow-2xs"
+                className="flex items-center px-3 py-1.5 text-xs font-semibold text-purple-700 bg-white border border-purple-300 rounded-lg hover:bg-purple-100/50 transition-all cursor-pointer shadow-xs"
               >
-                추가 재문의 작성
+                <MessageSquare className="w-3.5 h-3.5 mr-1" />
+                추가 문의하기 (문의 {nextInquiryRound}차)
               </button>
             )}
           </div>
 
-          {showRestartForm && (
+          {showRestartForm ? (
             <form onSubmit={onSubmitRestart} className="space-y-3 mt-3">
               <p className="text-xs text-purple-800">
-                조치 내용에 미흡한 점이 있거나 추가 문의사항이 있으시면 입력해 주세요. 담당자에게 알림이 전달되며 처리가 다시 시작됩니다.
+                조치 내용에 대해 미해결된 사항이나 추가 문의사항을 남겨주시면 담당자에게 재배정되어 처리가 다시 시작됩니다.
               </p>
               <textarea
+                rows={3}
                 value={restartReason}
                 onChange={(e) => setRestartReason(e.target.value)}
-                placeholder="재문의할 내용을 구체적으로 작성해 주세요..."
-                rows={3}
-                required
-                className="w-full text-xs p-2.5 bg-white border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none"
+                placeholder="추가 문의하실 상세 내용을 입력하세요 (최소 5자)..."
+                className="w-full px-3.5 py-2.5 text-xs border border-purple-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-slate-800"
               />
               {restartError && (
                 <p className="text-xs text-rose-600 font-medium">{restartError}</p>
@@ -77,20 +83,31 @@ export const RestartInquiryForm: React.FC<RestartInquiryFormProps> = ({
                 <button
                   type="submit"
                   disabled={submittingRestart}
-                  className="flex items-center px-3.5 py-1.5 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-lg shadow-2xs cursor-pointer"
+                  className="flex items-center px-4 py-1.5 text-xs font-semibold text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-all cursor-pointer"
                 >
-                  {submittingRestart && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
-                  재문의 등록
+                  {submittingRestart ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                      등록 중...
+                    </>
+                  ) : (
+                    '재문의 등록'
+                  )}
                 </button>
               </div>
             </form>
+          ) : (
+            <p className="text-xs text-purple-700 mt-1">
+              조치 결과에 대해 추가 확인이 필요한 경우 재문의를 통해 다시 처리를 요청하실 수 있습니다.
+            </p>
           )}
         </div>
       )}
 
       {isClosed && (
-        <div className="p-3 bg-slate-100 border border-slate-200 rounded-xl text-center text-xs text-slate-500 font-medium">
-          본 문의는 최종 종결 처리되어 추가 재문의가 불가합니다.
+        <div className="p-3.5 bg-slate-100 border border-slate-200 rounded-xl text-slate-600 text-xs flex items-center">
+          <CheckCircle2 className="w-4 h-4 mr-2 text-slate-500 shrink-0" />
+          <span>본 문의는 최종 종결 처리되어 추가 재문의가 불가합니다.</span>
         </div>
       )}
     </>

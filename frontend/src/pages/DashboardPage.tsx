@@ -8,24 +8,21 @@ import { TicketDetailModal } from '../features/ticket/components/TicketDetailMod
 import { TicketCreateModal } from '../features/ticket/components/TicketCreateModal';
 import { DashboardFilterBar } from '../features/dashboard/components/DashboardFilterBar';
 import { DashboardPagination } from '../features/dashboard/components/DashboardPagination';
-import { Plus, Loader2, Inbox } from 'lucide-react';
+import { Plus, RefreshCw, Inbox } from 'lucide-react';
 
 const PAGE_SIZE = 12;
 
 export const DashboardPage: React.FC = () => {
   const { user } = useAuthStore();
-  const [stats, setStats] = useState<TicketStats>({
-    total: 0,
-    waiting: 0,
-    in_progress: 0,
-    resolved: 0,
-    overdue: 0,
-  });
   const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [faqs, setFaqs] = useState<Ticket[]>([]);
   const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<TicketStats | null>(null);
+
+  // Modals
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
 
   // Filters
   const [activeTab, setActiveTab] = useState<'all' | 'faq'>('all');
@@ -40,20 +37,26 @@ export const DashboardPage: React.FC = () => {
   // Pagination
   const [page, setPage] = useState(1);
 
-  // Modals
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
-
-  // Search debounce
+  // Debounce search input (300ms)
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const handler = setTimeout(() => {
       setDebouncedSearch(search);
       setPage(1);
     }, 300);
-    return () => clearTimeout(timer);
+    return () => clearTimeout(handler);
   }, [search]);
 
-  // Fetch Tickets
+  // Fetch KPI Stats
+  const fetchStats = async () => {
+    try {
+      const res = await apiClient.get('/tickets/stats');
+      setStats(res.data.data);
+    } catch (err) {
+      console.error('Failed to fetch ticket stats:', err);
+    }
+  };
+
+  // Fetch Tickets List
   const fetchTickets = async () => {
     setLoading(true);
     setError(null);
@@ -72,38 +75,33 @@ export const DashboardPage: React.FC = () => {
 
       if (activeTab === 'faq') {
         params.is_faq = true;
-        const res = await apiClient.get('/tickets', { params });
-        setFaqs(res.data.data || []);
-        setTotal(res.data.total || 0);
-      } else {
-        const res = await apiClient.get('/tickets', { params });
-        setTickets(res.data.data || []);
-        setTotal(res.data.total || 0);
       }
+
+      const res = await apiClient.get('/tickets', { params });
+      setTickets(res.data.data || []);
+      setTotal(res.data.total || 0);
     } catch (err: any) {
+      console.error('Failed to fetch tickets:', err);
       setError(getErrorMessage(err, '티켓 목록을 불러오지 못했습니다.'));
     } finally {
       setLoading(false);
     }
   };
 
+  // Trigger list fetch when filter states change
   useEffect(() => {
     fetchTickets();
   }, [activeTab, debouncedSearch, statusFilter, categoryFilter, priorityFilter, isOverdueOnly, sortBy, page]);
 
-  // Fetch Stats
-  const fetchStats = async () => {
-    try {
-      const res = await apiClient.get('/tickets/stats');
-      setStats(res.data.data);
-    } catch (err) {
-      console.error('Failed to fetch stats:', err);
-    }
-  };
-
+  // Initial stats fetch
   useEffect(() => {
     fetchStats();
   }, []);
+
+  const refreshAll = () => {
+    fetchStats();
+    fetchTickets();
+  };
 
   const handleStatsCardClick = (targetStatus: string) => {
     setPage(1);
@@ -112,6 +110,7 @@ export const DashboardPage: React.FC = () => {
       setStatusFilter('');
     } else {
       setIsOverdueOnly(false);
+      setSortBy('id desc');
       setStatusFilter((prev) => (prev === targetStatus ? '' : targetStatus));
     }
   };
@@ -133,36 +132,46 @@ export const DashboardPage: React.FC = () => {
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      {/* Top Banner & Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Top Banner & Action */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-            {user?.is_officer ? 'IT 헬프데스크 관리 센터' : '사내 IT 지원 센터'}
-          </h1>
-          <p className="text-xs text-slate-500 mt-1 font-medium">
-            {user?.name}님 환영합니다. 전산/계정/하드웨어 요청을 신속히 지원합니다.
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight">IT 지원 대시보드</h2>
+          <p className="text-sm text-slate-500 mt-1">
+            {user?.is_officer
+              ? 'IT 담당자 전용: 전체 티켓 현황, SLA 모니터링 및 조치 관리를 수행합니다.'
+              : '사원 전용: 내 문의 내역 및 사내 FAQ 지식창고를 확인합니다.'}
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setIsCreateOpen(true)}
-          className="flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-md shadow-indigo-100 hover:shadow-indigo-200 transition-all cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>새 문의 접수</span>
-        </button>
+        <div className="flex items-center space-x-3">
+          <button
+            type="button"
+            onClick={refreshAll}
+            className="p-2.5 text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition-all shadow-xs cursor-pointer"
+            title="새로고침"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl shadow-md shadow-indigo-500/20 transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4 mr-1.5" />
+            새 문의 접수
+          </button>
+        </div>
       </div>
 
-      {/* KPI Stats Widget */}
+      {/* KPI Stats Widgets */}
       <DashboardStats
         stats={stats}
         selectedStatus={isOverdueOnly ? 'overdue' : statusFilter}
         onSelectStatus={handleStatsCardClick}
       />
 
-      {/* 2-Row Filter Bar */}
+      {/* Filter and Search Bar */}
       <DashboardFilterBar
         isOfficer={Boolean(user?.is_officer)}
         activeTab={activeTab}
@@ -175,7 +184,6 @@ export const DashboardPage: React.FC = () => {
         isOverdueOnly={isOverdueOnly}
         onToggleOverdue={() => {
           setIsOverdueOnly((prev) => !prev);
-          setStatusFilter('');
           setPage(1);
         }}
         statusFilter={statusFilter}
@@ -203,28 +211,24 @@ export const DashboardPage: React.FC = () => {
         onResetFilters={resetFilters}
       />
 
-      {/* Content Area */}
+      {/* Ticket Grid List */}
       {loading ? (
-        <div className="py-24 flex flex-col items-center justify-center space-y-3">
-          <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
-          <p className="text-xs text-slate-500 font-medium">티켓 목록을 불러오는 중입니다...</p>
+        <div className="py-20 text-center text-slate-400 text-sm flex flex-col items-center justify-center">
+          <RefreshCw className="w-8 h-8 animate-spin text-indigo-500 mb-3" />
+          티켓 목록을 불러오는 중입니다...
         </div>
       ) : error ? (
         <div className="p-8 text-center bg-rose-50 border border-rose-200 rounded-2xl">
           <p className="text-xs text-rose-700 font-semibold">{error}</p>
         </div>
-      ) : activeTab === 'faq' ? (
-        <FaqAccordion tickets={faqs} onSelectTicket={(id) => setSelectedTicketId(id)} />
       ) : tickets.length === 0 ? (
-        <div className="py-20 flex flex-col items-center justify-center text-center bg-white rounded-2xl border border-slate-200/80 p-6">
-          <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 mb-3">
-            <Inbox className="w-6 h-6" />
-          </div>
-          <h3 className="text-sm font-bold text-slate-700">조회된 티켓이 없습니다</h3>
+        <div className="py-24 text-center bg-white rounded-3xl border border-slate-200 shadow-xs flex flex-col items-center justify-center">
+          <Inbox className="w-12 h-12 text-slate-300 mb-3" />
+          <h3 className="font-bold text-slate-700 text-base">조회된 문의 내역이 없습니다</h3>
           <p className="text-xs text-slate-400 mt-1 max-w-sm">
             {hasActiveFilters
-              ? '지정한 검색어나 필터 조건에 일치하는 티켓이 없습니다.'
-              : '등록된 티켓이 없습니다. 상단 "새 문의 접수" 버튼을 눌러 티켓을 등록해보세요.'}
+              ? '지정한 검색어나 필터 조건에 일치하는 항목이 없습니다.'
+              : '등록된 티켓이 없습니다. 상단의 "새 문의 접수" 버튼을 눌러 티켓을 등록해보세요.'}
           </p>
           {hasActiveFilters && (
             <button
@@ -238,16 +242,24 @@ export const DashboardPage: React.FC = () => {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {tickets.map((ticket) => (
-              <TicketCard
-                key={ticket.id}
-                ticket={ticket}
-                onClick={(t) => setSelectedTicketId(t.id)}
-              />
-            ))}
-          </div>
+          {activeTab === 'faq' ? (
+            <FaqAccordion
+              tickets={tickets}
+              onSelectTicket={(id) => setSelectedTicketId(id)}
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {tickets.map((ticket) => (
+                <TicketCard
+                  key={ticket.id}
+                  ticket={ticket}
+                  onClick={(t) => setSelectedTicketId(t.id)}
+                />
+              ))}
+            </div>
+          )}
 
+          {/* Pagination Controls */}
           <DashboardPagination
             page={page}
             total={total}
@@ -257,24 +269,19 @@ export const DashboardPage: React.FC = () => {
         </>
       )}
 
-      {/* Modals */}
+      {/* Ticket Create Modal */}
       <TicketCreateModal
-        isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        onSuccess={() => {
-          fetchTickets();
-          fetchStats();
-        }}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={refreshAll}
       />
 
+      {/* Ticket Detail Modal */}
       <TicketDetailModal
         isOpen={selectedTicketId !== null}
         ticketId={selectedTicketId}
         onClose={() => setSelectedTicketId(null)}
-        onSuccess={() => {
-          fetchTickets();
-          fetchStats();
-        }}
+        onSuccess={refreshAll}
       />
     </div>
   );

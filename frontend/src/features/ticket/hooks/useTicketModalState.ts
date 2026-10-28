@@ -82,6 +82,9 @@ export function useTicketModalState(
     if (isOpen && ticketId) {
       fetchDetail(ticketId);
       resetForms();
+    } else {
+      setTicket(null);
+      setFetchError('');
     }
   }, [isOpen, ticketId]);
 
@@ -107,6 +110,8 @@ export function useTicketModalState(
     setPendingReplyText('');
     setPendingReplyError('');
     setShowCancelModal(false);
+    setCancelReason('');
+    setCancelError('');
     setIsEditingTicket(false);
     setEditTitle('');
     setEditCategory('');
@@ -155,7 +160,11 @@ export function useTicketModalState(
 
   const handleResolveSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ticket || !resolutionNote.trim()) return;
+    if (!ticket) return;
+    if (resolutionNote.trim().length < 5) {
+      setResolveError('조치 내용은 최소 5자 이상 상세히 입력해주세요.');
+      return;
+    }
     setSubmittingResolve(true);
     setResolveError('');
     try {
@@ -175,7 +184,11 @@ export function useTicketModalState(
 
   const handleUpdateResolutionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ticket || !editResolutionNote.trim()) return;
+    if (!ticket) return;
+    if (editResolutionNote.trim().length < 5) {
+      setEditResolutionError('수정할 조치 내용은 최소 5자 이상 상세히 입력해주세요.');
+      return;
+    }
     setSubmittingEditResolution(true);
     setEditResolutionError('');
     try {
@@ -196,11 +209,15 @@ export function useTicketModalState(
   const handleRestartSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ticket) return;
+    if (restartReason.trim().length < 5) {
+      setRestartError('재문의 사유 및 추가 질문 내용을 최소 5자 이상 입력해주세요.');
+      return;
+    }
     setSubmittingRestart(true);
     setRestartError('');
     try {
       await apiClient.post(`/tickets/${ticket.id}/restart`, {
-        reason: restartReason.trim() || undefined,
+        reason: restartReason.trim(),
       });
       setShowRestartForm(false);
       setRestartReason('');
@@ -215,7 +232,11 @@ export function useTicketModalState(
 
   const handlePendingReplySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ticket || !pendingReplyText.trim()) return;
+    if (!ticket) return;
+    if (pendingReplyText.trim().length < 5) {
+      setPendingReplyError('답변 회신 내용을 최소 5자 이상 입력해주세요.');
+      return;
+    }
     setSubmittingPendingReply(true);
     setPendingReplyError('');
     try {
@@ -284,11 +305,15 @@ export function useTicketModalState(
   const handlePendingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ticket) return;
+    if (!pendingReason.trim()) {
+      setPendingError('사원에게 요청할 확인 사항이나 사유를 입력해주세요.');
+      return;
+    }
     setSubmittingPending(true);
     setPendingError('');
     try {
       await apiClient.post(`/tickets/${ticket.id}/pending`, {
-        reason: pendingReason.trim() || undefined,
+        reason: pendingReason.trim(),
       });
       setShowPendingModal(false);
       await fetchDetail(ticket.id);
@@ -341,7 +366,11 @@ export function useTicketModalState(
 
   const handleUpdateTicketSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ticket || !editTitle.trim() || !editContent.trim()) return;
+    if (!ticket) return;
+    if (!editTitle.trim() || !editContent.trim()) {
+      setEditTicketError('제목과 내용을 모두 입력해주세요.');
+      return;
+    }
     setSubmittingEditTicket(true);
     setEditTicketError('');
     try {
@@ -393,8 +422,9 @@ export function useTicketModalState(
   const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!ticket || !e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
-    if (file.size > 10 * 1024 * 1024) {
-      alert('파일 크기는 최대 10MB를 초과할 수 없습니다.');
+    if (file.size > 5 * 1024 * 1024) {
+      alert('첨부파일은 최대 5MB까지만 업로드 가능합니다.');
+      e.target.value = '';
       return;
     }
     setUploadingAttachment(true);
@@ -412,6 +442,7 @@ export function useTicketModalState(
         alert(getErrorMessage(err, '첨부파일 업로드 실패'));
       } finally {
         setUploadingAttachment(false);
+        e.target.value = '';
       }
     };
     reader.readAsDataURL(file);
@@ -430,6 +461,7 @@ export function useTicketModalState(
     setResolutionNote,
     submittingResolve,
     resolveError,
+    setResolveError,
     handleResolveSubmit,
 
     // Edit resolution
@@ -439,6 +471,7 @@ export function useTicketModalState(
     setEditResolutionNote,
     submittingEditResolution,
     editResolutionError,
+    setEditResolutionError,
     handleUpdateResolutionSubmit,
 
     // Restart
@@ -448,6 +481,7 @@ export function useTicketModalState(
     setRestartReason,
     submittingRestart,
     restartError,
+    setRestartError,
     handleRestartSubmit,
 
     // Rating
@@ -457,6 +491,7 @@ export function useTicketModalState(
     setRatingComment,
     submittingRating,
     ratingError,
+    setRatingError,
     handleRatingSubmit,
 
     // Edit ticket
@@ -472,6 +507,7 @@ export function useTicketModalState(
     setEditContent,
     submittingEditTicket,
     editTicketError,
+    setEditTicketError,
     handleUpdateTicketSubmit,
 
     // Attachments
@@ -492,6 +528,7 @@ export function useTicketModalState(
     setCloseNote,
     submittingClose,
     closeError,
+    setCloseError,
     handleCloseSubmit,
 
     showPendingModal,
@@ -500,6 +537,7 @@ export function useTicketModalState(
     setPendingReason,
     submittingPending,
     pendingError,
+    setPendingError,
     handlePendingSubmit,
 
     showPendingReplyForm,
@@ -508,6 +546,7 @@ export function useTicketModalState(
     setPendingReplyText,
     submittingPendingReply,
     pendingReplyError,
+    setPendingReplyError,
     handlePendingReplySubmit,
 
     showCancelModal,
@@ -516,6 +555,7 @@ export function useTicketModalState(
     setCancelReason,
     submittingCancel,
     cancelError,
+    setCancelError,
     handleCancelSubmit,
 
     // FAQ

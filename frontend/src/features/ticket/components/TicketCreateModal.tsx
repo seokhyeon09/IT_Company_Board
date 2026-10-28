@@ -186,7 +186,12 @@ export const TicketCreateModal: React.FC<TicketCreateModalProps> = ({
               <label className="flex items-center text-xs font-semibold text-indigo-600 hover:text-indigo-800 cursor-pointer">
                 <Paperclip className="w-3.5 h-3.5 mr-1" />
                 파일 추가
-                <input type="file" onChange={handleFileChange} className="hidden" />
+                <input
+                  type="file"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  accept="image/*,.log,.txt,.pdf"
+                />
               </label>
             </div>
 

@@ -1,5 +1,11 @@
 import React from 'react';
-import { Search, RotateCcw, Clock, AlertTriangle } from 'lucide-react';
+import {
+  Search,
+  BookOpen,
+  X,
+  RotateCcw,
+  AlertTriangle,
+} from 'lucide-react';
 
 interface DashboardFilterBarProps {
   isOfficer: boolean;
@@ -41,64 +47,76 @@ export const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
   onResetFilters,
 }) => {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/80 p-4 mb-6 shadow-xs flex flex-col gap-3.5">
-      {/* Row 1: Tabs & Search + Overdue Toggle */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-        <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl w-fit">
+    <div className="bg-white rounded-2xl border border-slate-200 p-4 mb-6 shadow-xs space-y-3.5">
+      {/* Row 1: Left Tabs & Right Search/Overdue */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        {/* Left: View Tabs */}
+        <div className="flex space-x-2">
           <button
             type="button"
             onClick={() => onTabChange('all')}
-            className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'all'
-                ? 'bg-white text-indigo-700 shadow-2xs'
-                : 'text-slate-500 hover:text-slate-700'
+                ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-xs'
+                : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
-            {isOfficer ? '전체 문의' : '내 문의 목록'}
+            {isOfficer ? '전체 문의 목록' : '내 문의 내역'}
           </button>
           <button
             type="button"
             onClick={() => onTabChange('faq')}
-            className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+            className={`flex items-center px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'faq'
-                ? 'bg-white text-indigo-700 shadow-2xs'
-                : 'text-slate-500 hover:text-slate-700'
+                ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-xs'
+                : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
-            사내 FAQ
+            <BookOpen className="w-3.5 h-3.5 mr-1.5" />
+            FAQ 지식창고
           </button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Real-time search */}
-          <div className="relative flex-1 sm:w-64">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+        {/* Right: Search & Overdue Toggle */}
+        <div className="flex items-center gap-2.5">
+          {/* Debounced Search Input */}
+          <div className="relative">
             <input
               type="text"
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="문의 번호, 제목 검색..."
-              className="w-full text-xs pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+              placeholder="접수번호, 제목 실시간 검색..."
+              className="pl-8 pr-7 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 w-44 sm:w-56 transition-all bg-white"
             />
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-3" />
+            {search && (
+              <button
+                type="button"
+                onClick={() => onSearchChange('')}
+                className="absolute right-2 top-2.5 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
-          {/* Overdue toggle */}
+          {/* Overdue Quick Filter Toggle */}
           <button
             type="button"
             onClick={onToggleOverdue}
-            className={`flex items-center text-xs px-3 py-2 rounded-xl font-medium border transition-all cursor-pointer shrink-0 ${
+            className={`flex items-center px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer whitespace-nowrap shrink-0 ${
               isOverdueOnly
-                ? 'bg-rose-50 text-rose-700 border-rose-300 font-bold'
-                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                ? 'bg-rose-50 border-rose-300 text-rose-700 shadow-xs'
+                : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
             }`}
           >
-            <Clock className="w-3.5 h-3.5 mr-1.5 text-rose-500" />
+            <AlertTriangle className={`w-3.5 h-3.5 mr-1.5 ${isOverdueOnly ? 'text-rose-600' : 'text-slate-400'}`} />
             기한 초과만
           </button>
         </div>
       </div>
 
-      {/* Row 2: Status, Category, Priority, Sort Dropdowns & Reset */}
+      {/* Row 2: Multi Filter Selects & Sort */}
       <div className="border-t border-slate-100 pt-3 flex flex-wrap items-center justify-between gap-2.5">
         <div className="flex flex-wrap items-center gap-2">
           {/* Status Dropdown */}
@@ -123,7 +141,7 @@ export const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
             onChange={(e) => onCategoryChange(e.target.value)}
             className="text-xs border border-slate-300 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
           >
-            <option value="">전체 분류</option>
+            <option value="">전체 카테고리</option>
             <option value="hw">하드웨어</option>
             <option value="sw">소프트웨어</option>
             <option value="network">네트워크</option>
@@ -137,7 +155,7 @@ export const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
             onChange={(e) => onPriorityChange(e.target.value)}
             className="text-xs border border-slate-300 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
           >
-            <option value="">전체 긴급도</option>
+            <option value="">전체 우선순위</option>
             <option value="3">긴급</option>
             <option value="2">높음</option>
             <option value="1">보통</option>
@@ -154,7 +172,7 @@ export const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
             <option value="id asc">오래된 등록순</option>
             <option value="deadline asc">SLA 마감 임박순</option>
             <option value="priority desc">긴급도 높은순</option>
-            <option value="write_date desc">최근 조치/수정순</option>
+            <option value="write_date desc">최근 업데이트순</option>
           </select>
         </div>
 
