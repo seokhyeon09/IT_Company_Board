@@ -17,7 +17,7 @@ AUTHOR_EVENTS = ("assigned", "pending_request", "resolved")
 ASSIGNEE_EVENTS = ("assigned", "follow_up", "rated")
 
 
-def _mail(ticket, suffix, event_type, audience, recipient, subject, body, sent_at):
+def _mail(ticket, suffix, event_type, audience, recipient, subject, body, sent_at, is_read=False):
     return {
         "id": f"{ticket.id}-{suffix}",
         "ticket_id": ticket.id,
@@ -33,6 +33,7 @@ def _mail(ticket, suffix, event_type, audience, recipient, subject, body, sent_a
         "body_preview": body,
         "sent_at": sent_at,
         "status": SENT_STATUS,
+        "is_read": bool(is_read),
     }
 
 
@@ -73,9 +74,9 @@ def _collect_events(ticket):
                 f"안녕하세요 {a_name}님,\n문의하신 '{title}' ({num}) 건에 담당자({s_name})가 배정되어 확인을 시작했습니다.",
                 at,
             ))
-            # 담당자용 배정 알림: 타인(관리자/동료)이 나를 지정 배정한 경우에만 발송
-            # 본인이 스스로 내게 배정한 경우에는 불필요한 알림이므로 담당자 메일 발송 제외
-            # msg.author_id는 res.partner이고 assignee는 res.users이므로 partner_id로 비교
+            # 담당자용 배정 메일 생성:
+            # - 타인 지정 배정: is_read=False (새 메일 알림)
+            # - 본인 셀프 배정: 다른 메일과 똑같이 메일함에 오되, 자동으로 읽음(is_read=True) 처리되어 기기 변경 시에도 빨간점 미점등
             assigner = msg.author_id
             assigner_name = assigner.name if assigner else "관리자"
             is_designated = "지정 배정하였습니다" in clean_b
@@ -89,6 +90,15 @@ def _collect_events(ticket):
                     f"[IT 헬프데스크] {assigner_name}님이 회원님을 담당자로 지정했습니다 ({num})",
                     f"{s_name} 담당자님,\n{assigner_name}님이 '{title}' ({num}) 티켓의 담당자로 회원님을 지정 배정하였습니다. 확인 후 처리를 진행해 주세요.",
                     at,
+                    is_read=False,
+                ))
+            else:
+                events.append(_mail(
+                    ticket, sfx + "-s", "assigned", "assignee", assignee,
+                    f"[IT 헬프데스크] 담당자({s_name})가 배정되었습니다 ({num})",
+                    f"{s_name} 담당자님,\n'{title}' ({num}) 문의를 접수하여 담당자로 배정되었습니다.",
+                    at,
+                    is_read=True,
                 ))
         elif 'data-msg-type="pending_request"' in body_un or "[답변 대기 요청]" in clean_b:
             c = _extract_thread_content(body, ['data-msg-type="pending_request">', '[답변 대기 요청]']) or clean_b
@@ -130,6 +140,12 @@ def _collect_events(ticket):
             ticket, "assigned-a", "assigned", "author", author,
             f"[IT 헬프데스크] 담당자({s_name})가 배정되었습니다 ({num})",
             f"안녕하세요 {a_name}님,\n문의하신 '{title}' ({num}) 건에 담당자({s_name})가 배정되었습니다.", at,
+        ))
+        events.append(_mail(
+            ticket, "assigned-s", "assigned", "assignee", assignee,
+            f"[IT 헬프데스크] 담당자({s_name})가 배정되었습니다 ({num})",
+            f"{s_name} 담당자님,\n'{title}' ({num}) 건의 담당자로 배정되었습니다.", at,
+            is_read=True,
         ))
 
     if not has_resolved and ticket.resolution_note:

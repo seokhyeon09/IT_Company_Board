@@ -193,6 +193,7 @@ class EmailNotificationDTO(BaseModel):
     body_preview: str
     sent_at: Optional[str] = None
     status: str = "발송완료 (모의)"
+    is_read: bool = False
 
 class EmailNotificationListResponseDTO(BaseModel):
     status: str = "success"

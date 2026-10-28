@@ -54,7 +54,13 @@ export const useEmailNotifications = (uid?: number) => {
   );
 
   const readSet = useMemo(() => new Set(readIds), [readIds]);
-  const isRead = useCallback((id: string) => readSet.has(id), [readSet]);
+  const isRead = useCallback(
+    (id: string) => {
+      const item = items.find((i) => i.id === id);
+      return Boolean(item?.is_read || readSet.has(id));
+    },
+    [items, readSet]
+  );
 
   const markRead = useCallback(
     (id: string) => {
@@ -67,7 +73,10 @@ export const useEmailNotifications = (uid?: number) => {
     persist(Array.from(new Set([...readIds, ...items.map((i) => i.id)])));
   }, [readIds, items, persist]);
 
-  const unreadCount = useMemo(() => items.filter((i) => !readSet.has(i.id)).length, [items, readSet]);
+  const unreadCount = useMemo(
+    () => items.filter((i) => !i.is_read && !readSet.has(i.id)).length,
+    [items, readSet]
+  );
 
   return { items, loading, error, refresh, isRead, markRead, markAllRead, unreadCount };
 };

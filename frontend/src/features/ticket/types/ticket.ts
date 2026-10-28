@@ -62,6 +62,7 @@ export interface EmailNotificationItem {
   body_preview: string;
   sent_at?: string;
   status: string;
+  is_read?: boolean;
 }
 
 export interface OfficerSimpleItem {
