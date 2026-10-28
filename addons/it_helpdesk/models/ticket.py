@@ -306,27 +306,27 @@ class HelpDeskTicket(models.Model):
 
         return res
 
-    def action_assign_to_me(self):
-        """IT 담당자 본인 배정"""
+    def action_assign_to_user(self, target_user):
+        """IT 담당자 지정 배정"""
         for record in self:
-            # RC-04: 상태 검증
             if record.status in ('resolved', 'closed', 'canceled'):
                 raise UserError("이미 완료되거나 종결된 티켓은 담당자를 배정할 수 없습니다.")
-            record.assignee_id = self.env.user
+            record.assignee_id = target_user
             if record.status == 'submitted':
                 record.status = 'assigned'
-            
-            # 기존 미완료 todo Activity 정리 후 본인에게 스케줄링
             todo_type = self.env.ref('mail.mail_activity_data_todo', raise_if_not_found=False)
             if todo_type and record.activity_ids:
                 record.activity_ids.filtered(lambda a: a.activity_type_id == todo_type).unlink()
-
             record.activity_schedule(
                 'mail.mail_activity_data_todo',
                 summary=f"IT 문의 조치 배정: {record.title}",
                 user_id=record.assignee_id.id,
                 date_deadline=record.deadline.date() if record.deadline else fields.Date.today()
             )
+
+    def action_assign_to_me(self):
+        """IT 담당자 본인 배정"""
+        return self.action_assign_to_user(self.env.user)
 
     def action_start_progress(self):
         """처리 중으로 변경"""

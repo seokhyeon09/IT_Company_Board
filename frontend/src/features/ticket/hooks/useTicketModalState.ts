@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../../stores/authStore';
 import { apiClient, getErrorMessage } from '../../../api/client';
-import { TicketDetail, Attachment } from '../types/ticket';
+import { TicketDetail, Attachment, OfficerSimpleItem } from '../types/ticket';
 import { formatHtmlContent } from '../../../shared/utils/htmlUtils';
 
 export function useTicketModalState(
@@ -78,6 +78,13 @@ export function useTicketModalState(
   // 11. FAQ Toggle State
   const [togglingFaq, setTogglingFaq] = useState(false);
 
+  // 12. Officer Designation State
+  const [officers, setOfficers] = useState<OfficerSimpleItem[]>([]);
+  const [showDesignateModal, setShowDesignateModal] = useState(false);
+  const [selectedAssignOfficerId, setSelectedAssignOfficerId] = useState<number | ''>('');
+  const [submittingDesignate, setSubmittingDesignate] = useState(false);
+  const [designateError, setDesignateError] = useState('');
+
   useEffect(() => {
     if (isOpen && ticketId) {
       fetchDetail(ticketId);
@@ -87,6 +94,18 @@ export function useTicketModalState(
       setFetchError('');
     }
   }, [isOpen, ticketId]);
+
+  useEffect(() => {
+    if (isOpen && user?.is_officer) {
+      apiClient.get('/tickets/officers')
+        .then((res) => {
+          setOfficers(res.data.data || []);
+        })
+        .catch(() => {
+          setOfficers([]);
+        });
+    }
+  }, [isOpen, user?.is_officer]);
 
   const resetForms = () => {
     setResolutionNote('');
@@ -118,6 +137,9 @@ export function useTicketModalState(
     setEditPriority('');
     setEditContent('');
     setEditTicketError('');
+    setShowDesignateModal(false);
+    setSelectedAssignOfficerId('');
+    setDesignateError('');
   };
 
   const fetchDetail = async (id: number) => {
@@ -285,6 +307,28 @@ export function useTicketModalState(
       alert(getErrorMessage(err, '배정 처리에 실패했습니다.'));
     } finally {
       setTransitioningStatus(null);
+    }
+  };
+
+  const handleAssignToOfficer = async (targetOfficerId?: number) => {
+    if (!ticket) return;
+    const targetId = targetOfficerId || selectedAssignOfficerId;
+    if (!targetId) {
+      setDesignateError('배정할 담당자를 선택해주세요.');
+      return;
+    }
+    setSubmittingDesignate(true);
+    setDesignateError('');
+    try {
+      await apiClient.post(`/tickets/${ticket.id}/assign`, { assignee_id: Number(targetId) });
+      await fetchDetail(ticket.id);
+      setShowDesignateModal(false);
+      setSelectedAssignOfficerId('');
+      if (onSuccess) onSuccess();
+    } catch (err: any) {
+      setDesignateError(getErrorMessage(err, '담당자 지정 배정에 실패했습니다.'));
+    } finally {
+      setSubmittingDesignate(false);
     }
   };
 
@@ -520,6 +564,16 @@ export function useTicketModalState(
     transitioningStatus,
     handleAssignToMe,
     handleStartProgress,
+
+    // Officer Designation
+    officers,
+    showDesignateModal,
+    setShowDesignateModal,
+    selectedAssignOfficerId,
+    setSelectedAssignOfficerId,
+    submittingDesignate,
+    designateError,
+    handleAssignToOfficer,
 
     // Modals
     showCloseModal,

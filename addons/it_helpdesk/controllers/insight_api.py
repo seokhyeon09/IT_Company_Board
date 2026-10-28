@@ -85,3 +85,28 @@ class InsightAPIController(http.Controller):
         emails.sort(key=lambda x: x.get("sent_at") or "", reverse=True)
         max_items = min(max(1, int(limit or 50)), 100)
         return {"status": "success", "total": len(emails), "data": emails[:max_items]}
+
+    @http.route('/api/v1/tickets/officers', type='json', auth='none', methods=['POST'], csrf=False)
+    def get_officers(self):
+        """배정 가능한 IT 담당자 목록 조회 (IT 담당자/관리자 전용)"""
+        req_env = get_current_request().env
+        user = verify_gateway_request()
+        if not (user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()):
+            raise AccessError("Only IT officers can view officers list.")
+
+        officer_ids = set()
+        for xmlid in ('it_helpdesk.group_helpdesk_officer', 'base.group_system'):
+            grp = user.env.ref(xmlid, raise_if_not_found=False)
+            if grp:
+                officer_ids.update(grp.users.filtered(lambda u: u.active).ids)
+
+        officer_list = []
+        for u in req_env['res.users'].sudo().browse(sorted(officer_ids)):
+            if not u.exists() or u.id == 1:
+                continue
+            officer_list.append({
+                "id": u.id,
+                "name": u.name,
+                "login": u.login,
+            })
+        return {"status": "success", "data": officer_list}

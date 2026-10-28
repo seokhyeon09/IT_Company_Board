@@ -73,12 +73,23 @@ def _collect_events(ticket):
                 f"안녕하세요 {a_name}님,\n문의하신 '{title}' ({num}) 건에 담당자({s_name})가 배정되어 확인을 시작했습니다.",
                 at,
             ))
-            events.append(_mail(
-                ticket, sfx + "-s", "assigned", "assignee", assignee,
-                f"[IT 헬프데스크] 문의 ({num})가 회원님께 배정되었습니다",
-                f"{s_name} 담당자님,\n'{title}' ({num}) 티켓이 배정되었습니다. 요청자: {a_name}",
-                at,
-            ))
+            # 담당자용 배정 알림: 타인(관리자/동료)이 나를 지정 배정한 경우에만 발송
+            # 본인이 스스로 내게 배정한 경우에는 불필요한 알림이므로 담당자 메일 발송 제외
+            # msg.author_id는 res.partner이고 assignee는 res.users이므로 partner_id로 비교
+            assigner = msg.author_id
+            assigner_name = assigner.name if assigner else "관리자"
+            is_designated = "지정 배정하였습니다" in clean_b
+            is_self_assigned = bool(
+                (assigner and assignee and assigner.id == assignee.partner_id.id)
+                or not is_designated
+            )
+            if is_designated and not is_self_assigned:
+                events.append(_mail(
+                    ticket, sfx + "-s", "assigned", "assignee", assignee,
+                    f"[IT 헬프데스크] {assigner_name}님이 회원님을 담당자로 지정했습니다 ({num})",
+                    f"{s_name} 담당자님,\n{assigner_name}님이 '{title}' ({num}) 티켓의 담당자로 회원님을 지정 배정하였습니다. 확인 후 처리를 진행해 주세요.",
+                    at,
+                ))
         elif 'data-msg-type="pending_request"' in body_un or "[답변 대기 요청]" in clean_b:
             c = _extract_thread_content(body, ['data-msg-type="pending_request">', '[답변 대기 요청]']) or clean_b
             events.append(_mail(
@@ -119,11 +130,6 @@ def _collect_events(ticket):
             ticket, "assigned-a", "assigned", "author", author,
             f"[IT 헬프데스크] 담당자({s_name})가 배정되었습니다 ({num})",
             f"안녕하세요 {a_name}님,\n문의하신 '{title}' ({num}) 건에 담당자({s_name})가 배정되었습니다.", at,
-        ))
-        events.append(_mail(
-            ticket, "assigned-s", "assigned", "assignee", assignee,
-            f"[IT 헬프데스크] 문의 ({num})가 회원님께 배정되었습니다",
-            f"{s_name} 담당자님,\n'{title}' ({num}) 티켓이 배정되었습니다. 요청자: {a_name}", at,
         ))
 
     if not has_resolved and ticket.resolution_note:

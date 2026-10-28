@@ -234,17 +234,33 @@ class TicketWorkflowAPIController(http.Controller):
         }
 
     @http.route('/api/v1/tickets/assign', type='json', auth='none', methods=['POST'], csrf=False)
-    def assign_ticket(self, ticket_id: int):
-        """IT 담당자 티켓 본인 배정"""
+    def assign_ticket(self, ticket_id: int, assignee_id: int = None):
+        """IT 담당자 티켓 배정 (본인 셀프 배정 또는 타 담당자 지정 배정)"""
+        req_env = get_current_request().env
         user = verify_gateway_request()
         if not (user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()):
             raise AccessError("Only helpdesk officers can assign tickets.")
 
-        ticket = get_current_request().env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
+        ticket = req_env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
         if not ticket.exists():
             raise UserError("Ticket not found.")
 
-        ticket.action_assign_to_me()
+        target_user = None
+        if assignee_id and int(assignee_id) != user.id:
+            target_user = req_env['res.users'].sudo().browse(int(assignee_id))
+            if not target_user.exists():
+                raise UserError("Target officer not found.")
+            if not (target_user.has_group('it_helpdesk.group_helpdesk_officer') or target_user._is_admin()):
+                raise UserError("Designated user is not an IT officer.")
+            ticket.action_assign_to_user(target_user)
+            ticket.message_post(
+                body=f"<b>[담당자 배정]</b><br/>{html.escape(user.name)} 담당자가 {html.escape(target_user.name)} 담당자에게 문의를 지정 배정하였습니다."
+            )
+        else:
+            ticket.action_assign_to_me()
+            ticket.message_post(
+                body=f"<b>[담당자 배정]</b><br/>{html.escape(user.name)} 담당자가 본인에게 문의를 배정하였습니다."
+            )
 
         return {
             "status": "success",

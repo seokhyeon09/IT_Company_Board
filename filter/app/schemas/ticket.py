@@ -122,6 +122,19 @@ class TicketUpdateResolutionDTO(BaseModel):
     resolution_note: str = Field(..., min_length=5, description="수정할 조치 내용")
     if_match_write_date: Optional[str] = Field(default=None, description="낙관적 락킹용 이전 write_date")
 
+class TicketAssignDTO(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    assignee_id: Optional[int] = Field(default=None, description="지정할 IT 담당자 ID (미입력 시 본인 배정)")
+
+class OfficerItemDTO(BaseModel):
+    id: int
+    name: str
+    login: str
+
+class OfficerListResponseDTO(BaseModel):
+    status: str = "success"
+    data: List[OfficerItemDTO] = []
+
 class TicketCloseDTO(BaseModel):
     model_config = ConfigDict(extra="forbid")
     note: Optional[str] = Field(default=None, description="직권 종결 사유")

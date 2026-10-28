@@ -114,12 +114,25 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 transitioningStatus={s.transitioningStatus}
                 onAssignToMe={s.handleAssignToMe}
                 onStartProgress={s.handleStartProgress}
+                officers={s.officers}
+                showDesignateModal={s.showDesignateModal}
+                onToggleDesignate={() => {
+                  s.setShowDesignateModal((prev) => !prev);
+                  s.setShowPendingModal(false);
+                  s.setShowCloseModal(false);
+                }}
+                selectedAssignOfficerId={s.selectedAssignOfficerId}
+                onSelectAssignOfficer={s.setSelectedAssignOfficerId}
+                submittingDesignate={s.submittingDesignate}
+                designateError={s.designateError}
+                onSubmitDesignate={() => s.handleAssignToOfficer()}
                 showPendingModal={s.showPendingModal}
                 onTogglePending={() => {
                   s.setShowPendingModal((prev) => !prev);
                   s.setPendingReason('');
                   s.setPendingError('');
                   s.setShowCloseModal(false);
+                  s.setShowDesignateModal(false);
                 }}
                 onClosePendingModal={() => s.setShowPendingModal(false)}
                 pendingReason={s.pendingReason}
@@ -133,6 +146,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                   s.setCloseNote('');
                   s.setCloseError('');
                   s.setShowPendingModal(false);
+                  s.setShowDesignateModal(false);
                 }}
                 onCloseCloseModal={() => s.setShowCloseModal(false)}
                 closeNote={s.closeNote}

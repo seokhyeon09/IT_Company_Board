@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.core.security import get_current_user_claims
 from app.services import ticket_service, workflow_service
 from app.schemas.ticket import (
+    TicketAssignDTO,
     TicketCreateDTO,
     TicketResolveDTO,
     TicketRestartDTO,
@@ -21,6 +22,7 @@ from app.schemas.ticket import (
     TicketListResponseDTO,
     TicketStatsResponseDTO,
     OfficerStatsResponseDTO,
+    OfficerListResponseDTO,
     EmailNotificationListResponseDTO,
 )
 
@@ -90,6 +92,18 @@ async def get_mock_notifications(
     """Retrieve mock email dispatch logs for the current user."""
     return await ticket_service.get_notifications(user_id=int(claims["sub"]), limit=limit)
 
+@router.get("/officers", response_model=OfficerListResponseDTO)
+async def get_officers(
+    claims: dict = Depends(get_current_user_claims),
+):
+    """Retrieve active IT officers list for ticket assignment."""
+    if not claims.get("is_officer", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Helpdesk officer role required to view officers list",
+        )
+    return await ticket_service.get_officers(user_id=int(claims["sub"]))
+
 @router.get("/{ticket_id}", response_model=TicketDetailResponseDTO)
 async def get_ticket(
     ticket_id: int,
@@ -138,10 +152,11 @@ async def update_resolution(
 @router.post("/{ticket_id}/assign")
 async def assign_ticket(
     ticket_id: int,
+    dto: Optional[TicketAssignDTO] = None,
     claims: dict = Depends(get_current_user_claims),
 ):
-    """Assign ticket to current officer."""
-    return await workflow_service.assign_ticket(ticket_id, claims)
+    """Assign ticket to self or designated officer."""
+    return await workflow_service.assign_ticket(ticket_id, claims, dto=dto)
 
 @router.post("/{ticket_id}/start-progress")
 async def start_progress_ticket(

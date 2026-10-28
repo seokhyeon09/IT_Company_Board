@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
+from typing import Optional
 from fastapi import HTTPException, status
 from app.client.odoo_client import odoo_client
 from app.schemas.ticket import (
+    TicketAssignDTO,
     TicketResolveDTO,
     TicketRestartDTO,
     TicketUpdateResolutionDTO,
@@ -51,14 +53,17 @@ class WorkflowService:
         result = await odoo_client.call_json("/api/v1/tickets/update-resolution", params=params, user_id=user_id)
         return result.get("data", {})
 
-    async def assign_ticket(self, ticket_id: int, claims: dict) -> TicketResponseDTO:
+    async def assign_ticket(self, ticket_id: int, claims: dict, dto: Optional[TicketAssignDTO] = None) -> TicketResponseDTO:
         if not claims.get("is_officer", False):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Helpdesk officer role required to assign tickets"
             )
         user_id = int(claims["sub"])
-        result = await odoo_client.call_json("/api/v1/tickets/assign", params={"ticket_id": ticket_id}, user_id=user_id)
+        params = {"ticket_id": ticket_id}
+        if dto and dto.assignee_id:
+            params["assignee_id"] = dto.assignee_id
+        result = await odoo_client.call_json("/api/v1/tickets/assign", params=params, user_id=user_id)
         return result.get("data", {})
 
     async def start_progress_ticket(self, ticket_id: int, claims: dict) -> TicketResponseDTO:

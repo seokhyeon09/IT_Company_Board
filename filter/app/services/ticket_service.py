@@ -10,6 +10,7 @@ from app.schemas.ticket import (
     TicketListResponseDTO,
     TicketStatsResponseDTO,
     OfficerStatsResponseDTO,
+    OfficerListResponseDTO,
     EmailNotificationListResponseDTO,
     AttachmentDTO,
     AttachmentDetailDTO,
@@ -70,6 +71,13 @@ class TicketService:
         return EmailNotificationListResponseDTO(
             status="success",
             total=result.get("total", 0),
+            data=result.get("data", []),
+        )
+
+    async def get_officers(self, user_id: int) -> OfficerListResponseDTO:
+        result = await odoo_client.call_json("/api/v1/tickets/officers", params={}, user_id=user_id)
+        return OfficerListResponseDTO(
+            status="success",
             data=result.get("data", []),
         )
 

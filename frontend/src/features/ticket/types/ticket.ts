@@ -64,6 +64,12 @@ export interface EmailNotificationItem {
   status: string;
 }
 
+export interface OfficerSimpleItem {
+  id: number;
+  name: string;
+  login: string;
+}
+
 export interface OfficerStatItem {
   officer_id: number;
   officer_name: string;
