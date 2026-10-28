@@ -39,8 +39,8 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
       activeRing: 'ring-2 ring-indigo-500 bg-indigo-50/50',
     },
     {
-      id: 'submitted',
-      title: '접수 대기',
+      id: 'waiting',
+      title: '접수 / 배정',
       count: stats?.waiting ?? 0,
       icon: Clock,
       color: 'text-amber-600',

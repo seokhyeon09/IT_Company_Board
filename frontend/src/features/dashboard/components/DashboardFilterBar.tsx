@@ -77,7 +77,7 @@ export const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
           </button>
         </div>
 
-        {/* Right: Search & Overdue Toggle */}
+        {/* Right: Search & Overdue Toggle Switch */}
         <div className="flex items-center gap-2.5">
           {/* Debounced Search Input */}
           <div className="relative">
@@ -100,18 +100,35 @@ export const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
             )}
           </div>
 
-          {/* Overdue Quick Filter Toggle */}
+          {/* Overdue Toggle Switch */}
           <button
             type="button"
+            role="switch"
+            aria-checked={isOverdueOnly}
             onClick={onToggleOverdue}
-            className={`flex items-center px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer whitespace-nowrap shrink-0 ${
               isOverdueOnly
                 ? 'bg-rose-50 border-rose-300 text-rose-700 shadow-xs'
                 : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
             }`}
           >
-            <AlertTriangle className={`w-3.5 h-3.5 mr-1.5 ${isOverdueOnly ? 'text-rose-600' : 'text-slate-400'}`} />
-            기한 초과만
+            <div
+              className={`w-7 h-4 flex items-center rounded-full p-0.5 transition-colors ${
+                isOverdueOnly ? 'bg-rose-600' : 'bg-slate-300'
+              }`}
+            >
+              <div
+                className={`bg-white w-3 h-3 rounded-full shadow-xs transform transition-transform ${
+                  isOverdueOnly ? 'translate-x-3' : 'translate-x-0'
+                }`}
+              />
+            </div>
+            <AlertTriangle
+              className={`w-3.5 h-3.5 ${
+                isOverdueOnly ? 'text-rose-600' : 'text-slate-400'
+              }`}
+            />
+            <span>기한 초과만</span>
           </button>
         </div>
       </div>
@@ -126,6 +143,7 @@ export const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
             className="text-xs border border-slate-300 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
           >
             <option value="">전체 상태</option>
+            <option value="waiting">접수/배정 (전체)</option>
             <option value="submitted">접수대기</option>
             <option value="assigned">배정완료</option>
             <option value="in_progress">처리중</option>
