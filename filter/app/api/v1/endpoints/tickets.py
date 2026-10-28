@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.core.security import get_current_user_claims
 from app.services import ticket_service, workflow_service
 from app.schemas.ticket import (
@@ -20,6 +20,8 @@ from app.schemas.ticket import (
     TicketDetailResponseDTO,
     TicketListResponseDTO,
     TicketStatsResponseDTO,
+    OfficerStatsResponseDTO,
+    EmailNotificationListResponseDTO,
 )
 
 router = APIRouter()
@@ -32,6 +34,7 @@ async def list_tickets(
     search: Optional[str] = Query(None, description="검색어"),
     is_faq: Optional[bool] = Query(None, description="FAQ 여부"),
     is_overdue: Optional[bool] = Query(None, description="기한 초과 여부"),
+    assigned_to_me: Optional[bool] = Query(None, description="내 담당 문의만 보기"),
     sort_by: Optional[str] = Query("id desc", description="정렬 옵션"),
     offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
@@ -46,6 +49,7 @@ async def list_tickets(
         search=search,
         is_faq=is_faq,
         is_overdue=is_overdue,
+        assigned_to_me=assigned_to_me,
         sort_by=sort_by,
         offset=offset,
         limit=limit,
@@ -65,6 +69,26 @@ async def get_ticket_stats(
 ):
     """Retrieve ticket metrics (total, waiting, in_progress, resolved, overdue)."""
     return await ticket_service.get_stats(user_id=int(claims["sub"]))
+
+@router.get("/officer-stats", response_model=OfficerStatsResponseDTO)
+async def get_officer_stats(
+    claims: dict = Depends(get_current_user_claims),
+):
+    """Retrieve officer performance and category breakdown statistics (Officer only)."""
+    if not claims.get("is_officer", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Helpdesk officer role required to view officer statistics",
+        )
+    return await ticket_service.get_officer_stats(user_id=int(claims["sub"]))
+
+@router.get("/notifications", response_model=EmailNotificationListResponseDTO)
+async def get_mock_notifications(
+    limit: int = Query(30, ge=1, le=50),
+    claims: dict = Depends(get_current_user_claims),
+):
+    """Retrieve mock email dispatch logs for the current user."""
+    return await ticket_service.get_notifications(user_id=int(claims["sub"]), limit=limit)
 
 @router.get("/{ticket_id}", response_model=TicketDetailResponseDTO)
 async def get_ticket(

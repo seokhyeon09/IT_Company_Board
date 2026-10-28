@@ -38,6 +38,61 @@ export interface TicketLog {
   message_type?: string;
 }
 
+export interface RelatedTicketItem {
+  id: number;
+  ticket_number: string;
+  title?: string;
+  category?: string;
+  status: string;
+  is_faq: boolean;
+  resolution_summary?: string;
+  create_date?: string;
+}
+
+export interface EmailNotificationItem {
+  id: string;
+  ticket_id: number;
+  ticket_number: string;
+  ticket_title?: string;
+  event_type: string;
+  recipient_name: string;
+  recipient_email: string;
+  sender_email: string;
+  subject: string;
+  body_preview: string;
+  sent_at?: string;
+  status: string;
+}
+
+export interface OfficerStatItem {
+  officer_id: number;
+  officer_name: string;
+  officer_email: string;
+  total_assigned: number;
+  in_progress_count: number;
+  resolved_count: number;
+  overdue_count: number;
+  sla_compliance_rate: number;
+  avg_rating: number;
+  rating_count: number;
+}
+
+export interface CategoryStatItem {
+  category: string;
+  label: string;
+  count: number;
+  percentage: number;
+}
+
+export interface OfficerStatsData {
+  officers: OfficerStatItem[];
+  category_breakdown: CategoryStatItem[];
+  unassigned_count: number;
+  total_active_tickets: number;
+  overall_avg_rating: number;
+  overall_sla_rate: number;
+}
+
 export interface TicketDetail {
   id: number;
   ticket_number: string;
@@ -64,4 +119,6 @@ export interface TicketDetail {
   follow_ups?: FollowUpInquiry[];
   logs?: TicketLog[];
   attachments?: Attachment[];
+  related_tickets?: RelatedTicketItem[];
+  email_notifications?: EmailNotificationItem[];
 }

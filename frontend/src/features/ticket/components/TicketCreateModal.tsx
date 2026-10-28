@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { X, Send, AlertCircle, Paperclip, FileText, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Send, AlertCircle, Paperclip, FileText, Trash2, HelpCircle, ArrowUpRight } from 'lucide-react';
 import { apiClient, getErrorMessage } from '../../../api/client';
 
 export interface TicketCreateModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  onSelectTicket?: (ticketId: number) => void;
 }
 
 interface AttachedFile {
@@ -15,10 +16,19 @@ interface AttachedFile {
   size: number;
 }
 
+interface SuggestedTicket {
+  id: number;
+  ticket_number: string;
+  title: string;
+  category: string;
+  is_faq: boolean;
+}
+
 export const TicketCreateModal: React.FC<TicketCreateModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
+  onSelectTicket,
 }) => {
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('sw');
@@ -27,6 +37,28 @@ export const TicketCreateModal: React.FC<TicketCreateModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<AttachedFile[]>([]);
+  const [suggestedFaqs, setSuggestedFaqs] = useState<SuggestedTicket[]>([]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const timer = setTimeout(async () => {
+      try {
+        const params: any = {
+          is_faq: true,
+          category,
+          limit: 3,
+        };
+        if (title.trim().length >= 2) {
+          params.search = title.trim();
+        }
+        const res = await apiClient.get('/tickets', { params });
+        setSuggestedFaqs(res.data.data || []);
+      } catch {
+        setSuggestedFaqs([]);
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [isOpen, category, title]);
 
   if (!isOpen) return null;
 
@@ -166,6 +198,48 @@ export const TicketCreateModal: React.FC<TicketCreateModalProps> = ({
               </select>
             </div>
           </div>
+
+          {suggestedFaqs.length > 0 && (
+            <div className="p-3 bg-indigo-50/60 border border-indigo-200/80 rounded-xl space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="inline-flex items-center text-[11px] font-bold text-indigo-800">
+                  <HelpCircle className="w-3.5 h-3.5 mr-1 text-indigo-600" />
+                  유사 FAQ 및 해결 사례 추천 (접수 전 확인해보세요)
+                </span>
+                <span className="text-[10px] text-indigo-600 font-semibold">
+                  {suggestedFaqs.length}건
+                </span>
+              </div>
+              <div className="space-y-1">
+                {suggestedFaqs.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      if (onSelectTicket) {
+                        onClose();
+                        onSelectTicket(item.id);
+                      }
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 bg-white hover:bg-indigo-50 rounded-lg border border-indigo-100 flex items-center justify-between text-xs transition-colors cursor-pointer group"
+                  >
+                    <div className="flex items-center space-x-2 truncate pr-2">
+                      <span className="px-1.5 py-0.2 bg-amber-100 text-amber-800 text-[10px] font-bold rounded shrink-0">
+                        FAQ
+                      </span>
+                      <span className="font-medium text-slate-700 group-hover:text-indigo-700 truncate">
+                        {item.title}
+                      </span>
+                    </div>
+                    <span className="inline-flex items-center text-[10px] font-semibold text-indigo-600 shrink-0">
+                      해결책 보기
+                      <ArrowUpRight className="w-3 h-3 ml-0.5" />
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">상세 내용</label>

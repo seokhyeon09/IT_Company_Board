@@ -10,12 +10,14 @@ import { TicketWorkflowBar } from './modal/TicketWorkflowBar';
 import { TicketTimeline } from './modal/TicketTimeline';
 import { TicketActionForms } from './modal/TicketActionForms';
 import { TicketOfficerLogs } from './modal/TicketOfficerLogs';
+import { TicketRelatedAndEmails } from './modal/TicketRelatedAndEmails';
 
 export interface TicketDetailModalProps {
   isOpen: boolean;
   ticketId: number | null;
   onClose: () => void;
   onSuccess?: () => void;
+  onSelectTicket?: (ticketId: number) => void;
 }
 
 export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
@@ -23,6 +25,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   ticketId,
   onClose,
   onSuccess,
+  onSelectTicket,
 }) => {
   const s = useTicketModalState(ticketId, isOpen, onSuccess);
 
@@ -199,6 +202,12 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 submittingRating={s.submittingRating}
                 ratingError={s.ratingError}
                 onSubmitRating={s.handleRatingSubmit}
+              />
+
+              <TicketRelatedAndEmails
+                relatedTickets={s.ticket.related_tickets}
+                emailNotifications={s.ticket.email_notifications}
+                onSelectRelatedTicket={onSelectTicket}
               />
 
               <TicketOfficerLogs logs={s.ticket.logs} isOfficer={s.isOfficer} />

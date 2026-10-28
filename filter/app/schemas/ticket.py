@@ -157,6 +157,65 @@ class TicketResponseDTO(BaseModel):
     is_faq: bool = False
     rating: Optional[str] = None
 
+class RelatedTicketDTO(BaseModel):
+    id: int
+    ticket_number: str
+    title: Optional[str] = None
+    category: Optional[str] = None
+    status: str
+    is_faq: bool = False
+    resolution_summary: Optional[str] = None
+    create_date: Optional[str] = None
+
+class EmailNotificationDTO(BaseModel):
+    id: str
+    ticket_id: int
+    ticket_number: str
+    ticket_title: Optional[str] = None
+    event_type: str
+    recipient_name: str
+    recipient_email: str
+    sender_email: str = "it-helpdesk-noreply@company.com"
+    subject: str
+    body_preview: str
+    sent_at: Optional[str] = None
+    status: str = "발송완료 (모의)"
+
+class EmailNotificationListResponseDTO(BaseModel):
+    status: str = "success"
+    total: int = 0
+    data: List[EmailNotificationDTO] = []
+
+class OfficerStatItemDTO(BaseModel):
+    officer_id: int
+    officer_name: str
+    officer_email: str
+    total_assigned: int = 0
+    in_progress_count: int = 0
+    resolved_count: int = 0
+    overdue_count: int = 0
+    sla_compliance_rate: float = 100.0
+    avg_rating: float = 0.0
+    rating_count: int = 0
+
+class CategoryStatItemDTO(BaseModel):
+    category: str
+    label: str
+    count: int = 0
+    percentage: float = 0.0
+
+class OfficerStatsDataDTO(BaseModel):
+    officers: List[OfficerStatItemDTO] = []
+    category_breakdown: List[CategoryStatItemDTO] = []
+    unassigned_count: int = 0
+    total_active_tickets: int = 0
+    overall_avg_rating: float = 0.0
+    overall_sla_rate: float = 100.0
+
+class OfficerStatsResponseDTO(BaseModel):
+    status: str = "success"
+    data: OfficerStatsDataDTO
+
 class TicketDetailResponseDTO(TicketResponseDTO):
     content: Optional[Any] = None
     resolution_note: Optional[Any] = None
@@ -168,6 +227,8 @@ class TicketDetailResponseDTO(TicketResponseDTO):
     logs: List[TicketLogDTO] = []
     attachments: List[AttachmentDTO] = []
     pending_reason: Optional[str] = None
+    related_tickets: List[RelatedTicketDTO] = []
+    email_notifications: List[EmailNotificationDTO] = []
 
     @field_validator("content", "resolution_note", "author_name", "rating_comment", "pending_reason", mode="before")
     @classmethod

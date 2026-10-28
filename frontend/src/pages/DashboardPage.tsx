@@ -8,7 +8,9 @@ import { TicketDetailModal } from '../features/ticket/components/TicketDetailMod
 import { TicketCreateModal } from '../features/ticket/components/TicketCreateModal';
 import { DashboardFilterBar } from '../features/dashboard/components/DashboardFilterBar';
 import { DashboardPagination } from '../features/dashboard/components/DashboardPagination';
-import { Plus, RefreshCw, Inbox } from 'lucide-react';
+import { OfficerStatsModal } from '../features/dashboard/components/OfficerStatsModal';
+import { EmailNotificationModal } from '../features/dashboard/components/EmailNotificationModal';
+import { Plus, RefreshCw, Inbox, BarChart3, Mail } from 'lucide-react';
 
 const PAGE_SIZE = 12;
 
@@ -23,6 +25,8 @@ export const DashboardPage: React.FC = () => {
   // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
+  const [isOfficerStatsOpen, setIsOfficerStatsOpen] = useState(false);
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
 
   // Filters
   const [activeTab, setActiveTab] = useState<'all' | 'faq'>('all');
@@ -143,7 +147,7 @@ export const DashboardPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
             type="button"
             onClick={refreshAll}
@@ -152,6 +156,24 @@ export const DashboardPage: React.FC = () => {
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
+          <button
+            type="button"
+            onClick={() => setIsEmailModalOpen(true)}
+            className="flex items-center px-3.5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-semibold text-xs rounded-xl shadow-xs transition-all cursor-pointer"
+          >
+            <Mail className="w-4 h-4 mr-1.5 text-indigo-600" />
+            이메일 알림 내역
+          </button>
+          {user?.is_officer && (
+            <button
+              type="button"
+              onClick={() => setIsOfficerStatsOpen(true)}
+              className="flex items-center px-3.5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-semibold text-xs rounded-xl shadow-xs transition-all cursor-pointer"
+            >
+              <BarChart3 className="w-4 h-4 mr-1.5 text-indigo-600" />
+              담당자별 통계
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setIsModalOpen(true)}
@@ -272,6 +294,7 @@ export const DashboardPage: React.FC = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={refreshAll}
+        onSelectTicket={(id) => setSelectedTicketId(id)}
       />
 
       {/* Ticket Detail Modal */}
@@ -280,6 +303,20 @@ export const DashboardPage: React.FC = () => {
         ticketId={selectedTicketId}
         onClose={() => setSelectedTicketId(null)}
         onSuccess={refreshAll}
+        onSelectTicket={(id) => setSelectedTicketId(id)}
+      />
+
+      {/* Officer Performance & Category Statistics Modal */}
+      <OfficerStatsModal
+        isOpen={isOfficerStatsOpen}
+        onClose={() => setIsOfficerStatsOpen(false)}
+      />
+
+      {/* Mock Email Notification Center Modal */}
+      <EmailNotificationModal
+        isOpen={isEmailModalOpen}
+        onClose={() => setIsEmailModalOpen(false)}
+        onSelectTicket={(id) => setSelectedTicketId(id)}
       />
     </div>
   );

@@ -9,6 +9,8 @@ from app.schemas.ticket import (
     TicketDetailResponseDTO,
     TicketListResponseDTO,
     TicketStatsResponseDTO,
+    OfficerStatsResponseDTO,
+    EmailNotificationListResponseDTO,
     AttachmentDTO,
     AttachmentDetailDTO,
 )
@@ -25,6 +27,7 @@ class TicketService:
         search: Optional[str] = None,
         is_faq: Optional[bool] = None,
         is_overdue: Optional[bool] = None,
+        assigned_to_me: Optional[bool] = None,
         sort_by: Optional[str] = "id desc",
         offset: int = 0,
         limit: int = 50,
@@ -36,6 +39,7 @@ class TicketService:
             "search": search,
             "is_faq": is_faq,
             "is_overdue": is_overdue,
+            "assigned_to_me": assigned_to_me,
             "sort_by": sort_by,
             "offset": offset,
             "limit": limit,
@@ -52,6 +56,21 @@ class TicketService:
         return TicketStatsResponseDTO(
             status="success",
             data=result.get("data", {}),
+        )
+
+    async def get_officer_stats(self, user_id: int) -> OfficerStatsResponseDTO:
+        result = await odoo_client.call_json("/api/v1/tickets/officer-stats", params={}, user_id=user_id)
+        return OfficerStatsResponseDTO(
+            status="success",
+            data=result.get("data", {}),
+        )
+
+    async def get_notifications(self, user_id: int, limit: int = 30) -> EmailNotificationListResponseDTO:
+        result = await odoo_client.call_json("/api/v1/tickets/notifications", params={"limit": limit}, user_id=user_id)
+        return EmailNotificationListResponseDTO(
+            status="success",
+            total=result.get("total", 0),
+            data=result.get("data", []),
         )
 
     async def get_detail(self, ticket_id: int, user_id: int) -> TicketDetailResponseDTO:
