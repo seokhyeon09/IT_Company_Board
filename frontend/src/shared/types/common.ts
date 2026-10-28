@@ -1,4 +1,32 @@
-export const statusMap: Record<string, { label: string; color: string }> = {
+export type TicketCategory = 'hw' | 'sw' | 'network' | 'account' | 'etc';
+export type TicketPriority = '0' | '1' | '2' | '3';
+export type TicketStatus =
+  | 'submitted'
+  | 'assigned'
+  | 'in_progress'
+  | 'pending'
+  | 'resolved'
+  | 'closed'
+  | 'canceled';
+export type TicketStatusFilter = TicketStatus | 'waiting' | 'overdue' | '';
+
+export interface BadgeStyle {
+  label: string;
+  color: string;
+}
+
+export interface PriorityStyle {
+  label: string;
+  badge: string;
+}
+
+export interface SlaBadgeInfo {
+  text: string;
+  badgeClass: string;
+  isOverdue: boolean;
+}
+
+export const statusMap: Record<string, BadgeStyle> = {
   submitted: { label: '접수대기', color: 'bg-amber-50 text-amber-700 border-amber-200' },
   assigned: { label: '배정완료', color: 'bg-blue-50 text-blue-700 border-blue-200' },
   in_progress: { label: '처리중', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
@@ -16,7 +44,7 @@ export const categoryMap: Record<string, string> = {
   etc: '기타',
 };
 
-export const priorityMap: Record<string, { label: string; badge: string }> = {
+export const priorityMap: Record<string, PriorityStyle> = {
   '3': { label: '긴급', badge: 'bg-rose-500 text-white' },
   '2': { label: '높음', badge: 'bg-orange-500 text-white' },
   '1': { label: '보통', badge: 'bg-slate-200 text-slate-700' },

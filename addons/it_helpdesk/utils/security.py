@@ -8,6 +8,7 @@ from typing import Optional
 from datetime import datetime, timezone
 from odoo.http import request
 from odoo.exceptions import AccessError, UserError
+from odoo.addons.it_helpdesk.utils.request_context import get_current_request
 
 _logger = logging.getLogger(__name__)
 
@@ -19,14 +20,6 @@ class ConcurrencyError(UserError):
         msg = message or "Concurrent modification detected. The record has been modified by another transaction."
         super().__init__(msg)
         self.current_write_date = current_write_date
-
-def get_current_request():
-    """Retrieve active Odoo request, checking main_api mock patch first."""
-    try:
-        from odoo.addons.it_helpdesk.controllers import main_api
-        return getattr(main_api, 'request', request)
-    except Exception:
-        return request
 
 def verify_gateway_request():
     """Verify HMAC signature from trusted FastAPI Gateway and switch user context.

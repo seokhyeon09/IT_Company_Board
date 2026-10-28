@@ -13,6 +13,9 @@ import {
 } from 'lucide-react';
 import { TicketDetail } from '../../types/ticket';
 import { categoryMap } from '../../../../shared/types/common';
+import { InquiryEditForm } from './actions/InquiryEditForm';
+import { CancelConfirmForm } from './actions/CancelConfirmForm';
+import { PendingReplyForm } from './actions/PendingReplyForm';
 
 interface TicketMainContentProps {
   ticket: TicketDetail;
@@ -116,120 +119,34 @@ export const TicketMainContent: React.FC<TicketMainContentProps> = ({
         </div>
       </div>
 
-      {/* Cancel Confirmation Prompt (Inline right below title) */}
+      {/* Cancel Confirmation Prompt */}
       {showCancelModal && (
-        <div className="mt-3 p-4 bg-rose-50/90 border border-rose-300 rounded-xl space-y-2.5 animate-in fade-in shadow-xs">
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-bold text-rose-900 flex items-center">
-              <Ban className="w-4 h-4 mr-1.5 text-rose-600" />
-              문의 취소 확인
-            </div>
-          </div>
-          <p className="text-xs text-rose-700 leading-relaxed">
-            문의를 취소하면 IT 지원 처리가 즉시 중단되며 티켓이 취소 상태로 변경됩니다. 취소 사유를 입력해주세요.
-          </p>
-          <form onSubmit={onSubmitCancel} className="space-y-2.5">
-            <input
-              type="text"
-              value={cancelReason}
-              onChange={(e) => setCancelReason(e.target.value)}
-              placeholder="취소 사유를 입력하세요 (선택)..."
-              className="w-full px-3 py-2 text-xs border border-rose-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800"
-            />
-            {cancelError && <p className="text-xs text-rose-600 font-medium">{cancelError}</p>}
-            <div className="flex justify-end space-x-2">
-              <button
-                type="button"
-                onClick={onCloseCancelModal}
-                className="px-3 py-1.5 text-xs text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
-              >
-                취소 철회
-              </button>
-              <button
-                type="submit"
-                disabled={submittingCancel}
-                className="flex items-center px-3.5 py-1.5 text-xs font-semibold text-white bg-rose-600 rounded-lg hover:bg-rose-700 disabled:opacity-50 cursor-pointer shadow-xs"
-              >
-                {submittingCancel ? '취소 처리 중...' : '문의 취소 확정'}
-              </button>
-            </div>
-          </form>
-        </div>
+        <CancelConfirmForm
+          cancelReason={cancelReason}
+          setCancelReason={setCancelReason}
+          submitting={submittingCancel}
+          error={cancelError}
+          onCancel={onCloseCancelModal}
+          onSubmit={onSubmitCancel}
+        />
       )}
 
       {/* Inline Edit Form for Submitted Ticket */}
       {isEditingTicket && (
-        <div className="mt-3 p-4 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-3 animate-in fade-in">
-          <div className="text-xs font-bold text-indigo-900">접수 대기 중 문의 내용 수정</div>
-          <form onSubmit={onSubmitEditTicket} className="space-y-3">
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">문의 제목</label>
-              <input
-                type="text"
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                className="w-full px-3 py-1.5 text-xs border border-indigo-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800"
-                required
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">카테고리</label>
-                <select
-                  value={editCategory}
-                  onChange={(e) => setEditCategory(e.target.value)}
-                  className="w-full px-2.5 py-1.5 text-xs border border-indigo-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800"
-                >
-                  <option value="hw">하드웨어</option>
-                  <option value="sw">소프트웨어</option>
-                  <option value="network">네트워크</option>
-                  <option value="account">계정/권한</option>
-                  <option value="etc">기타</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">긴급도 (우선순위)</label>
-                <select
-                  value={editPriority}
-                  onChange={(e) => setEditPriority(e.target.value)}
-                  className="w-full px-2.5 py-1.5 text-xs border border-indigo-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800"
-                >
-                  <option value="0">낮음</option>
-                  <option value="1">보통</option>
-                  <option value="2">높음</option>
-                  <option value="3">긴급</option>
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">상세 내용</label>
-              <textarea
-                rows={3}
-                value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
-                className="w-full px-3 py-2 text-xs border border-indigo-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 resize-none"
-                required
-              />
-            </div>
-            {editTicketError && <p className="text-xs text-rose-600 font-medium">{editTicketError}</p>}
-            <div className="flex justify-end space-x-2">
-              <button
-                type="button"
-                onClick={onCancelEditTicket}
-                className="px-3 py-1.5 text-xs text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
-              >
-                취소
-              </button>
-              <button
-                type="submit"
-                disabled={submittingEditTicket}
-                className="px-3.5 py-1.5 text-xs font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 cursor-pointer"
-              >
-                {submittingEditTicket ? '수정 저장 중...' : '수정 완료'}
-              </button>
-            </div>
-          </form>
-        </div>
+        <InquiryEditForm
+          editTitle={editTitle}
+          setEditTitle={setEditTitle}
+          editCategory={editCategory}
+          setEditCategory={setEditCategory}
+          editPriority={editPriority}
+          setEditPriority={setEditPriority}
+          editContent={editContent}
+          setEditContent={setEditContent}
+          submitting={submittingEditTicket}
+          error={editTicketError}
+          onCancel={onCancelEditTicket}
+          onSubmit={onSubmitEditTicket}
+        />
       )}
 
       {/* Metadata 4-column Grid */}
@@ -319,37 +236,14 @@ export const TicketMainContent: React.FC<TicketMainContentProps> = ({
                     추가 답변 / 정보 입력하기
                   </button>
                 ) : (
-                  <form onSubmit={onSubmitPendingReply} className="space-y-2.5">
-                    <div className="text-xs font-bold text-purple-900">
-                      답변 대기 요청에 대한 추가 정보/답변 입력
-                    </div>
-                    <textarea
-                      rows={3}
-                      value={pendingReplyText}
-                      onChange={(e) => setPendingReplyText(e.target.value)}
-                      placeholder="IT 담당자가 요청한 추가 정보나 확인 사항에 대해 답변을 입력하세요 (최소 5자)..."
-                      className="w-full px-3.5 py-2 text-xs border border-purple-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-slate-800"
-                    />
-                    {pendingReplyError && (
-                      <p className="text-xs text-rose-600 font-medium">{pendingReplyError}</p>
-                    )}
-                    <div className="flex justify-end space-x-2">
-                      <button
-                        type="button"
-                        onClick={onClosePendingReply}
-                        className="px-3 py-1.5 text-xs text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
-                      >
-                        취소
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={submittingPendingReply}
-                        className="flex items-center px-3.5 py-1.5 text-xs font-semibold text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-all cursor-pointer shadow-xs"
-                      >
-                        {submittingPendingReply ? '등록 중...' : '답변 회신 등록'}
-                      </button>
-                    </div>
-                  </form>
+                  <PendingReplyForm
+                    pendingReplyText={pendingReplyText}
+                    setPendingReplyText={setPendingReplyText}
+                    submitting={submittingPendingReply}
+                    error={pendingReplyError}
+                    onCancel={onClosePendingReply}
+                    onSubmit={onSubmitPendingReply}
+                  />
                 )}
               </div>
             )}

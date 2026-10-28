@@ -1,30 +1,83 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-class TicketCategoryEnum(str, Enum):
-    HW = "hw"
-    SW = "sw"
-    NETWORK = "network"
-    ACCOUNT = "account"
-    ETC = "etc"
+# Re-export definitions for 100% backward compatibility
+from app.schemas.common import (
+    TicketCategoryEnum,
+    TicketPriorityEnum,
+    TicketStatusEnum,
+)
+from app.schemas.attachment import (
+    AttachmentDTO,
+    AttachmentDetailDTO,
+    AttachmentUploadDTO,
+)
+from app.schemas.workflow import (
+    TicketResolveDTO,
+    TicketUpdateResolutionDTO,
+    TicketRestartDTO,
+    TicketAssignDTO,
+    TicketCloseDTO,
+    TicketCancelDTO,
+    TicketPendingDTO,
+    TicketRateDTO,
+)
+from app.schemas.insight import (
+    OfficerItemDTO,
+    OfficerListResponseDTO,
+    RelatedTicketDTO,
+    EmailNotificationDTO,
+    EmailNotificationListResponseDTO,
+    NotificationReadDTO,
+    NotificationReadResponseDTO,
+    OfficerStatItemDTO,
+    CategoryStatItemDTO,
+    OfficerStatsDataDTO,
+    OfficerStatsResponseDTO,
+    TicketStatsDataDTO,
+    TicketStatsResponseDTO,
+)
 
-class TicketPriorityEnum(str, Enum):
-    LOW = "0"
-    NORMAL = "1"
-    HIGH = "2"
-    URGENT = "3"
-
-class TicketStatusEnum(str, Enum):
-    SUBMITTED = "submitted"
-    ASSIGNED = "assigned"
-    IN_PROGRESS = "in_progress"
-    PENDING = "pending"
-    RESOLVED = "resolved"
-    CLOSED = "closed"
-    CANCELED = "canceled"
+__all__ = [
+    "TicketCategoryEnum",
+    "TicketPriorityEnum",
+    "TicketStatusEnum",
+    "AttachmentDTO",
+    "AttachmentDetailDTO",
+    "AttachmentUploadDTO",
+    "TicketResolveDTO",
+    "TicketUpdateResolutionDTO",
+    "TicketRestartDTO",
+    "TicketAssignDTO",
+    "TicketCloseDTO",
+    "TicketCancelDTO",
+    "TicketPendingDTO",
+    "TicketRateDTO",
+    "OfficerItemDTO",
+    "OfficerListResponseDTO",
+    "RelatedTicketDTO",
+    "EmailNotificationDTO",
+    "EmailNotificationListResponseDTO",
+    "NotificationReadDTO",
+    "NotificationReadResponseDTO",
+    "OfficerStatItemDTO",
+    "CategoryStatItemDTO",
+    "OfficerStatsDataDTO",
+    "OfficerStatsResponseDTO",
+    "TicketStatsDataDTO",
+    "TicketStatsResponseDTO",
+    "TicketCreateDTO",
+    "TicketUpdateDTO",
+    "ThreadItemDTO",
+    "ResolutionNoteDTO",
+    "FollowUpInquiryDTO",
+    "TicketLogDTO",
+    "TicketResponseDTO",
+    "TicketDetailResponseDTO",
+    "TicketListResponseDTO",
+]
 
 class TicketCreateDTO(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -32,7 +85,10 @@ class TicketCreateDTO(BaseModel):
     title: str = Field(..., min_length=1, max_length=150, description="문의 제목")
     category: TicketCategoryEnum = Field(..., description="문의 분류")
     content: str = Field(..., min_length=1, description="문의 상세 내용")
-    priority: TicketPriorityEnum = Field(default=TicketPriorityEnum.NORMAL, description="우선순위 (0: 낮음, 1: 보통, 2: 높음, 3: 긴급)")
+    priority: TicketPriorityEnum = Field(
+        default=TicketPriorityEnum.NORMAL,
+        description="우선순위 (0: 낮음, 1: 보통, 2: 높음, 3: 긴급)"
+    )
     attachments: Optional[List[AttachmentUploadDTO]] = Field(default=None, description="초기 첨부파일 목록")
 
     @field_validator("priority", mode="before")
@@ -51,32 +107,6 @@ class TicketCreateDTO(BaseModel):
         if s in mapping:
             return mapping[s]
         raise ValueError(f"Invalid priority '{v}'. Must be 0, 1, 2, or 3.")
-
-class TicketResolveDTO(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    resolution_note: str = Field(..., min_length=5, description="조치 완료 내용")
-    if_match_write_date: Optional[str] = Field(default=None, description="낙관적 락킹용 이전 write_date")
-
-
-
-
-
-class AttachmentDTO(BaseModel):
-    id: int
-    name: str
-    mimetype: str = "application/octet-stream"
-    file_size: Optional[int] = 0
-    create_date: Optional[str] = None
-
-class AttachmentDetailDTO(AttachmentDTO):
-    datas: str
-
-class AttachmentUploadDTO(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    name: str = Field(..., min_length=1, max_length=200, description="파일명")
-    datas: str = Field(..., min_length=1, description="Base64 인코딩 파일 데이터")
-    mimetype: Optional[str] = Field(default="application/octet-stream", description="MIME 타입")
-    file_size: Optional[int] = Field(default=None, description="파일 크기")
 
 class TicketUpdateDTO(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -113,47 +143,6 @@ class TicketLogDTO(BaseModel):
     body: str
     message_type: Optional[str] = "notification"
 
-class TicketRestartDTO(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    reason: Optional[str] = Field(default=None, description="재문의 사유 및 추가 질문 내용")
-
-class TicketUpdateResolutionDTO(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    resolution_note: str = Field(..., min_length=5, description="수정할 조치 내용")
-    if_match_write_date: Optional[str] = Field(default=None, description="낙관적 락킹용 이전 write_date")
-
-class TicketAssignDTO(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    assignee_id: Optional[int] = Field(default=None, description="지정할 IT 담당자 ID (미입력 시 본인 배정)")
-    reason: Optional[str] = Field(default=None, description="담당자 변경 및 인계 사유")
-
-class OfficerItemDTO(BaseModel):
-    id: int
-    name: str
-    login: str
-
-class OfficerListResponseDTO(BaseModel):
-    status: str = "success"
-    data: List[OfficerItemDTO] = []
-
-class TicketCloseDTO(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    note: Optional[str] = Field(default=None, description="직권 종결 사유")
-
-class TicketCancelDTO(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    reason: Optional[str] = Field(default=None, description="문의 취소 사유")
-
-class TicketPendingDTO(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    reason: Optional[str] = Field(default=None, description="답변 대기 요청 사유")
-
-class TicketRateDTO(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    rating: str = Field(..., pattern="^[1-5]$", description="만족도 별점 (1~5)")
-    rating_comment: Optional[str] = Field(default=None, max_length=500, description="만족도 한줄평")
-    if_match_write_date: Optional[str] = Field(default=None, description="낙관적 락킹용 이전 write_date")
-
 class TicketResponseDTO(BaseModel):
     id: int
     ticket_number: str
@@ -170,73 +159,6 @@ class TicketResponseDTO(BaseModel):
     write_date: Optional[str] = None
     is_faq: bool = False
     rating: Optional[str] = None
-
-class RelatedTicketDTO(BaseModel):
-    id: int
-    ticket_number: str
-    title: Optional[str] = None
-    category: Optional[str] = None
-    status: str
-    is_faq: bool = False
-    resolution_summary: Optional[str] = None
-    create_date: Optional[str] = None
-
-class EmailNotificationDTO(BaseModel):
-    id: str
-    ticket_id: int
-    ticket_number: str
-    ticket_title: Optional[str] = None
-    event_type: str
-    recipient_name: str
-    recipient_email: str
-    sender_email: str = "it-helpdesk-noreply@company.com"
-    subject: str
-    body_preview: str
-    sent_at: Optional[str] = None
-    status: str = "발송완료 (모의)"
-    is_read: bool = False
-
-class EmailNotificationListResponseDTO(BaseModel):
-    status: str = "success"
-    total: int = 0
-    data: List[EmailNotificationDTO] = []
-
-class NotificationReadDTO(BaseModel):
-    notification_ids: List[str]
-
-class NotificationReadResponseDTO(BaseModel):
-    status: str = "success"
-    data: Dict[str, Any] = {}
-
-class OfficerStatItemDTO(BaseModel):
-    officer_id: int
-    officer_name: str
-    officer_email: str
-    total_assigned: int = 0
-    in_progress_count: int = 0
-    resolved_count: int = 0
-    overdue_count: int = 0
-    sla_compliance_rate: float = 100.0
-    avg_rating: float = 0.0
-    rating_count: int = 0
-
-class CategoryStatItemDTO(BaseModel):
-    category: str
-    label: str
-    count: int = 0
-    percentage: float = 0.0
-
-class OfficerStatsDataDTO(BaseModel):
-    officers: List[OfficerStatItemDTO] = []
-    category_breakdown: List[CategoryStatItemDTO] = []
-    unassigned_count: int = 0
-    total_active_tickets: int = 0
-    overall_avg_rating: float = 0.0
-    overall_sla_rate: float = 100.0
-
-class OfficerStatsResponseDTO(BaseModel):
-    status: str = "success"
-    data: OfficerStatsDataDTO
 
 class TicketDetailResponseDTO(TicketResponseDTO):
     content: Optional[Any] = None
@@ -263,15 +185,3 @@ class TicketListResponseDTO(BaseModel):
     status: str = "success"
     total: int
     data: List[TicketResponseDTO]
-
-class TicketStatsDataDTO(BaseModel):
-    total: int = 0
-    waiting: int = 0
-    in_progress: int = 0
-    pending: int = 0
-    resolved: int = 0
-    overdue: int = 0
-
-class TicketStatsResponseDTO(BaseModel):
-    status: str = "success"
-    data: TicketStatsDataDTO

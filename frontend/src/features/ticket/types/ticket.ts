@@ -1,3 +1,23 @@
+import { TicketCategory, TicketPriority, TicketStatus } from '../../../shared/types/common';
+
+export interface Ticket {
+  id: number;
+  ticket_number: string;
+  title: string;
+  category: TicketCategory | string;
+  status: TicketStatus | string;
+  priority: TicketPriority | string;
+  deadline?: string;
+  is_overdue: boolean;
+  author_id?: any;
+  author_name?: string;
+  assignee_id?: any;
+  assignee_name?: string;
+  create_date?: string;
+  write_date?: string;
+  is_faq: boolean;
+}
+
 export interface ThreadItem {
   id: number;
   type: 'inquiry' | 'resolution' | 'pending_request' | 'pending_response' | 'reassign';
@@ -71,52 +91,8 @@ export interface OfficerSimpleItem {
   login: string;
 }
 
-export interface OfficerStatItem {
-  officer_id: number;
-  officer_name: string;
-  officer_email: string;
-  total_assigned: number;
-  in_progress_count: number;
-  resolved_count: number;
-  overdue_count: number;
-  sla_compliance_rate: number;
-  avg_rating: number;
-  rating_count: number;
-}
-
-export interface CategoryStatItem {
-  category: string;
-  label: string;
-  count: number;
-  percentage: number;
-}
-
-export interface OfficerStatsData {
-  officers: OfficerStatItem[];
-  category_breakdown: CategoryStatItem[];
-  unassigned_count: number;
-  total_active_tickets: number;
-  overall_avg_rating: number;
-  overall_sla_rate: number;
-}
-
-export interface TicketDetail {
-  id: number;
-  ticket_number: string;
-  title: string;
-  category: string;
+export interface TicketDetail extends Ticket {
   content: string;
-  status: string;
-  priority: string;
-  deadline?: string;
-  is_overdue: boolean;
-  author_id?: any;
-  author_name?: string;
-  assignee_id?: any;
-  assignee_name?: string;
-  create_date?: string;
-  write_date?: string;
-  is_faq: boolean;
   pending_reason?: string;
   resolution_note?: string;
   rating?: string;

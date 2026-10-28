@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../../stores/authStore';
-import { apiClient, getErrorMessage } from '../../../api/client';
-import { TicketDetail, Attachment, OfficerSimpleItem } from '../types/ticket';
-import { formatHtmlContent } from '../../../shared/utils/htmlUtils';
+import { useTicketDetail } from './useTicketDetail';
+import { useTicketInquiryEdit } from './useTicketInquiryEdit';
+import { useTicketWorkflow } from './useTicketWorkflow';
+import { useTicketResolution } from './useTicketResolution';
+import { useTicketAttachments } from './useTicketAttachments';
 
 export function useTicketModalState(
   ticketId: number | null,
@@ -10,637 +11,210 @@ export function useTicketModalState(
   onSuccess?: () => void
 ) {
   const { user } = useAuthStore();
-  const [ticket, setTicket] = useState<TicketDetail | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [fetchError, setFetchError] = useState('');
 
-  // 1. Resolve State
-  const [resolutionNote, setResolutionNote] = useState('');
-  const [submittingResolve, setSubmittingResolve] = useState(false);
-  const [resolveError, setResolveError] = useState('');
+  // 1. Ticket Detail & Permissions Sub-Hook
+  const detail = useTicketDetail(ticketId, isOpen);
+  const { ticket, reloadTicket } = detail;
 
-  // 2. Edit Resolution State
-  const [isEditingResolution, setIsEditingResolution] = useState(false);
-  const [editResolutionNote, setEditResolutionNote] = useState('');
-  const [submittingEditResolution, setSubmittingEditResolution] = useState(false);
-  const [editResolutionError, setEditResolutionError] = useState('');
+  // 2. Inquiry Edit & Cancel Sub-Hook
+  const inquiryEdit = useTicketInquiryEdit({
+    ticket,
+    onSuccess,
+    reloadTicket,
+  });
 
-  // 3. Restart Inquiry State
-  const [showRestartForm, setShowRestartForm] = useState(false);
-  const [restartReason, setRestartReason] = useState('');
-  const [submittingRestart, setSubmittingRestart] = useState(false);
-  const [restartError, setRestartError] = useState('');
+  // 3. Workflow Transition Sub-Hook (Assign, Progress, Pending, Close)
+  const workflow = useTicketWorkflow({
+    ticket,
+    user,
+    isOpen,
+    onSuccess,
+    reloadTicket,
+  });
 
-  // 4. Rating State
-  const [ratingScore, setRatingScore] = useState<number>(5);
-  const [ratingComment, setRatingComment] = useState('');
-  const [submittingRating, setSubmittingRating] = useState(false);
-  const [ratingError, setRatingError] = useState('');
+  // 4. Resolution, Rating & Pending Reply Sub-Hook
+  const resolution = useTicketResolution({
+    ticket,
+    onSuccess,
+    reloadTicket,
+  });
 
-  // 5. Inquiry Edit State (submitted)
-  const [isEditingTicket, setIsEditingTicket] = useState(false);
-  const [editTitle, setEditTitle] = useState('');
-  const [editCategory, setEditCategory] = useState('');
-  const [editPriority, setEditPriority] = useState('');
-  const [editContent, setEditContent] = useState('');
-  const [submittingEditTicket, setSubmittingEditTicket] = useState(false);
-  const [editTicketError, setEditTicketError] = useState('');
-
-  // 6. Attachment State
-  const [uploadingAttachment, setUploadingAttachment] = useState(false);
-  const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<number | null>(null);
-
-  // 7. Workflow State
-  const [transitioningStatus, setTransitioningStatus] = useState<string | null>(null);
-  const [showCloseModal, setShowCloseModal] = useState(false);
-  const [closeNote, setCloseNote] = useState('');
-  const [submittingClose, setSubmittingClose] = useState(false);
-  const [closeError, setCloseError] = useState('');
-
-  // 8. Pending State
-  const [showPendingModal, setShowPendingModal] = useState(false);
-  const [pendingReason, setPendingReason] = useState('');
-  const [submittingPending, setSubmittingPending] = useState(false);
-  const [pendingError, setPendingError] = useState('');
-
-  // 9. Pending Reply State
-  const [showPendingReplyForm, setShowPendingReplyForm] = useState(false);
-  const [pendingReplyText, setPendingReplyText] = useState('');
-  const [submittingPendingReply, setSubmittingPendingReply] = useState(false);
-  const [pendingReplyError, setPendingReplyError] = useState('');
-
-  // 10. Cancel State
-  const [showCancelModal, setShowCancelModal] = useState(false);
-  const [cancelReason, setCancelReason] = useState('');
-  const [submittingCancel, setSubmittingCancel] = useState(false);
-  const [cancelError, setCancelError] = useState('');
-
-  // 11. FAQ Toggle State
-  const [togglingFaq, setTogglingFaq] = useState(false);
-
-  // 12. Officer Designation State
-  const [officers, setOfficers] = useState<OfficerSimpleItem[]>([]);
-  const [showDesignateModal, setShowDesignateModal] = useState(false);
-  const [selectedAssignOfficerId, setSelectedAssignOfficerId] = useState<number | ''>('');
-  const [submittingDesignate, setSubmittingDesignate] = useState(false);
-  const [designateError, setDesignateError] = useState('');
-  const [assignReason, setAssignReason] = useState('');
-
-  useEffect(() => {
-    if (isOpen && ticketId) {
-      fetchDetail(ticketId);
-      resetForms();
-    } else {
-      setTicket(null);
-      setFetchError('');
-    }
-  }, [isOpen, ticketId]);
-
-  useEffect(() => {
-    if (isOpen && user?.is_officer) {
-      apiClient.get('/tickets/officers')
-        .then((res) => {
-          setOfficers(res.data.data || []);
-        })
-        .catch(() => {
-          setOfficers([]);
-        });
-    }
-  }, [isOpen, user?.is_officer]);
-
-  const resetForms = () => {
-    setResolutionNote('');
-    setResolveError('');
-    setIsEditingResolution(false);
-    setEditResolutionNote('');
-    setEditResolutionError('');
-    setShowRestartForm(false);
-    setRestartReason('');
-    setRestartError('');
-    setRatingScore(5);
-    setRatingComment('');
-    setRatingError('');
-    setShowCloseModal(false);
-    setCloseNote('');
-    setCloseError('');
-    setShowPendingModal(false);
-    setPendingReason('');
-    setPendingError('');
-    setShowPendingReplyForm(false);
-    setPendingReplyText('');
-    setPendingReplyError('');
-    setShowCancelModal(false);
-    setCancelReason('');
-    setCancelError('');
-    setIsEditingTicket(false);
-    setEditTitle('');
-    setEditCategory('');
-    setEditPriority('');
-    setEditContent('');
-    setEditTicketError('');
-    setShowDesignateModal(false);
-    setSelectedAssignOfficerId('');
-    setDesignateError('');
-    setAssignReason('');
-  };
-
-  const fetchDetail = async (id: number) => {
-    setLoading(true);
-    setFetchError('');
-    try {
-      const res = await apiClient.get<TicketDetail>(`/tickets/${id}`);
-      setTicket(res.data);
-    } catch (err: any) {
-      setFetchError(getErrorMessage(err, '티켓 상세 정보를 불러오지 못했습니다.'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const isAuthor = Boolean(
-    ticket &&
-      user &&
-      (ticket.author_id === user.uid ||
-        String(ticket.author_id) === String(user.uid) ||
-        (Array.isArray(ticket.author_id) && String(ticket.author_id[0]) === String(user.uid)) ||
-        (ticket.author_name && user.name && ticket.author_name === user.name))
-  );
-  const isOfficer = Boolean(user?.is_officer);
-
-  const isAssignee = Boolean(
-    ticket &&
-      user &&
-      (ticket.assignee_id === user.uid ||
-        String(ticket.assignee_id) === String(user.uid) ||
-        (Array.isArray(ticket.assignee_id) && String(ticket.assignee_id[0]) === String(user.uid)) ||
-        (ticket.assignee_name && user.name && ticket.assignee_name === user.name))
-  );
-  const isAdmin = Boolean(user?.is_admin || (user as any)?.role === 'admin' || user?.name === 'Administrator');
-  const isOwnerOrAdmin = isAssignee || isAdmin;
-
-  // Handlers
-  const handleToggleFaq = async () => {
-    if (!ticket) return;
-    setTogglingFaq(true);
-    try {
-      await apiClient.post(`/tickets/${ticket.id}/toggle-faq`);
-      await fetchDetail(ticket.id);
-      if (onSuccess) onSuccess();
-    } catch (err: any) {
-      alert(getErrorMessage(err, 'FAQ 상태 변경 실패'));
-    } finally {
-      setTogglingFaq(false);
-    }
-  };
-
-  const handleResolveSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!ticket) return;
-    if (resolutionNote.trim().length < 5) {
-      setResolveError('조치 내용은 최소 5자 이상 상세히 입력해주세요.');
-      return;
-    }
-    setSubmittingResolve(true);
-    setResolveError('');
-    try {
-      await apiClient.post(`/tickets/${ticket.id}/resolve`, {
-        resolution_note: resolutionNote.trim(),
-        if_match_write_date: ticket.write_date,
-      });
-      setResolutionNote('');
-      await fetchDetail(ticket.id);
-      if (onSuccess) onSuccess();
-    } catch (err: any) {
-      setResolveError(getErrorMessage(err, '조치 완료 처리에 실패했습니다.'));
-    } finally {
-      setSubmittingResolve(false);
-    }
-  };
-
-  const handleUpdateResolutionSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!ticket) return;
-    if (editResolutionNote.trim().length < 5) {
-      setEditResolutionError('수정할 조치 내용은 최소 5자 이상 상세히 입력해주세요.');
-      return;
-    }
-    setSubmittingEditResolution(true);
-    setEditResolutionError('');
-    try {
-      await apiClient.post(`/tickets/${ticket.id}/update-resolution`, {
-        resolution_note: editResolutionNote.trim(),
-        if_match_write_date: ticket.write_date,
-      });
-      setIsEditingResolution(false);
-      await fetchDetail(ticket.id);
-      if (onSuccess) onSuccess();
-    } catch (err: any) {
-      setEditResolutionError(getErrorMessage(err, '조치 내용 수정에 실패했습니다.'));
-    } finally {
-      setSubmittingEditResolution(false);
-    }
-  };
-
-  const handleRestartSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!ticket) return;
-    if (restartReason.trim().length < 5) {
-      setRestartError('재문의 사유 및 추가 질문 내용을 최소 5자 이상 입력해주세요.');
-      return;
-    }
-    setSubmittingRestart(true);
-    setRestartError('');
-    try {
-      await apiClient.post(`/tickets/${ticket.id}/restart`, {
-        reason: restartReason.trim(),
-      });
-      setShowRestartForm(false);
-      setRestartReason('');
-      await fetchDetail(ticket.id);
-      if (onSuccess) onSuccess();
-    } catch (err: any) {
-      setRestartError(getErrorMessage(err, '재문의 등록에 실패했습니다.'));
-    } finally {
-      setSubmittingRestart(false);
-    }
-  };
-
-  const handlePendingReplySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!ticket) return;
-    if (pendingReplyText.trim().length < 5) {
-      setPendingReplyError('답변 회신 내용을 최소 5자 이상 입력해주세요.');
-      return;
-    }
-    setSubmittingPendingReply(true);
-    setPendingReplyError('');
-    try {
-      await apiClient.post(`/tickets/${ticket.id}/restart`, {
-        reason: pendingReplyText.trim(),
-      });
-      setShowPendingReplyForm(false);
-      setPendingReplyText('');
-      await fetchDetail(ticket.id);
-      if (onSuccess) onSuccess();
-    } catch (err: any) {
-      setPendingReplyError(getErrorMessage(err, '답변 회신 등록에 실패했습니다.'));
-    } finally {
-      setSubmittingPendingReply(false);
-    }
-  };
-
-  const handleRatingSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!ticket) return;
-    setSubmittingRating(true);
-    setRatingError('');
-    try {
-      await apiClient.post(`/tickets/${ticket.id}/rate`, {
-        rating: String(ratingScore),
-        rating_comment: ratingComment.trim() || undefined,
-        if_match_write_date: ticket.write_date,
-      });
-      await fetchDetail(ticket.id);
-      if (onSuccess) onSuccess();
-    } catch (err: any) {
-      setRatingError(getErrorMessage(err, '만족도 평가 제출에 실패했습니다.'));
-    } finally {
-      setSubmittingRating(false);
-    }
-  };
-
-  const handleAssignToMe = async () => {
-    if (!ticket) return;
-    setTransitioningStatus('assign');
-    try {
-      await apiClient.post(`/tickets/${ticket.id}/assign`);
-      await fetchDetail(ticket.id);
-      if (onSuccess) onSuccess();
-    } catch (err: any) {
-      alert(getErrorMessage(err, '배정 처리에 실패했습니다.'));
-    } finally {
-      setTransitioningStatus(null);
-    }
-  };
-
-  const handleAssignToOfficer = async (targetOfficerId?: number, reasonInput?: string) => {
-    if (!ticket) return;
-    const targetId = targetOfficerId || selectedAssignOfficerId;
-    if (!targetId) {
-      setDesignateError('배정할 담당자를 선택해주세요.');
-      return;
-    }
-    const finalReason = (reasonInput !== undefined ? reasonInput : assignReason).trim();
-    if (ticket.assignee_id && !finalReason) {
-      setDesignateError('담당자 변경(인계) 사유를 반드시 입력해주세요.');
-      return;
-    }
-    setSubmittingDesignate(true);
-    setDesignateError('');
-    try {
-      await apiClient.post(`/tickets/${ticket.id}/assign`, {
-        assignee_id: Number(targetId),
-        reason: finalReason || undefined,
-      });
-      await fetchDetail(ticket.id);
-      setShowDesignateModal(false);
-      setSelectedAssignOfficerId('');
-      setAssignReason('');
-      if (onSuccess) onSuccess();
-    } catch (err: any) {
-      setDesignateError(getErrorMessage(err, '담당자 지정/인계 처리에 실패했습니다.'));
-    } finally {
-      setSubmittingDesignate(false);
-    }
-  };
-
-  const handleStartProgress = async () => {
-    if (!ticket) return;
-    setTransitioningStatus('start-progress');
-    try {
-      await apiClient.post(`/tickets/${ticket.id}/start-progress`);
-      await fetchDetail(ticket.id);
-      if (onSuccess) onSuccess();
-    } catch (err: any) {
-      alert(getErrorMessage(err, '처리 시작 변경에 실패했습니다.'));
-    } finally {
-      setTransitioningStatus(null);
-    }
-  };
-
-  const handlePendingSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!ticket) return;
-    if (!pendingReason.trim()) {
-      setPendingError('사원에게 요청할 확인 사항이나 사유를 입력해주세요.');
-      return;
-    }
-    setSubmittingPending(true);
-    setPendingError('');
-    try {
-      await apiClient.post(`/tickets/${ticket.id}/pending`, {
-        reason: pendingReason.trim(),
-      });
-      setShowPendingModal(false);
-      await fetchDetail(ticket.id);
-      if (onSuccess) onSuccess();
-    } catch (err: any) {
-      setPendingError(getErrorMessage(err, '답변 대기 요청 실패'));
-    } finally {
-      setSubmittingPending(false);
-    }
-  };
-
-  const handleCloseSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!ticket) return;
-    setSubmittingClose(true);
-    setCloseError('');
-    try {
-      await apiClient.post(`/tickets/${ticket.id}/close`, {
-        note: closeNote.trim() || undefined,
-      });
-      setShowCloseModal(false);
-      await fetchDetail(ticket.id);
-      if (onSuccess) onSuccess();
-    } catch (err: any) {
-      setCloseError(getErrorMessage(err, '직권 종결 처리 실패'));
-    } finally {
-      setSubmittingClose(false);
-    }
-  };
-
-  const handleCancelSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!ticket) return;
-    setSubmittingCancel(true);
-    setCancelError('');
-    try {
-      await apiClient.post(`/tickets/${ticket.id}/cancel`, {
-        reason: cancelReason.trim() || undefined,
-      });
-      setShowCancelModal(false);
-      setIsEditingTicket(false);
-      await fetchDetail(ticket.id);
-      if (onSuccess) onSuccess();
-    } catch (err: any) {
-      setCancelError(getErrorMessage(err, '문의 취소 실패'));
-    } finally {
-      setSubmittingCancel(false);
-    }
-  };
-
-  const handleUpdateTicketSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!ticket) return;
-    if (!editTitle.trim() || !editContent.trim()) {
-      setEditTicketError('제목과 내용을 모두 입력해주세요.');
-      return;
-    }
-    setSubmittingEditTicket(true);
-    setEditTicketError('');
-    try {
-      await apiClient.post(`/tickets/${ticket.id}/update`, {
-        title: editTitle.trim(),
-        category: editCategory,
-        priority: editPriority,
-        content: editContent.trim(),
-      });
-      setIsEditingTicket(false);
-      await fetchDetail(ticket.id);
-      if (onSuccess) onSuccess();
-    } catch (err: any) {
-      setEditTicketError(getErrorMessage(err, '문의 수정 실패'));
-    } finally {
-      setSubmittingEditTicket(false);
-    }
-  };
-
-  const handleAttachmentDownload = async (att: Attachment) => {
-    if (!ticket) return;
-    setDownloadingAttachmentId(att.id);
-    try {
-      const res = await apiClient.get(`/tickets/${ticket.id}/attachments/${att.id}`);
-      const base64Data = res.data.datas;
-      const mimetype = res.data.mimetype || 'application/octet-stream';
-      const byteCharacters = atob(base64Data);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: mimetype });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = att.name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-    } catch (err: any) {
-      alert(getErrorMessage(err, '첨부파일 다운로드에 실패했습니다.'));
-    } finally {
-      setDownloadingAttachmentId(null);
-    }
-  };
-
-  const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!ticket || !e.target.files || e.target.files.length === 0) return;
-    const file = e.target.files[0];
-    if (file.size > 5 * 1024 * 1024) {
-      alert('첨부파일은 최대 5MB까지만 업로드 가능합니다.');
-      e.target.value = '';
-      return;
-    }
-    setUploadingAttachment(true);
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const base64Data = (reader.result as string).split(',')[1] || '';
-        await apiClient.post(`/tickets/${ticket.id}/attachments`, {
-          name: file.name,
-          datas: base64Data,
-          mimetype: file.type || 'application/octet-stream',
-        });
-        await fetchDetail(ticket.id);
-      } catch (err: any) {
-        alert(getErrorMessage(err, '첨부파일 업로드 실패'));
-      } finally {
-        setUploadingAttachment(false);
-        e.target.value = '';
-      }
-    };
-    reader.readAsDataURL(file);
-  };
+  // 5. Attachments Sub-Hook
+  const attachments = useTicketAttachments({
+    ticket,
+    onSuccess,
+    reloadTicket,
+  });
 
   return {
-    ticket,
-    loading,
-    fetchError,
-    isAuthor,
-    isOfficer,
-    isAssignee,
-    isAdmin,
-    isOwnerOrAdmin,
-    fetchDetail,
+    // Detail & Permissions
+    ticket: detail.ticket,
+    loading: detail.loading,
+    fetchError: detail.fetchError,
+    faqLoading: detail.faqLoading,
+    togglingFaq: detail.faqLoading,
+    handleToggleFaq: detail.handleToggleFaq,
+    isAuthor: detail.permissions.isAuthor,
+    isOfficer: detail.permissions.isOfficer,
+    isAssignee: detail.permissions.isAssignee,
+    isAdmin: detail.permissions.isAdmin,
+    isOwnerOrAdmin: detail.permissions.isOwnerOrAdmin,
+    permissions: detail.permissions,
 
-    // Resolve
-    resolutionNote,
-    setResolutionNote,
-    submittingResolve,
-    resolveError,
-    setResolveError,
-    handleResolveSubmit,
+    // Inquiry Edit
+    isEditingTicket: inquiryEdit.isEditingTicket,
+    setIsEditingTicket: (editing?: boolean) => {
+      if (editing === false) inquiryEdit.onCancelEditTicket();
+      else inquiryEdit.onStartEditTicket();
+    },
+    editTitle: inquiryEdit.editTitle,
+    setEditTitle: inquiryEdit.setEditTitle,
+    editCategory: inquiryEdit.editCategory,
+    setEditCategory: inquiryEdit.setEditCategory,
+    editPriority: inquiryEdit.editPriority,
+    setEditPriority: inquiryEdit.setEditPriority,
+    editContent: inquiryEdit.editContent,
+    setEditContent: inquiryEdit.setEditContent,
+    submittingEditTicket: inquiryEdit.submittingEditTicket,
+    editTicketError: inquiryEdit.editTicketError,
+    setEditTicketError: (_val?: string) => {},
+    onStartEditTicket: inquiryEdit.onStartEditTicket,
+    onCancelEditTicket: inquiryEdit.onCancelEditTicket,
+    onSubmitEditTicket: inquiryEdit.onSubmitEditTicket,
+    handleUpdateTicketSubmit: inquiryEdit.onSubmitEditTicket,
 
-    // Edit resolution
-    isEditingResolution,
-    setIsEditingResolution,
-    editResolutionNote,
-    setEditResolutionNote,
-    submittingEditResolution,
-    editResolutionError,
-    setEditResolutionError,
-    handleUpdateResolutionSubmit,
+    // Cancel
+    showCancelModal: inquiryEdit.showCancelModal,
+    setShowCancelModal: (show: boolean) => {
+      if (show) inquiryEdit.onOpenCancelModal();
+      else inquiryEdit.onCloseCancelModal();
+    },
+    cancelReason: inquiryEdit.cancelReason,
+    setCancelReason: inquiryEdit.setCancelReason,
+    submittingCancel: inquiryEdit.submittingCancel,
+    cancelError: inquiryEdit.cancelError,
+    setCancelError: (_val?: string) => {},
+    onOpenCancelModal: inquiryEdit.onOpenCancelModal,
+    onCloseCancelModal: inquiryEdit.onCloseCancelModal,
+    onSubmitCancel: inquiryEdit.onSubmitCancel,
+    handleCancelSubmit: inquiryEdit.onSubmitCancel,
 
-    // Restart
-    showRestartForm,
-    setShowRestartForm,
-    restartReason,
-    setRestartReason,
-    submittingRestart,
-    restartError,
-    setRestartError,
-    handleRestartSubmit,
+    // Workflow Actions
+    transitioningStatus: workflow.transitioningStatus,
+    officers: workflow.officers,
+    showDesignateModal: workflow.showDesignateModal,
+    setShowDesignateModal: workflow.setShowDesignateModal,
+    selectedAssignOfficerId: workflow.selectedAssignOfficerId,
+    setSelectedAssignOfficerId: workflow.setSelectedAssignOfficerId,
+    assignReason: workflow.assignReason,
+    setAssignReason: workflow.setAssignReason,
+    submittingDesignate: workflow.submittingDesignate,
+    designateError: workflow.designateError,
+    setDesignateError: workflow.setDesignateError,
+    onToggleDesignate: workflow.onToggleDesignate,
+    onSubmitDesignate: workflow.onSubmitDesignate,
+    handleAssignToOfficer: workflow.onSubmitDesignate,
+    onAssignToMe: workflow.onAssignToMe,
+    handleAssignToMe: workflow.onAssignToMe,
+    onStartProgress: workflow.onStartProgress,
+    handleStartProgress: workflow.onStartProgress,
+
+    // Pending
+    showPendingModal: workflow.showPendingModal,
+    setShowPendingModal: workflow.setShowPendingModal,
+    pendingReason: workflow.pendingReason,
+    setPendingReason: workflow.setPendingReason,
+    submittingPending: workflow.submittingPending,
+    pendingError: workflow.pendingError,
+    setPendingError: workflow.setPendingError,
+    onTogglePending: workflow.onTogglePending,
+    onClosePendingModal: workflow.onClosePendingModal,
+    onSubmitPending: workflow.onSubmitPending,
+    handlePendingSubmit: workflow.onSubmitPending,
+
+    // Pending Reply
+    showPendingReplyForm: resolution.showPendingReplyForm,
+    setShowPendingReplyForm: (show: boolean) => {
+      if (show) resolution.onOpenPendingReply();
+      else resolution.onClosePendingReply();
+    },
+    pendingReplyText: resolution.pendingReplyText,
+    setPendingReplyText: resolution.setPendingReplyText,
+    submittingPendingReply: resolution.submittingPendingReply,
+    pendingReplyError: resolution.pendingReplyError,
+    setPendingReplyError: (_val?: string) => {},
+    onOpenPendingReply: resolution.onOpenPendingReply,
+    onClosePendingReply: resolution.onClosePendingReply,
+    onSubmitPendingReply: resolution.onSubmitPendingReply,
+    handlePendingReplySubmit: resolution.onSubmitPendingReply,
+
+    // Resolution
+    resolutionNote: resolution.resolutionNote,
+    setResolutionNote: resolution.setResolutionNote,
+    submittingResolve: resolution.submittingResolve,
+    resolveError: resolution.resolveError,
+    onSubmitResolve: resolution.onSubmitResolve,
+    handleResolveSubmit: resolution.onSubmitResolve,
+    isEditingResolution: resolution.isEditingResolution,
+    setIsEditingResolution: (editing?: boolean) => {
+      if (editing === false) resolution.onCancelEditResolution();
+      else resolution.onStartEditResolution();
+    },
+    editResolutionNote: resolution.editResolutionNote,
+    setEditResolutionNote: resolution.setEditResolutionNote,
+    submittingEditResolution: resolution.submittingEditResolution,
+    editResolutionError: resolution.editResolutionError,
+    setEditResolutionError: (_val?: string) => {},
+    onStartEditResolution: resolution.onStartEditResolution,
+    onCancelEditResolution: resolution.onCancelEditResolution,
+    onSubmitEditResolution: resolution.onSubmitEditResolution,
+    handleUpdateResolutionSubmit: resolution.onSubmitEditResolution,
+
+    // Restart Inquiry
+    showRestartForm: resolution.showRestartForm,
+    setShowRestartForm: resolution.setShowRestartForm,
+    restartReason: resolution.restartReason,
+    setRestartReason: resolution.setRestartReason,
+    submittingRestart: resolution.submittingRestart,
+    restartError: resolution.restartError,
+    setRestartError: (_val?: string) => {},
+    onSubmitRestart: resolution.onSubmitRestart,
+    handleRestartSubmit: resolution.onSubmitRestart,
 
     // Rating
-    ratingScore,
-    setRatingScore,
-    ratingComment,
-    setRatingComment,
-    submittingRating,
-    ratingError,
-    setRatingError,
-    handleRatingSubmit,
+    ratingScore: resolution.ratingScore,
+    setRatingScore: resolution.setRatingScore,
+    ratingComment: resolution.ratingComment,
+    setRatingComment: resolution.setRatingComment,
+    submittingRating: resolution.submittingRating,
+    ratingError: resolution.ratingError,
+    onSubmitRating: resolution.onSubmitRating,
+    handleRatingSubmit: resolution.onSubmitRating,
 
-    // Edit ticket
-    isEditingTicket,
-    setIsEditingTicket,
-    editTitle,
-    setEditTitle,
-    editCategory,
-    setEditCategory,
-    editPriority,
-    setEditPriority,
-    editContent,
-    setEditContent,
-    submittingEditTicket,
-    editTicketError,
-    setEditTicketError,
-    handleUpdateTicketSubmit,
+    // Close
+    showCloseModal: workflow.showCloseModal,
+    setShowCloseModal: workflow.setShowCloseModal,
+    closeNote: workflow.closeNote,
+    setCloseNote: workflow.setCloseNote,
+    submittingClose: workflow.submittingClose,
+    closeError: workflow.closeError,
+    setCloseError: workflow.setCloseError,
+    onOpenClose: workflow.onOpenClose,
+    onCloseCloseModal: workflow.onCloseCloseModal,
+    onSubmitClose: workflow.onSubmitClose,
+    handleCloseSubmit: workflow.onSubmitClose,
 
     // Attachments
-    uploadingAttachment,
-    downloadingAttachmentId,
-    handleAttachmentUpload,
-    handleAttachmentDownload,
-
-    // Workflow status
-    transitioningStatus,
-    handleAssignToMe,
-    handleStartProgress,
-
-    // Officer Designation
-    officers,
-    showDesignateModal,
-    setShowDesignateModal,
-    selectedAssignOfficerId,
-    setSelectedAssignOfficerId,
-    submittingDesignate,
-    designateError,
-    assignReason,
-    setAssignReason,
-    handleAssignToOfficer,
-
-    // Modals
-    showCloseModal,
-    setShowCloseModal,
-    closeNote,
-    setCloseNote,
-    submittingClose,
-    closeError,
-    setCloseError,
-    handleCloseSubmit,
-
-    showPendingModal,
-    setShowPendingModal,
-    pendingReason,
-    setPendingReason,
-    submittingPending,
-    pendingError,
-    setPendingError,
-    handlePendingSubmit,
-
-    showPendingReplyForm,
-    setShowPendingReplyForm,
-    pendingReplyText,
-    setPendingReplyText,
-    submittingPendingReply,
-    pendingReplyError,
-    setPendingReplyError,
-    handlePendingReplySubmit,
-
-    showCancelModal,
-    setShowCancelModal,
-    cancelReason,
-    setCancelReason,
-    submittingCancel,
-    cancelError,
-    setCancelError,
-    handleCancelSubmit,
-
-    // FAQ
-    togglingFaq,
-    handleToggleFaq,
+    uploadingAttachment: attachments.uploadingAttachment,
+    downloadingAttachmentId: attachments.downloadingAttachmentId,
+    handleUploadAttachment: attachments.handleUploadAttachment,
+    handleAttachmentUpload: (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        attachments.handleUploadAttachment(file);
+      }
+    },
+    handleDownloadAttachment: attachments.handleDownloadAttachment,
+    handleAttachmentDownload: attachments.handleDownloadAttachment,
   };
 }

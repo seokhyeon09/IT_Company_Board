@@ -29,14 +29,10 @@ def _clean_html(raw: Optional[str]) -> str:
     """Strip HTML tags and convert line breaks for clean plain text display."""
     if not raw:
         return ""
-    # 1. Unescape HTML entities so tags become real <...>
     text = html.unescape(raw)
-    # 2. Convert line breaks
     text = re.sub(r'<br\s*/?>', '\n', text, flags=re.IGNORECASE)
     text = re.sub(r'</p>', '\n', text, flags=re.IGNORECASE)
-    # 3. Strip all HTML tags
     text = re.sub(r'<[^>]+>', '', text)
-    # 4. Strip residual prefixes and clean whitespace
     text = re.sub(r'^(?:\[(?:추가 재문의|조치 답변|조치 답변 \(수정\)|답변 대기 요청|직권 종결|문의 취소)\]\s*)+', '', text.strip())
     text = text.replace('\xa0', ' ').replace('&nbsp;', ' ')
     return text.strip()
@@ -63,3 +59,13 @@ def _format_datetime_utc(dt_val) -> Optional[str]:
     if hasattr(dt_val, "strftime"):
         return dt_val.strftime("%Y-%m-%dT%H:%M:%SZ")
     return str(dt_val)
+
+def is_html_empty(html_content: Optional[str]) -> bool:
+    """Check if HTML content is substantially empty (<p><br></p>, &nbsp;, etc.)."""
+    if not html_content:
+        return True
+    text = re.sub(r'<[^>]*>', '', str(html_content))
+    text = text.replace('&nbsp;', ' ').replace('\xa0', ' ').strip()
+    return not text
+
+_is_html_empty = is_html_empty
