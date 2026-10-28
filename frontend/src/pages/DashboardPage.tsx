@@ -106,12 +106,14 @@ export const DashboardPage: React.FC = () => {
   const handleStatsCardClick = (targetStatus: string) => {
     setActiveTab('all');
     setPage(1);
+    setSortBy('id desc');
     if (targetStatus === 'overdue') {
       setIsOverdueOnly((prev) => !prev);
       setStatusFilter('');
-    } else {
+    } else if (targetStatus === '') {
+      setStatusFilter('');
       setIsOverdueOnly(false);
-      setSortBy('id desc');
+    } else {
       setStatusFilter((prev) => (prev === targetStatus ? '' : targetStatus));
     }
   };
@@ -168,7 +170,7 @@ export const DashboardPage: React.FC = () => {
       {/* KPI Stats Widgets */}
       <DashboardStats
         stats={stats}
-        selectedStatus={isOverdueOnly ? 'overdue' : statusFilter}
+        selectedStatus={isOverdueOnly && !statusFilter ? 'overdue' : statusFilter}
         onSelectStatus={handleStatsCardClick}
       />
 
@@ -190,7 +192,6 @@ export const DashboardPage: React.FC = () => {
         statusFilter={statusFilter}
         onStatusChange={(val) => {
           setStatusFilter(val);
-          setIsOverdueOnly(false);
           setPage(1);
         }}
         categoryFilter={categoryFilter}
