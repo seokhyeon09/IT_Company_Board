@@ -24,7 +24,7 @@ except ImportError:
     sys.exit(res.returncode)
 
 if "USERS_SPEC" not in globals():
-    from seed_specs import USERS_SPEC, TICKETS_SPEC
+    from seed_specs import USERS_SPEC, TICKETS_SPEC, ASSIGN_RULES_SPEC
 
 DB_NAME = os.environ.get("ODOO_DB", "helpdesk_db")
 DB_HOST = os.environ.get("HOST", "db")
@@ -60,6 +60,23 @@ def ensure_users(env):
             print(f"[SEED] Updated user: {spec['name']} ({spec['login']})")
         user_map[spec["login"]] = user
     return user_map
+
+
+def ensure_assign_rules(env, user_map):
+    """분야별 전담 담당자 규칙을 멱등하게 반영하고 자동 배정 스위치를 켠다."""
+    Rule = env["it.helpdesk.assign.rule"].sudo().with_context(active_test=False)
+    for category, logins in ASSIGN_RULES_SPEC.items():
+        officer_ids = [user_map[login].id for login in logins]
+        vals = {"category": category, "officer_ids": [(6, 0, officer_ids)], "active": True}
+        rule = Rule.search([("category", "=", category)], limit=1)
+        if rule:
+            rule.write(vals)
+            print(f"[SEED] Updated assign rule: {category} -> {logins}")
+        else:
+            Rule.create(vals)
+            print(f"[SEED] Created assign rule: {category} -> {logins}")
+    env["ir.config_parameter"].sudo().set_param("it_helpdesk.auto_assign_enabled", "True")
+    print("[SEED] Auto-assign switch: ON")
 
 
 def reset_seed_data(env):
@@ -175,8 +192,10 @@ def seed_sample_read_notifications(env, user_map):
     u_officer = user_map.get("officer@test.com")
     t_reassign = Ticket.search([("title", "=like", "%[SEED]%ERP 재무회계%")], limit=1)
     if u_officer and t_reassign:
-        ReadModel.create({"user_id": u_officer.id, "notification_id": f"{t_reassign.id}-new"})
-        print(f"[SEED] Sample notification read record created for {u_officer.login}")
+        nid = f"{t_reassign.id}-new"
+        if not ReadModel.search([("user_id", "=", u_officer.id), ("notification_id", "=", nid)], limit=1):
+            ReadModel.create({"user_id": u_officer.id, "notification_id": nid})
+            print(f"[SEED] Sample notification read record created for {u_officer.login}")
 
 
 def main():
@@ -190,6 +209,7 @@ def main():
         if "--reset" in sys.argv:
             reset_seed_data(env)
         user_map = ensure_users(env)
+        ensure_assign_rules(env, user_map)
         ensure_tickets(env, user_map)
         seed_sample_read_notifications(env, user_map)
         cr.commit()
