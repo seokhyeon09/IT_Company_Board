@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- 분야별 담당자 자동 배정 스위치 (기본 꺼짐, 시드 실행 시 켜짐) -->
+        <record id="config_auto_assign_enabled" model="ir.config_parameter">
+            <field name="key">it_helpdesk.auto_assign_enabled</field>
+            <field name="value">False</field>
+        </record>
+    </data>
+</odoo>

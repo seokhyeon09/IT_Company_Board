@@ -9,7 +9,7 @@ from ..utils import (
     _format_datetime_utc,
     verify_gateway_request,
     get_current_request,
-    serialize_ticket_detail,
+    serialize_ticket_detail, create_ticket_with_auto_assign,
 )
 
 _logger = logging.getLogger(__name__)
@@ -155,7 +155,7 @@ class TicketQueryAPIController(http.Controller):
                 raise UserError(f"Invalid priority '{raw_p}'. Must be '0', '1', '2', or '3'.")
             vals['priority'] = str_p
 
-        ticket = ticket_env.create(vals)
+        ticket = create_ticket_with_auto_assign(ticket_env, vals)
 
         initial_attachments = kwargs.get('attachments')
         if initial_attachments and isinstance(initial_attachments, list):

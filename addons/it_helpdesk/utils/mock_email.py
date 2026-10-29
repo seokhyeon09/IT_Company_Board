@@ -10,6 +10,7 @@ import re
 import html
 
 from .text_utils import _clean_html, _extract_thread_content, _format_datetime_utc
+from .mock_email_auto import build_auto_assign_events
 
 SENDER_EMAIL = "it-helpdesk-noreply@company.com"
 SENT_STATUS = "발송완료 (모의)"
@@ -65,7 +66,12 @@ def _collect_events(ticket):
         at = _format_datetime_utc(msg.date)
         sfx = f"msg-{msg.id}"
 
-        if "[담당자 배정]" in clean_b or "[처리 시작]" in clean_b:
+        if 'data-msg-type="auto_assign"' in body_un:
+            if has_assigned:
+                continue
+            has_assigned = True
+            events.extend(build_auto_assign_events(ticket, sfx, at, _mail))
+        elif "[담당자 배정]" in clean_b or "[처리 시작]" in clean_b:
             if has_assigned:
                 continue
             has_assigned = True
