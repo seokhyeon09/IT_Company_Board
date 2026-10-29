@@ -8,10 +8,11 @@ import {
   AlertTriangle,
   Clock,
   Loader2,
-  Layers,
 } from 'lucide-react';
 import { useOfficerStats } from '../hooks/useOfficerStats';
 import { OfficerStatItem } from '../types/dashboard';
+import { formatResolutionHours } from '../../../shared/utils/durationUtils';
+import { MttrSummarySection } from './MttrSummarySection';
 
 export interface OfficerStatsModalProps {
   isOpen: boolean;
@@ -115,13 +116,14 @@ export const OfficerStatsModal: React.FC<OfficerStatsModalProps> = ({ isOpen, on
                         <th className="py-2.5 px-3 text-center">해결완료</th>
                         <th className="py-2.5 px-3 text-center">기한초과</th>
                         <th className="py-2.5 px-3 text-center">SLA 준수율</th>
+                        <th className="py-2.5 px-3 text-center">평균 해결시간</th>
                         <th className="py-2.5 px-3 text-center">만족도 평점</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-slate-700">
                       {data.officers.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="py-6 text-center text-slate-400">
+                          <td colSpan={8} className="py-6 text-center text-slate-400">
                             등록된 IT 담당자가 없습니다.
                           </td>
                         </tr>
@@ -166,6 +168,13 @@ export const OfficerStatsModal: React.FC<OfficerStatsModalProps> = ({ isOpen, on
                                 {(officer as any).sla_compliance_rate ?? 100}%
                               </span>
                             </td>
+                            <td className="py-2.5 px-3 text-center font-semibold text-teal-700">
+                              {formatResolutionHours(
+                                (officer as any).avg_resolution_hours,
+                                (officer as any).resolved_measured_count,
+                                '-'
+                              )}
+                            </td>
                             <td className="py-2.5 px-3 text-center">
                               {((officer as any).rating_count ?? 0) > 0 ? (
                                 <span className="inline-flex items-center text-amber-700 font-bold">
@@ -187,30 +196,10 @@ export const OfficerStatsModal: React.FC<OfficerStatsModalProps> = ({ isOpen, on
                 </div>
               </div>
 
-              {/* Category Breakdown */}
-              {Array.isArray((data as any).category_breakdown) && (
-                <div>
-                  <h4 className="text-xs font-bold text-slate-700 mb-2.5 flex items-center">
-                    <Layers className="w-4 h-4 mr-1.5 text-indigo-600" /> 카테고리별 티켓 분포 비중
-                  </h4>
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                    {((data as any).category_breakdown as any[]).map((cat: any) => (
-                      <div
-                        key={cat.category}
-                        className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col justify-between"
-                      >
-                        <span className="text-xs text-slate-500 font-medium">{cat.label}</span>
-                        <div className="flex items-baseline justify-between mt-1.5">
-                          <span className="text-base font-bold text-slate-800">{cat.count}건</span>
-                          <span className="text-[11px] font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
-                            {cat.percentage}%
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <MttrSummarySection
+                overallAvgHours={(data as any).overall_avg_resolution_hours}
+                categories={(data as any).category_breakdown}
+              />
             </>
           )}
         </div>

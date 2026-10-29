@@ -39,8 +39,20 @@ export interface OfficerStatItem {
   total_assigned: number;
   total_completed: number;
   categories: Record<string, number>;
+  avg_resolution_hours?: number;
+  resolved_measured_count?: number;
+}
+
+export interface CategoryStatItem {
+  category: string;
+  label: string;
+  count: number;
+  percentage: number;
+  avg_resolution_hours?: number;
 }
 
 export interface OfficerStatsData {
   officers: OfficerStatItem[];
+  category_breakdown?: CategoryStatItem[];
+  overall_avg_resolution_hours?: number;
 }
