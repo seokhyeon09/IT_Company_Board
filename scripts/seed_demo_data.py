@@ -68,6 +68,9 @@ def ensure_assign_rules(env, user_map):
     for category, logins in ASSIGN_RULES_SPEC.items():
         officer_ids = [user_map[login].id for login in logins]
         vals = {"category": category, "officer_ids": [(6, 0, officer_ids)], "active": True}
+        rules = Rule.search([("category", "=", category)])
+        if len(rules) > 1:
+            rules[1:].unlink()
         rule = Rule.search([("category", "=", category)], limit=1)
         if rule:
             rule.write(vals)
@@ -79,16 +82,24 @@ def ensure_assign_rules(env, user_map):
     print("[SEED] Auto-assign switch: ON")
 
 
-def reset_seed_data(env):
+def reset_seed_data(env, wipe_all=False):
     Ticket = env["it.helpdesk.ticket"].sudo()
     Att = env["ir.attachment"].sudo()
-    seeds = Ticket.search([("title", "=like", "[SEED]%")])
-    if seeds:
-        print(f"[RESET] Purging {len(seeds)} existing [SEED] tickets...")
-        Att.search([("res_model", "=", "it.helpdesk.ticket"), ("res_id", "in", seeds.ids)]).unlink()
-        seeds.rating_ids.unlink()
-        seeds.unlink()
+    Msg = env["mail.message"].sudo()
+    tickets = Ticket.search([]) if wipe_all else Ticket.search([("title", "=like", "[SEED]%")])
+    if tickets:
+        lbl = "ALL" if wipe_all else "[SEED]"
+        print(f"[RESET] Purging {len(tickets)} existing {lbl} tickets...")
+        Att.search([("res_model", "=", "it.helpdesk.ticket"), ("res_id", "in", tickets.ids)]).unlink()
+        Msg.search([("model", "=", "it.helpdesk.ticket"), ("res_id", "in", tickets.ids)]).unlink()
+        tickets.rating_ids.unlink()
+        tickets.unlink()
     env["it.helpdesk.notification.read"].sudo().search([]).unlink()
+    if wipe_all:
+        seq = env["ir.sequence"].sudo().search([("code", "=", "it.helpdesk.ticket")], limit=1)
+        if seq:
+            seq.write({"number_next": 1})
+            print("[RESET] Reset ticket sequence to 1.")
     print("[RESET] Clean reset finished.")
 
 
@@ -209,8 +220,10 @@ def main():
         print("=" * 68)
         print("[SEED] Starting Idempotent Demo Data Seeding for IT Helpdesk...")
         print("=" * 68)
-        if "--reset" in sys.argv:
-            reset_seed_data(env)
+        if "--wipe-all" in sys.argv:
+            reset_seed_data(env, wipe_all=True)
+        elif "--reset" in sys.argv:
+            reset_seed_data(env, wipe_all=False)
         user_map = ensure_users(env)
         ensure_assign_rules(env, user_map)
         ensure_tickets(env, user_map)
