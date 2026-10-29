@@ -9,7 +9,7 @@ from odoo.tests.common import TransactionCase
 from ..utils.auto_assign import create_ticket_with_auto_assign
 from ..utils.webhook_notifier import notify_urgent_ticket_created
 
-VALID_SLACK_URL = "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
+VALID_SLACK_URL = "https://hooks.slack.com/services/TEST/TEST/TEST"
 
 
 class TestSlackWebhook(TransactionCase):
