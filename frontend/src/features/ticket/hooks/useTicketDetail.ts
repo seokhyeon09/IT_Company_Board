@@ -60,7 +60,7 @@ export function useTicketDetail(ticketId: number | null, isOpen: boolean) {
     ticket.assignee_id === user.uid
   ));
 
-  const isAdmin = Boolean(user?.is_admin);
+  const isAdmin = Boolean(user?.is_admin || user?.is_manager);
   const isOwnerOrAdmin = isAssignee || isAdmin;
 
   const permissions: TicketPermissions = {

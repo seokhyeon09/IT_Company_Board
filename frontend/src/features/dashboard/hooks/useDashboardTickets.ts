@@ -56,14 +56,38 @@ export function useDashboardTickets() {
         limit: PAGE_SIZE,
       };
 
-      if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
-      if (statusFilter) params.status = statusFilter;
-      if (categoryFilter) params.category = categoryFilter;
-      if (priorityFilter) params.priority = priorityFilter;
-      if (isOverdueOnly) params.is_overdue = true;
-      if (assignedToMe) params.assigned_to_me = true;
-      if (sortBy) params.sort_by = sortBy;
-      if (activeTab === 'faq') params.is_faq = true;
+      if (debouncedSearch.trim()) {
+        params.search = debouncedSearch.trim();
+        params.searchQuery = debouncedSearch.trim();
+      }
+      if (statusFilter) {
+        params.status = statusFilter;
+        params.statusFilter = statusFilter;
+      }
+      if (categoryFilter) {
+        params.category = categoryFilter;
+        params.categoryFilter = categoryFilter;
+      }
+      if (priorityFilter) {
+        params.priority = priorityFilter;
+        params.priorityFilter = priorityFilter;
+      }
+      if (isOverdueOnly) {
+        params.is_overdue = true;
+        params.isOverdueOnly = true;
+      }
+      if (assignedToMe) {
+        params.assigned_to_me = true;
+        params.assignedToMe = true;
+      }
+      if (sortBy) {
+        params.sort_by = sortBy;
+        params.sortBy = sortBy;
+      }
+      if (activeTab === 'faq') {
+        params.is_faq = true;
+        params.isFaq = true;
+      }
 
       const res = await ticketApi.getTickets(params);
       setTickets(res.tickets || (res as any).data || []);

@@ -16,6 +16,10 @@ export interface TicketListQueryParams {
   categoryFilter?: TicketCategory | '';
   priorityFilter?: TicketPriority | '';
   searchQuery?: string;
+  status?: string;
+  category?: string;
+  priority?: string;
+  search?: string;
   isOverdueOnly?: boolean;
   assignedToMe?: boolean;
   sortBy?: string;

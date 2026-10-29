@@ -30,12 +30,12 @@ def ensure_officer(user):
         raise AccessError("Only helpdesk officers can perform this action.")
 
 def ensure_assignee_or_admin(ticket, user):
-    """Ensure user is assigned officer, ticket is unassigned, or user is system administrator."""
-    is_admin = user._is_admin()
+    """Ensure user is assigned officer, ticket is unassigned, or user is manager/administrator."""
+    is_admin = user._is_admin() or user.has_group('it_helpdesk.group_helpdesk_manager')
     is_assignee = bool(ticket.assignee_id and ticket.assignee_id.id == user.id)
     is_unassigned = not bool(ticket.assignee_id)
     if not (is_admin or is_assignee or is_unassigned):
-        raise AccessError("Only the assigned officer or an administrator can perform this action.")
+        raise AccessError("Only the assigned officer or a manager/administrator can perform this action.")
 
 def ensure_author(ticket, user):
     """Ensure user is ticket author or system administrator."""

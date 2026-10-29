@@ -1,7 +1,10 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_it_helpdesk_ticket_user,it.helpdesk.ticket.user,model_it_helpdesk_ticket,it_helpdesk.group_helpdesk_user,1,1,1,0
-access_it_helpdesk_ticket_officer,it.helpdesk.ticket.officer,model_it_helpdesk_ticket,it_helpdesk.group_helpdesk_officer,1,1,1,1
+access_it_helpdesk_ticket_officer,it.helpdesk.ticket.officer,model_it_helpdesk_ticket,it_helpdesk.group_helpdesk_officer,1,1,1,0
+access_it_helpdesk_ticket_manager,it.helpdesk.ticket.manager,model_it_helpdesk_ticket,it_helpdesk.group_helpdesk_manager,1,1,1,1
 access_it_helpdesk_ticket_rating_user,it.helpdesk.ticket.rating.user,model_it_helpdesk_ticket_rating,it_helpdesk.group_helpdesk_user,1,1,1,0
-access_it_helpdesk_ticket_rating_officer,it.helpdesk.ticket.rating.officer,model_it_helpdesk_ticket_rating,it_helpdesk.group_helpdesk_officer,1,1,1,1
+access_it_helpdesk_ticket_rating_officer,it.helpdesk.ticket.rating.officer,model_it_helpdesk_ticket_rating,it_helpdesk.group_helpdesk_officer,1,1,1,0
+access_it_helpdesk_ticket_rating_manager,it.helpdesk.ticket.rating.manager,model_it_helpdesk_ticket_rating,it_helpdesk.group_helpdesk_manager,1,1,1,1
 access_it_helpdesk_notification_read_user,it.helpdesk.notification.read.user,model_it_helpdesk_notification_read,it_helpdesk.group_helpdesk_user,1,1,1,1
 access_it_helpdesk_notification_read_officer,it.helpdesk.notification.read.officer,model_it_helpdesk_notification_read,it_helpdesk.group_helpdesk_officer,1,1,1,1
+access_it_helpdesk_notification_read_manager,it.helpdesk.notification.read.manager,model_it_helpdesk_notification_read,it_helpdesk.group_helpdesk_manager,1,1,1,1

@@ -5,6 +5,7 @@ export interface UserProfile {
   name: string;
   login: string;
   is_officer: boolean;
+  is_manager?: boolean;
   is_admin?: boolean;
 }
 

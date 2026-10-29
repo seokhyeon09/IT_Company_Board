@@ -37,7 +37,9 @@ export const DashboardPage: React.FC = () => {
         <div>
           <h2 className="text-2xl font-black text-slate-900 tracking-tight">IT 지원 대시보드</h2>
           <p className="text-sm text-slate-500 mt-1">
-            {user?.is_officer
+            {user?.is_admin || user?.is_manager
+              ? 'IT 관리자 전용: 전사 티켓 통합 제어, 직권 조치 및 SLA 성과 통계를 관리합니다.'
+              : user?.is_officer
               ? 'IT 담당자 전용: 전체 티켓 현황, SLA 모니터링 및 조치 관리를 수행합니다.'
               : '사원 전용: 내 문의 내역 및 사내 FAQ 지식창고를 확인합니다.'}
           </p>

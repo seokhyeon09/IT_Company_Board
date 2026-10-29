@@ -21,7 +21,12 @@ export const Navbar: React.FC = () => {
         <div className="flex items-center space-x-4">
           {user && (
             <div className="flex items-center space-x-3 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200">
-              {user.is_officer ? (
+              {user.is_admin || user.is_manager ? (
+                <span className="flex items-center text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                  <ShieldCheck className="w-3.5 h-3.5 mr-1" />
+                  IT 관리자
+                </span>
+              ) : user.is_officer ? (
                 <span className="flex items-center text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
                   <ShieldCheck className="w-3.5 h-3.5 mr-1" />
                   IT 담당자

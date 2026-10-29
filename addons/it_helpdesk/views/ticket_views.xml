@@ -354,6 +354,13 @@
         <field name="view_mode">graph,pivot</field>
     </record>
 
+    <!-- 관리자 전용 액션: 전체 티켓 통합 제어 (삭제/수정/통계 통합 뷰) -->
+    <record id="action_helpdesk_ticket_manager_all" model="ir.actions.act_window">
+        <field name="name">전체 티켓 통합 관리</field>
+        <field name="res_model">it.helpdesk.ticket</field>
+        <field name="view_mode">list,kanban,form,pivot,graph</field>
+    </record>
+
     <!-- 메인메뉴 -->
     <menuitem id="menu_helpdesk_root" name="IT 헬프데스크" sequence="10"/>
 
@@ -398,6 +405,21 @@
         action="action_helpdesk_ticket_analysis" 
         sequence="40"
         groups="it_helpdesk.group_helpdesk_officer"
+    />
+
+    <!-- 관리자 전용 서브메뉴: 관리자 설정 폴더 및 하위 메뉴 -->
+    <menuitem id="menu_helpdesk_manager_root" 
+        name="관리자 설정" 
+        parent="menu_helpdesk_root" 
+        sequence="90"
+        groups="it_helpdesk.group_helpdesk_manager"
+    />
+    <menuitem id="menu_helpdesk_ticket_manager_all" 
+        name="전체 티켓 통합 관리" 
+        parent="menu_helpdesk_manager_root" 
+        action="action_helpdesk_ticket_manager_all" 
+        sequence="10"
+        groups="it_helpdesk.group_helpdesk_manager"
     />
 
 </odoo>

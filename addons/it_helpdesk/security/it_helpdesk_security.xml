@@ -16,6 +16,14 @@
         <field name="category_id" ref="module_category_it_helpdesk"/>
         <field name="implied_ids" eval="[(4, ref('group_helpdesk_user'))]"/>
     </record>
+
+    <!-- 관리자(Manager) 그룹: 담당자의 모든 권한 상속 및 루트/어드민 기본 부여 -->
+    <record id="group_helpdesk_manager" model="res.groups">
+        <field name="name">관리자</field>
+        <field name="category_id" ref="module_category_it_helpdesk"/>
+        <field name="implied_ids" eval="[(4, ref('group_helpdesk_officer'))]"/>
+        <field name="users" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
     
     <!-- Fix SEC-18: Enable perm_read="True" to restrict employees to their own tickets -->
     <record id="helpdesk_ticket_rule_user" model="ir.rule">

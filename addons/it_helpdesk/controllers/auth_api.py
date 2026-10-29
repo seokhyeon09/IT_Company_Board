@@ -22,7 +22,8 @@ class AuthAPIController(http.Controller):
             
             user = req.env['res.users'].sudo().browse(uid)
             is_admin = user._is_admin()
-            is_officer = user.has_group('it_helpdesk.group_helpdesk_officer') or is_admin
+            is_manager = user.has_group('it_helpdesk.group_helpdesk_manager') or is_admin
+            is_officer = user.has_group('it_helpdesk.group_helpdesk_officer') or is_manager or is_admin
             
             return {
                 'status': 'success',
@@ -31,6 +32,7 @@ class AuthAPIController(http.Controller):
                     'name': user.name,
                     'login': user.login,
                     'is_officer': is_officer,
+                    'is_manager': is_manager,
                     'is_admin': is_admin,
                     'session_id': req.session.sid,
                 }
