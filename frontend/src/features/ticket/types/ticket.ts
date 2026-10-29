@@ -1,4 +1,4 @@
-import { TicketCategory, TicketPriority, TicketStatus } from '../../../shared/types/common';
+import { SlaState, TicketCategory, TicketPriority, TicketStatus } from '../../../shared/types/common';
 
 export interface Ticket {
   id: number;
@@ -9,6 +9,7 @@ export interface Ticket {
   priority: TicketPriority | string;
   deadline?: string;
   is_overdue: boolean;
+  sla_state?: SlaState | string;
   author_id?: any;
   author_name?: string;
   assignee_id?: any;

@@ -21,7 +21,13 @@ export const TicketCard: React.FC<TicketCardProps> = ({ ticket, onClick }) => {
     badge: 'bg-slate-200 text-slate-700',
   };
 
-  const slaInfo = formatSlaRemaining(ticket.deadline, ticket.is_overdue, ticket.status);
+  const slaInfo = formatSlaRemaining(
+    ticket.deadline,
+    ticket.is_overdue,
+    ticket.status,
+    ticket.priority,
+    ticket.sla_state
+  );
 
   return (
     <div
@@ -70,10 +76,13 @@ export const TicketCard: React.FC<TicketCardProps> = ({ ticket, onClick }) => {
 
         {slaInfo && (
           <span
+            data-testid="ticket-sla-badge"
             className={`flex items-center px-2 py-0.5 rounded-full border text-[11px] ${slaInfo.badgeClass}`}
           >
             {slaInfo.isOverdue ? (
               <AlertTriangle className="w-3 h-3 mr-1 text-rose-600" />
+            ) : slaInfo.isImminent ? (
+              <AlertTriangle className="w-3 h-3 mr-1 text-amber-600" />
             ) : (
               <Clock className="w-3 h-3 mr-1 text-slate-500" />
             )}

@@ -20,10 +20,13 @@ export interface PriorityStyle {
   badge: string;
 }
 
+export type SlaState = 'none' | 'ok' | 'imminent' | 'overdue';
+
 export interface SlaBadgeInfo {
   text: string;
   badgeClass: string;
   isOverdue: boolean;
+  isImminent?: boolean;
 }
 
 export const statusMap: Record<string, BadgeStyle> = {
