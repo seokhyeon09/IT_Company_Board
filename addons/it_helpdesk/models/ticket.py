@@ -14,7 +14,7 @@ SLA_HOURS = {
 class HelpDeskTicket(models.Model):
     _name = "it.helpdesk.ticket"
     _description = "IT 문의 티켓"
-    _inherit = ['mail.thread', 'mail.activity.mixin', 'it.helpdesk.ticket.workflow.mixin']
+    _inherit = ['mail.thread', 'mail.activity.mixin', 'it.helpdesk.ticket.sla.mixin', 'it.helpdesk.ticket.workflow.mixin']
     _rec_name = "ticket_number"
     _order = "id desc"
 
@@ -179,6 +179,9 @@ class HelpDeskTicket(models.Model):
 
         if 'priority' in vals and 'deadline' not in vals:
             vals['deadline'] = self._calculate_deadline(vals['priority'])
+        if 'priority' in vals or 'deadline' in vals:
+            vals.setdefault('sla_warned_at', False)
+            vals.setdefault('sla_escalated_at', False)
 
         for record in self:
             if record.status in ('closed', 'canceled') and not is_system:

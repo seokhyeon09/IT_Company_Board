@@ -11,6 +11,7 @@ import html
 
 from .text_utils import _clean_html, _extract_thread_content, _format_datetime_utc
 from .mock_email_auto import build_auto_assign_events
+from .mock_email_sla import build_sla_warning_events, build_sla_escalation_events
 
 SENDER_EMAIL = "it-helpdesk-noreply@company.com"
 SENT_STATUS = "발송완료 (모의)"
@@ -165,6 +166,11 @@ def _collect_events(ticket):
                 at,
             ))
 
+        elif 'data-msg-type="sla_warning"' in body_un:
+            events.extend(build_sla_warning_events(ticket, sfx, at, _mail))
+        elif 'data-msg-type="sla_escalation"' in body_un:
+            events.extend(build_sla_escalation_events(ticket, sfx, at, _mail))
+
     if assignee and not has_assigned:
         at = _format_datetime_utc(ticket.write_date)
         events.append(_mail(
@@ -204,6 +210,7 @@ def build_mock_emails(ticket, user, is_officer, read_ids=None):
     read_ids: it.helpdesk.notification.read 모델에서 조회된 해당 사용자의 읽은 메일 ID 집합
     """
     result = []
+    is_manager = user.has_group('it_helpdesk.group_helpdesk_manager') or user._is_admin()
     read_set = read_ids if isinstance(read_ids, set) else set(read_ids or [])
     for ev in _collect_events(ticket):
         aud = ev["audience"]
@@ -215,6 +222,8 @@ def build_mock_emails(ticket, user, is_officer, read_ids=None):
         elif aud == "assignee" and ticket.assignee_id and ticket.assignee_id.id == user.id:
             matched = True
         elif aud == "officer" and is_officer and not ev.get("recipient_id"):
+            matched = True
+        elif aud == "manager" and is_manager and not ev.get("recipient_id"):
             matched = True
 
         if matched:

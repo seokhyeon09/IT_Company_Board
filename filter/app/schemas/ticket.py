@@ -152,6 +152,7 @@ class TicketResponseDTO(BaseModel):
     priority: str
     deadline: Optional[str] = None
     is_overdue: bool = False
+    sla_state: Optional[str] = "none"
     author_id: Any = None
     assignee_id: Any = None
     assignee_name: Optional[str] = "배정 대기"

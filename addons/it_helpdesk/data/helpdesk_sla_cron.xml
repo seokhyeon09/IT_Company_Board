@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- SLA 마감 임박 경고 및 기한 초과 관리자 에스컬레이션 스케줄러 (15분 주기) -->
+        <record id="cron_sla_monitor_tickets" model="ir.cron">
+            <field name="name">IT 헬프데스크: SLA 임박 경고 및 기한 초과 에스컬레이션 (15분 주기)</field>
+            <field name="model_id" ref="model_it_helpdesk_ticket"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_sla_monitor()</field>
+            <field name="interval_number">15</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

@@ -10,6 +10,7 @@
         "security/ir.model.access.csv",
         "data/helpdesk_sequence.xml",
         "data/helpdesk_cron.xml",
+        "data/helpdesk_sla_cron.xml",
         "data/helpdesk_config.xml",
         "views/ticket_views.xml",
         "views/assign_rule_views.xml",
