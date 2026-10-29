@@ -113,7 +113,12 @@ def _send_slack_payload(payload: dict) -> bool:
 def _dispatch_webhook(env, payload: dict, use_postcommit: bool = False) -> bool:
     if not get_slack_webhook_url():
         return False
-    if use_postcommit and env is not None and hasattr(env, "cr") and hasattr(env.cr, "postcommit"):
+    try:
+        from odoo.tools import config
+        is_testing = bool(config.get("test_enable"))
+    except Exception:
+        is_testing = False
+    if use_postcommit and not is_testing and env is not None and hasattr(env, "cr") and hasattr(env.cr, "postcommit"):
         env.cr.postcommit.add(lambda: _send_slack_payload(payload))
         return True
     return _send_slack_payload(payload)

@@ -29,7 +29,7 @@ export interface AttachmentUploadPayload {
 }
 
 export const ticketApi = {
-  getTickets: async (params: TicketListQueryParams): Promise<TicketListResponse> => {
+  getTickets: async (params: TicketListQueryParams, options?: { signal?: AbortSignal }): Promise<TicketListResponse> => {
     const queryParams: Record<string, any> = {
       offset: params.offset,
       limit: params.limit,
@@ -51,7 +51,7 @@ export const ticketApi = {
     if (params.sortBy || params.sort_by) queryParams.sort_by = params.sortBy || params.sort_by;
     if (params.isFaq || params.is_faq) queryParams.is_faq = true;
 
-    const response = await apiClient.get<TicketListResponse>('/tickets', { params: queryParams });
+    const response = await apiClient.get<TicketListResponse>('/tickets', { params: queryParams, ...options });
     return response.data;
   },
 

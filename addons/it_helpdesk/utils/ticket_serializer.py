@@ -169,10 +169,11 @@ def serialize_ticket_detail(ticket, user, req_env) -> dict:
 
     seq_timeline = build_sequential_timeline(ticket, initial_inquiry)
 
-    read_records = req_env['it.helpdesk.notification.read'].sudo().search([
+    read_records = req_env['it.helpdesk.notification.read'].sudo().search_read([
         ('user_id', '=', user.id),
-    ])
-    read_notification_ids = set(read_records.mapped('notification_id'))
+        ('notification_id', '=like', f"{ticket.id}-%"),
+    ], ['notification_id'])
+    read_notification_ids = {r['notification_id'] for r in read_records}
 
     data = {
         "id": ticket.id,

@@ -16,6 +16,7 @@ import { categoryMap } from '../../../../shared/types/common';
 import { InquiryEditForm } from './actions/InquiryEditForm';
 import { CancelConfirmForm } from './actions/CancelConfirmForm';
 import { PendingReplyForm } from './actions/PendingReplyForm';
+import { TicketSlaBanner } from './content/TicketSlaBanner';
 
 interface TicketMainContentProps {
   ticket: TicketDetail;
@@ -186,29 +187,7 @@ export const TicketMainContent: React.FC<TicketMainContentProps> = ({
       </div>
 
       {/* SLA Warning Banner */}
-      {ticket.deadline && (
-        <div
-          className={`mt-3 flex items-center justify-between px-3.5 py-2 rounded-xl text-xs border ${
-            ticket.is_overdue
-              ? 'bg-rose-50 border-rose-200 text-rose-700'
-              : 'bg-amber-50 border-amber-200 text-amber-800'
-          }`}
-        >
-          <div className="flex items-center font-medium">
-            {ticket.is_overdue ? (
-              <AlertTriangle className="w-4 h-4 mr-1.5 text-rose-600" />
-            ) : (
-              <Clock className="w-4 h-4 mr-1.5 text-amber-600" />
-            )}
-            <span>SLA 조치 기한: {ticket.deadline.substring(0, 16).replace('T', ' ')}</span>
-          </div>
-          {ticket.is_overdue && (
-            <span className="font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded">
-              기한 초과
-            </span>
-          )}
-        </div>
-      )}
+      <TicketSlaBanner deadline={ticket.deadline} isOverdue={ticket.is_overdue} />
 
       {/* Pending Notice Banner */}
       {ticket.status === 'pending' && (

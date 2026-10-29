@@ -40,6 +40,7 @@ class HelpDeskTicket(models.Model):
         ],
         string="카테고리",
         default="etc",
+        index=True,
     )
 
     status = fields.Selection(
@@ -56,6 +57,7 @@ class HelpDeskTicket(models.Model):
         default="submitted",
         tracking=True,
         copy=False,
+        index=True,
     )
 
     priority = fields.Selection(
@@ -68,13 +70,14 @@ class HelpDeskTicket(models.Model):
         string="긴급도",
         default="0",
         tracking=True,
+        index=True,
     )
 
-    deadline = fields.Datetime(string="처리 기한(SLA)", tracking=True, copy=False)
+    deadline = fields.Datetime(string="처리 기한(SLA)", tracking=True, copy=False, index=True)
     is_overdue = fields.Boolean(string="기한 초과", compute="_compute_is_overdue", search="_search_is_overdue")
 
-    author_id = fields.Many2one("res.users", string="요청 직원", default=lambda self: self.env.user, readonly=True)
-    assignee_id = fields.Many2one("res.users", string="IT 담당자 배정", tracking=True, copy=False)
+    author_id = fields.Many2one("res.users", string="요청 직원", default=lambda self: self.env.user, readonly=True, index=True)
+    assignee_id = fields.Many2one("res.users", string="IT 담당자 배정", tracking=True, copy=False, index=True)
     assignee_name = fields.Char(string="IT 담당자", compute="_compute_assignee_name")
 
     def _compute_assignee_name(self):
@@ -99,7 +102,7 @@ class HelpDeskTicket(models.Model):
         copy=False,
     )
     rating_comment = fields.Text(string="만족도 한줄평", tracking=True, copy=False)
-    is_faq = fields.Boolean(string="FAQ 추천 사례", tracking=True, copy=False)
+    is_faq = fields.Boolean(string="FAQ 추천 사례", tracking=True, copy=False, index=True)
 
     rating_ids = fields.One2many("it.helpdesk.ticket.rating", "ticket_id", string="만족도 평가 이력", copy=False)
     current_round = fields.Integer(string="현재 평가 차수", compute="_compute_current_round")
@@ -178,7 +181,8 @@ class HelpDeskTicket(models.Model):
         is_system = self.env.su
 
         if 'priority' in vals and 'deadline' not in vals:
-            vals['deadline'] = self._calculate_deadline(vals['priority'])
+            base_dt = self[0].create_date if self and self[0].create_date else fields.Datetime.now()
+            vals['deadline'] = self._calculate_deadline(vals['priority'], base_time=base_dt)
         if 'priority' in vals or 'deadline' in vals:
             vals.setdefault('sla_warned_at', False)
             vals.setdefault('sla_escalated_at', False)

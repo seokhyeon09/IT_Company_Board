@@ -18,6 +18,8 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+let isLoggingOut = false;
+
 // Response Interceptor: Handle 401 Logout
 apiClient.interceptors.response.use(
   (response) => response,
@@ -25,8 +27,14 @@ apiClient.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('access_token');
       localStorage.removeItem('user_info');
-      if (window.location.pathname !== '/login') {
-        window.location.reload();
+      if (!isLoggingOut) {
+        isLoggingOut = true;
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+        setTimeout(() => {
+          isLoggingOut = false;
+        }, 1000);
       }
     }
     return Promise.reject(error);
@@ -64,7 +72,15 @@ function translatePydanticMsg(field: string, msg: string): string {
 
 export function getErrorMessage(error: any, fallback = '오류가 발생했습니다.'): string {
   if (!error) return fallback;
-  const detail = error.response?.data?.detail;
+  const resData = error.response?.data;
+  if (resData?.error?.message) {
+    const errObj = resData.error;
+    if (errObj.retry_after_seconds) {
+      return `${errObj.message} (${errObj.retry_after_seconds}초 후 재시도 가능)`;
+    }
+    return errObj.message;
+  }
+  const detail = resData?.detail;
   if (typeof detail === 'string') return detail;
   if (Array.isArray(detail)) {
     return detail

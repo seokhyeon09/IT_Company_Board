@@ -1,7 +1,7 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
-import { useTicketModalState } from '../hooks/useTicketModalState';
 import { formatHtmlContent } from '../../../shared/utils/htmlUtils';
+import { useTicketModalState } from '../hooks/useTicketModalState';
 
 import { TicketHeader } from './modal/TicketHeader';
 import { TicketMainContent } from './modal/TicketMainContent';
@@ -205,11 +205,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 resolveError={s.resolveError}
                 onSubmitResolve={s.handleResolveSubmit}
                 showRestartForm={s.showRestartForm}
-                onOpenRestart={() => {
-                  s.setShowRestartForm(true);
-                  s.setRestartReason('');
-                  s.setRestartError('');
-                }}
+                onOpenRestart={() => { s.setShowRestartForm(true); s.setRestartReason(''); s.setRestartError(''); }}
                 onCloseRestart={() => s.setShowRestartForm(false)}
                 restartReason={s.restartReason}
                 setRestartReason={s.setRestartReason}

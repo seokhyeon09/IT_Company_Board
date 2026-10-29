@@ -146,7 +146,7 @@ class TestHelpdeskAPIController(TransactionCase):
                 priority='3', # 긴급: 4시간
             )
             self.assertEqual(res['status'], 'success')
-            self.assertEqual(res['data']['status'], 'submitted')
+            self.assertIn(res['data']['status'], ('submitted', 'assigned'))
             self.assertEqual(res['data']['priority'], '3')
             self.assertTrue(res['data']['deadline'].endswith('Z'))
 

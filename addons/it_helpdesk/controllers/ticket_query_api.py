@@ -160,7 +160,7 @@ class TicketQueryAPIController(http.Controller):
         initial_attachments = kwargs.get('attachments')
         if initial_attachments and isinstance(initial_attachments, list):
             for att in initial_attachments:
-                if isinstance(att, dict) and att.get('name') and att.get('datas'):
+                if isinstance(att, dict) and att.get('name') and att.get('datas') and len(att['datas']) <= 7_000_000:
                     req_env['ir.attachment'].sudo().create({
                         'name': os.path.basename(str(att['name'])),
                         'datas': att['datas'],

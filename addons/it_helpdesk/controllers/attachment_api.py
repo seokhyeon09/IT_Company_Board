@@ -21,6 +21,8 @@ class AttachmentAPIController(http.Controller):
     def upload_attachment(self, ticket_id: int, name: str, datas: str, mimetype: str = None):
         """티켓 첨부파일 업로드 (Base64)"""
         user = verify_gateway_request()
+        if datas and len(datas) > 7_000_000:
+            raise UserError("Attachment file size exceeds 5MB limit.")
         ticket = get_current_request().env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
         if not ticket.exists():
             raise UserError("Ticket not found.")

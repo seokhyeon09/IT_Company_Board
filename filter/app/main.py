@@ -22,10 +22,13 @@ class SlidingWindowRateLimitMiddleware(BaseHTTPMiddleware):
     def __init__(self, app):
         super().__init__(app)
         self.requests = defaultdict(list)
-        self.lock = asyncio.Lock()
 
     async def dispatch(self, request: Request, call_next):
-        client_ip = request.client.host if request.client else "unknown"
+        forwarded = request.headers.get("X-Forwarded-For")
+        if forwarded:
+            client_ip = forwarded.split(",")[0].strip()
+        else:
+            client_ip = request.client.host if request.client else "unknown"
         path = request.url.path
         now = time.time()
         window = 60.0  # 1 minute sliding window
@@ -35,27 +38,34 @@ class SlidingWindowRateLimitMiddleware(BaseHTTPMiddleware):
         max_requests = 15 if is_login else 180
         key = f"{client_ip}:{path}" if is_login else f"{client_ip}:api"
 
-        async with self.lock:
-            timestamps = self.requests[key]
-            # Prune timestamps older than window
-            self.requests[key] = [t for t in timestamps if now - t < window]
+        timestamps = [t for t in self.requests[key] if now - t < window]
+        if not timestamps and key in self.requests:
+            del self.requests[key]
 
-            if len(self.requests[key]) >= max_requests:
-                oldest = self.requests[key][0]
-                retry_after = max(1, int(window - (now - oldest)))
-                return JSONResponse(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    content={
-                        "error": {
-                            "code": "RATE_LIMIT_EXCEEDED",
-                            "message": f"요청 한도를 초과했습니다. 잠시 후 다시 시도해 주세요. (제한: 분당 {max_requests}회)",
-                            "retry_after_seconds": retry_after
-                        }
-                    },
-                    headers={"Retry-After": str(retry_after)}
-                )
+        if len(timestamps) >= max_requests:
+            oldest = timestamps[0]
+            retry_after = max(1, int(window - (now - oldest)))
+            msg = f"요청 한도를 초과했습니다. 잠시 후 다시 시도해 주세요. (제한: 분당 {max_requests}회)"
+            return JSONResponse(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                content={
+                    "detail": f"{msg} ({retry_after}초 후 재시도 가능)",
+                    "error": {
+                        "code": "RATE_LIMIT_EXCEEDED",
+                        "message": msg,
+                        "retry_after_seconds": retry_after
+                    }
+                },
+                headers={"Retry-After": str(retry_after)}
+            )
 
-            self.requests[key].append(now)
+        timestamps.append(now)
+        self.requests[key] = timestamps
+
+        if len(self.requests) > 1000:
+            stale_keys = [k for k, v in self.requests.items() if not v or (now - v[-1] >= window)]
+            for k in stale_keys:
+                self.requests.pop(k, None)
 
         return await call_next(request)
 

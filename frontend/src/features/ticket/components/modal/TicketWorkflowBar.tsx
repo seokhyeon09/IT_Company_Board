@@ -12,9 +12,8 @@ import {
   Lock,
 } from 'lucide-react';
 import { OfficerSimpleItem } from '../../types/ticket';
-import { DesignateOfficerForm } from './actions/DesignateOfficerForm';
-import { PendingRequestForm } from './actions/PendingRequestForm';
-import { ForceCloseForm } from './actions/ForceCloseForm';
+import { TicketWorkflowSubForms } from './actions/TicketWorkflowSubForms';
+import { AssignedWorkflowButtons } from './actions/AssignedWorkflowButtons';
 
 interface TicketWorkflowBarProps {
   status: string;
@@ -141,62 +140,16 @@ export const TicketWorkflowBar: React.FC<TicketWorkflowBarProps> = ({
 
           {/* 2. 시작 전 (assigned) */}
           {isAssigned && (
-            <>
-              {isOwnerOrAdmin ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={onStartProgress}
-                    disabled={transitioningStatus !== null}
-                    className="flex items-center px-3 py-1 text-xs font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 cursor-pointer shadow-xs transition-all disabled:opacity-50"
-                  >
-                    {isStarting ? (
-                      <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
-                    ) : (
-                      <Play className="w-3.5 h-3.5 mr-1" />
-                    )}
-                    처리 시작
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onToggleDesignate}
-                    disabled={transitioningStatus !== null}
-                    className="flex items-center px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-white border border-emerald-300 rounded-lg hover:bg-emerald-50 cursor-pointer shadow-xs transition-all"
-                  >
-                    <ArrowRightLeft className="w-3.5 h-3.5 mr-1" />
-                    담당자 인계
-                  </button>
-                </>
-              ) : (
-                <>
-                  <span className="text-xs text-slate-500 mr-1">
-                    담당자: <span className="font-semibold text-slate-700">{currentAssigneeName}</span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={onAssignToMe}
-                    disabled={transitioningStatus !== null}
-                    className="flex items-center px-2.5 py-1 text-xs font-semibold text-blue-700 bg-white border border-blue-300 rounded-lg hover:bg-blue-50 cursor-pointer shadow-xs transition-all"
-                  >
-                    {isAssigning ? (
-                      <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
-                    ) : (
-                      <UserCheck className="w-3.5 h-3.5 mr-1" />
-                    )}
-                    내가 대신 맡기
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onToggleDesignate}
-                    disabled={transitioningStatus !== null}
-                    className="flex items-center px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-white border border-emerald-300 rounded-lg hover:bg-emerald-50 cursor-pointer shadow-xs transition-all"
-                  >
-                    <ArrowRightLeft className="w-3.5 h-3.5 mr-1" />
-                    다른 담당자로 변경
-                  </button>
-                </>
-              )}
-            </>
+            <AssignedWorkflowButtons
+              isOwnerOrAdmin={isOwnerOrAdmin}
+              isStarting={isStarting}
+              isAssigning={isAssigning}
+              transitioningStatus={transitioningStatus}
+              currentAssigneeName={currentAssigneeName}
+              onStartProgress={onStartProgress}
+              onToggleDesignate={onToggleDesignate}
+              onAssignToMe={onAssignToMe}
+            />
           )}
 
           {/* 3. 처리 중 (in_progress, pending) */}
@@ -261,42 +214,33 @@ export const TicketWorkflowBar: React.FC<TicketWorkflowBarProps> = ({
       </div>
 
       {/* Sub-Forms */}
-      {showDesignateModal && (
-        <DesignateOfficerForm
-          isSubmitted={isSubmitted}
-          officers={officers}
-          selectedOfficerId={selectedAssignOfficerId}
-          onSelectOfficer={onSelectAssignOfficer}
-          assignReason={assignReason}
-          setAssignReason={onSetAssignReason}
-          submitting={submittingDesignate}
-          error={designateError}
-          onCancel={onToggleDesignate}
-          onSubmit={onSubmitDesignate}
-        />
-      )}
-
-      {showPendingModal && (
-        <PendingRequestForm
-          pendingReason={pendingReason}
-          setPendingReason={setPendingReason}
-          submitting={submittingPending}
-          error={pendingError}
-          onCancel={onClosePendingModal}
-          onSubmit={onSubmitPending}
-        />
-      )}
-
-      {showCloseModal && (
-        <ForceCloseForm
-          closeNote={closeNote}
-          setCloseNote={setCloseNote}
-          submitting={submittingClose}
-          error={closeError}
-          onCancel={onCloseCloseModal}
-          onSubmit={onSubmitClose}
-        />
-      )}
+      <TicketWorkflowSubForms
+        showDesignateModal={showDesignateModal}
+        isSubmitted={isSubmitted}
+        officers={officers}
+        selectedAssignOfficerId={selectedAssignOfficerId}
+        onSelectAssignOfficer={onSelectAssignOfficer}
+        assignReason={assignReason}
+        onSetAssignReason={onSetAssignReason}
+        submittingDesignate={submittingDesignate}
+        designateError={designateError}
+        onToggleDesignate={onToggleDesignate}
+        onSubmitDesignate={onSubmitDesignate}
+        showPendingModal={showPendingModal}
+        pendingReason={pendingReason}
+        setPendingReason={setPendingReason}
+        submittingPending={submittingPending}
+        pendingError={pendingError}
+        onClosePendingModal={onClosePendingModal}
+        onSubmitPending={onSubmitPending}
+        showCloseModal={showCloseModal}
+        closeNote={closeNote}
+        setCloseNote={setCloseNote}
+        submittingClose={submittingClose}
+        closeError={closeError}
+        onCloseCloseModal={onCloseCloseModal}
+        onSubmitClose={onSubmitClose}
+      />
     </div>
   );
 };

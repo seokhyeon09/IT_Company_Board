@@ -129,7 +129,7 @@ class HelpDeskTicketSlaMixin(models.AbstractModel):
                             subtype_xmlid="mail.mt_note",
                             author_id=root_partner_id,
                         )
-                        notify_sla_escalated(ticket)
+                        notify_sla_escalated(ticket, use_postcommit=True)
                         escalated_count += 1
                     elif state == "imminent" and not ticket.sla_warned_at and not ticket.sla_escalated_at:
                         ticket.sudo().write({"sla_warned_at": now})

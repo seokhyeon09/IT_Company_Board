@@ -49,23 +49,29 @@ class OdooClient:
         try:
             # Use connection pool if started, otherwise fallback to transient client
             if self._client and not self._client.is_closed:
-                resp = await self._client.post(url, content=raw_body, headers=headers)
+                resp = await self._client.post(url, content=raw_body, headers=headers, timeout=timeout)
             else:
                 async with httpx.AsyncClient(timeout=timeout) as client:
-                    resp = await client.post(url, content=raw_body, headers=headers)
+                    resp = await client.post(url, content=raw_body, headers=headers, timeout=timeout)
                 
-            if resp.status_code == 409:
-                data = resp.json()
-                msg = data.get("error", {}).get("data", {}).get("message", "Optimistic concurrency conflict")
-                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=msg)
-
             if resp.status_code >= 500:
                 raise HTTPException(
                     status_code=status.HTTP_502_BAD_GATEWAY,
                     detail=f"Odoo backend server error (HTTP {resp.status_code})"
                 )
 
-            data = resp.json()
+            try:
+                data = resp.json()
+            except (json.JSONDecodeError, ValueError) as decode_err:
+                _logger.error("Non-JSON response from Odoo: HTTP %s", resp.status_code)
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=f"Odoo backend returned invalid response (HTTP {resp.status_code})"
+                ) from decode_err
+
+            if resp.status_code == 409:
+                msg = data.get("error", {}).get("data", {}).get("message", "Optimistic concurrency conflict")
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=msg)
 
             # Handle JSON-RPC errors
             if "error" in data:
@@ -77,6 +83,8 @@ class OdooClient:
                     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=message)
                 if "ConcurrencyError" in name:
                     raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=message)
+                if "UserError" in name and "not found" in str(message).lower():
+                    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=message)
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
 
             result = data.get("result", {})

@@ -15,11 +15,14 @@ def is_auto_assign_enabled(env):
 
 def pick_officer(env, category):
     """해당 분야 활성 규칙의 후보 중 진행 중 담당 건수가 가장 적은 담당자 (동률이면 id 작은 사람)."""
-    rule = env['it.helpdesk.assign.rule'].sudo().search(
-        [('category', '=', category), ('active', '=', True)], limit=1
+    env.cr.execute(
+        "SELECT id FROM it_helpdesk_assign_rule WHERE category = %s AND active = true LIMIT 1 FOR UPDATE",
+        [category]
     )
-    if not rule:
+    row = env.cr.fetchone()
+    if not row:
         return None
+    rule = env['it.helpdesk.assign.rule'].sudo().browse(row[0])
     candidates = rule.officer_ids.filtered(
         lambda u: u.active and u.has_group('it_helpdesk.group_helpdesk_officer')
     )
@@ -73,5 +76,5 @@ def create_ticket_with_auto_assign(ticket_env, vals):
     ticket = ticket_env.create(vals)
     if try_auto_assign(ticket):
         ticket.invalidate_recordset()
-    notify_urgent_ticket_created(ticket)
+    notify_urgent_ticket_created(ticket, use_postcommit=True)
     return ticket

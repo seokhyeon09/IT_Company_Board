@@ -21,19 +21,23 @@ def find_related_tickets(user, ticket, is_officer, limit=4):
     if not is_officer:
         domain.extend(['|', ('is_faq', '=', True), ('author_id', '=', user.id)])
 
+    fields = ['id', 'ticket_number', 'title', 'category', 'status', 'is_faq', 'resolution_note', 'create_date']
+    records = ticket_env.search_read(domain, fields=fields, order='is_faq desc, id desc', limit=limit)
+
     results = []
-    for rt in ticket_env.search(domain, order='is_faq desc, id desc', limit=limit):
-        summary = _clean_html(rt.resolution_note) if rt.resolution_note else ""
+    for rt in records:
+        note = rt.get('resolution_note')
+        summary = _clean_html(note) if note else ""
         if len(summary) > 120:
             summary = summary[:120] + "..."
         results.append({
-            "id": rt.id,
-            "ticket_number": rt.ticket_number,
-            "title": rt.title,
-            "category": rt.category,
-            "status": rt.status,
-            "is_faq": bool(rt.is_faq),
+            "id": rt['id'],
+            "ticket_number": rt.get('ticket_number'),
+            "title": rt.get('title'),
+            "category": rt.get('category'),
+            "status": rt.get('status'),
+            "is_faq": bool(rt.get('is_faq')),
             "resolution_summary": summary or None,
-            "create_date": _format_datetime_utc(rt.create_date),
+            "create_date": _format_datetime_utc(rt.get('create_date')),
         })
     return results

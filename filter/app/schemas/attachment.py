@@ -13,9 +13,11 @@ class AttachmentDTO(BaseModel):
 class AttachmentDetailDTO(AttachmentDTO):
     datas: str
 
+MAX_BASE64_SIZE = 7_000_000  # 5MB binary data encoded as Base64 (~6.99MB)
+
 class AttachmentUploadDTO(BaseModel):
     model_config = ConfigDict(extra="ignore")
     name: str = Field(..., min_length=1, max_length=200, description="파일명")
-    datas: str = Field(..., min_length=1, description="Base64 인코딩 파일 데이터")
+    datas: str = Field(..., min_length=1, max_length=MAX_BASE64_SIZE, description="Base64 인코딩 파일 데이터 (최대 5MB)")
     mimetype: Optional[str] = Field(default="application/octet-stream", description="MIME 타입")
     file_size: Optional[int] = Field(default=None, description="파일 크기")

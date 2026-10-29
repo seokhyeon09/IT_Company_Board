@@ -47,7 +47,7 @@ export function useDashboardTickets() {
   }, []);
 
   // Fetch Tickets List
-  const fetchTickets = useCallback(async () => {
+  const fetchTickets = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
     try {
@@ -89,10 +89,13 @@ export function useDashboardTickets() {
         params.isFaq = true;
       }
 
-      const res = await ticketApi.getTickets(params);
+      const res = await ticketApi.getTickets(params, { signal });
       setTickets(res.tickets || (res as any).data || []);
       setTotal(res.total || 0);
     } catch (err: any) {
+      if (err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED') {
+        return;
+      }
       setError(getErrorMessage(err, '티켓 목록을 불러오지 못했습니다.'));
     } finally {
       setLoading(false);
@@ -100,7 +103,11 @@ export function useDashboardTickets() {
   }, [page, debouncedSearch, statusFilter, categoryFilter, priorityFilter, isOverdueOnly, assignedToMe, sortBy, activeTab]);
 
   useEffect(() => {
-    fetchTickets();
+    const controller = new AbortController();
+    fetchTickets(controller.signal);
+    return () => {
+      controller.abort();
+    };
   }, [fetchTickets]);
 
   useEffect(() => {
