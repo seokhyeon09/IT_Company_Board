@@ -85,3 +85,33 @@ def test_odoo_false_to_none_normalization():
     assert dto.resolution_note is None
     assert dto.author_name is None
     assert dto.rating_comment is None
+
+
+def test_officer_stats_mttr_dto():
+    """담당자 통계 응답 DTO에 MTTR(평균 해결 시간) 필드가 정상 직렬화되는지 검증"""
+    from app.schemas.insight import OfficerStatsResponseDTO
+    payload = {
+        "status": "success",
+        "data": {
+            "officers": [
+                {
+                    "officer_id": 2,
+                    "officer_name": "김담당",
+                    "officer_email": "officer@test.com",
+                    "total_assigned": 5,
+                    "resolved_count": 3,
+                    "avg_resolution_hours": 2.4,
+                    "resolved_measured_count": 3,
+                }
+            ],
+            "category_breakdown": [
+                {"category": "hw", "label": "하드웨어", "count": 2, "percentage": 40.0, "avg_resolution_hours": 1.8}
+            ],
+            "overall_avg_resolution_hours": 2.4,
+        },
+    }
+    parsed = OfficerStatsResponseDTO(**payload)
+    assert parsed.data.overall_avg_resolution_hours == 2.4
+    assert parsed.data.officers[0].avg_resolution_hours == 2.4
+    assert parsed.data.officers[0].resolved_measured_count == 3
+    assert parsed.data.category_breakdown[0].avg_resolution_hours == 1.8

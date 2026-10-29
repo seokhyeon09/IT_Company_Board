@@ -60,12 +60,15 @@ class OfficerStatItemDTO(BaseModel):
     sla_compliance_rate: float = 100.0
     avg_rating: float = 0.0
     rating_count: int = 0
+    avg_resolution_hours: float = 0.0
+    resolved_measured_count: int = 0
 
 class CategoryStatItemDTO(BaseModel):
     category: str
     label: str
     count: int = 0
     percentage: float = 0.0
+    avg_resolution_hours: float = 0.0
 
 class OfficerStatsDataDTO(BaseModel):
     officers: List[OfficerStatItemDTO] = []
@@ -74,6 +77,7 @@ class OfficerStatsDataDTO(BaseModel):
     total_active_tickets: int = 0
     overall_avg_rating: float = 0.0
     overall_sla_rate: float = 100.0
+    overall_avg_resolution_hours: float = 0.0
 
 class OfficerStatsResponseDTO(BaseModel):
     status: str = "success"

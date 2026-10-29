@@ -151,6 +151,9 @@ def _handle_ticket_lifecycle(ticket, spec, author, user_map, now):
         ticket.write({"deadline": now - timedelta(hours=int(spec["overdue_hours"])), "is_overdue": True})
     if spec.get("is_faq"):
         ticket.write({"is_faq": True})
+    if spec.get("resolution_hours_sim") and ticket.create_date:
+        sim_dt = ticket.create_date + timedelta(hours=float(spec["resolution_hours_sim"]))
+        ticket.write({"first_resolved_date": sim_dt})
 
 
 def ensure_tickets(env, user_map):

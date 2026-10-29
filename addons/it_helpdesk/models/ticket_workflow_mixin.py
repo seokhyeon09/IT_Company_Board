@@ -74,11 +74,14 @@ class HelpDeskTicketWorkflowMixin(models.AbstractModel):
 
     def action_resolve(self):
         """해결 완료"""
+        now = fields.Datetime.now()
         for record in self:
             if record.status not in ('in_progress', 'pending'):
                 raise UserError("처리 중이거나 답변 대기 상태인 티켓만 해결 완료 처리할 수 있습니다.")
             if is_html_empty(record.resolution_note):
                 raise UserError("해결 완료 처리를 하려면 조치 내용을 먼저 작성해야 합니다.")
+            if not record.first_resolved_date:
+                record.first_resolved_date = now
             record.status = "resolved"
             if record.activity_ids:
                 record.activity_ids.action_done()

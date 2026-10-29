@@ -25,6 +25,22 @@ class HelpDeskTicketSlaMixin(models.AbstractModel):
 
     sla_warned_at = fields.Datetime(string="SLA 임박 경고 일시", readonly=True, copy=False)
     sla_escalated_at = fields.Datetime(string="SLA 에스컬레이션 일시", readonly=True, copy=False)
+    first_resolved_date = fields.Datetime(string="최초 해결 일시", readonly=True, copy=False)
+    resolution_hours = fields.Float(
+        string="해결 소요시간(시간)",
+        compute="_compute_resolution_hours",
+        store=True,
+        copy=False,
+    )
+
+    @api.depends("first_resolved_date", "create_date")
+    def _compute_resolution_hours(self):
+        for record in self:
+            if record.first_resolved_date and record.create_date:
+                diff_sec = (record.first_resolved_date - record.create_date).total_seconds()
+                record.resolution_hours = round(max(0.0, diff_sec / 3600.0), 1)
+            else:
+                record.resolution_hours = 0.0
     sla_state = fields.Selection(
         [
             ("none", "해당 없음"),
