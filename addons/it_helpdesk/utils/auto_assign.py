@@ -67,8 +67,11 @@ def try_auto_assign(ticket):
 
 
 def create_ticket_with_auto_assign(ticket_env, vals):
-    """티켓 생성 후 자동 배정을 시도한다. 컨트롤러에서 호출."""
+    """티켓 생성 후 자동 배정 및 긴급 웹훅 알림을 시도한다. 컨트롤러에서 호출."""
+    from .webhook_notifier import notify_urgent_ticket_created
+
     ticket = ticket_env.create(vals)
     if try_auto_assign(ticket):
         ticket.invalidate_recordset()
+    notify_urgent_ticket_created(ticket)
     return ticket

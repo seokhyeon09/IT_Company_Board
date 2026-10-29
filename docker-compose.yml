@@ -8,6 +8,8 @@ services:
       - "8069:8069"
     environment:
       - HOST=db
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
+      - FRONTEND_BASE_URL=${FRONTEND_BASE_URL:-http://localhost:3000}
       - USER=${DB_USER}
       - PASSWORD=${DB_PASSWORD}
       - GATEWAY_SHARED_SECRET=secure_inter_tier_hmac_secret_key_32_chars

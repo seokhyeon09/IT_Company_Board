@@ -5,6 +5,7 @@ import html
 import logging
 
 from odoo import models, fields, api
+from ..utils.webhook_notifier import notify_sla_escalated
 
 _logger = logging.getLogger(__name__)
 
@@ -112,6 +113,7 @@ class HelpDeskTicketSlaMixin(models.AbstractModel):
                             subtype_xmlid="mail.mt_note",
                             author_id=root_partner_id,
                         )
+                        notify_sla_escalated(ticket)
                         escalated_count += 1
                     elif state == "imminent" and not ticket.sla_warned_at and not ticket.sla_escalated_at:
                         ticket.sudo().write({"sla_warned_at": now})
