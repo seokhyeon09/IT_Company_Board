@@ -56,13 +56,13 @@ export const ticketApi = {
   },
 
   getStats: async (): Promise<TicketStats> => {
-    const response = await apiClient.get<TicketStats>('/tickets/stats');
-    return response.data;
+    const response = await apiClient.get<any>('/tickets/stats');
+    return (response.data as any)?.data || response.data;
   },
 
   getTicketDetail: async (id: number): Promise<TicketDetail> => {
-    const response = await apiClient.get<TicketDetail>(`/tickets/${id}`);
-    return response.data;
+    const response = await apiClient.get<any>(`/tickets/${id}`);
+    return (response.data as any)?.data || response.data;
   },
 
   createTicket: async (payload: TicketCreatePayload): Promise<TicketDetail> => {
@@ -86,12 +86,12 @@ export const ticketApi = {
   },
 
   getOfficerStats: async (): Promise<OfficerStatsData> => {
-    const response = await apiClient.get<OfficerStatsData>('/tickets/officer-stats');
-    return response.data;
+    const response = await apiClient.get<any>('/tickets/officer-stats');
+    return (response.data as any)?.data || response.data;
   },
 
   getOfficers: async (): Promise<{ officers: OfficerSimpleItem[] }> => {
-    const response = await apiClient.get<{ officers: OfficerSimpleItem[] }>('/tickets/officers');
-    return response.data;
+    const response = await apiClient.get<any>('/tickets/officers');
+    return (response.data as any)?.data || response.data;
   },
 };

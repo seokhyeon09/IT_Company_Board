@@ -3,6 +3,17 @@ import { useAuthStore } from '../stores/authStore';
 import { apiClient, getErrorMessage } from '../api/client';
 import { Layers, Lock, User, AlertCircle, ArrowRight } from 'lucide-react';
 
+const TEST_ACCOUNTS = [
+  { role: 'IT 관리자', name: '최관리', email: 'admin@helpdesk.com', pw: 'admin', color: 'text-purple-600', badge: 'bg-purple-100 text-purple-700' },
+  { role: '담당 (인프라)', name: '김담당', email: 'officer@test.com', pw: '1234', color: 'text-indigo-600', badge: 'bg-indigo-100 text-indigo-700' },
+  { role: '담당 (보안/NW)', name: '박엔지니어', email: 'officer2@test.com', pw: '1234', color: 'text-indigo-600', badge: 'bg-indigo-100 text-indigo-700' },
+  { role: '담당 (SW/라이선스)', name: '최소프트', email: 'officer3@test.com', pw: '1234', color: 'text-indigo-600', badge: 'bg-indigo-100 text-indigo-700' },
+  { role: '담당 (계정/권한)', name: '한계정', email: 'officer4@test.com', pw: '1234', color: 'text-indigo-600', badge: 'bg-indigo-100 text-indigo-700' },
+  { role: '담당 (총무/기타)', name: '오기타', email: 'officer5@test.com', pw: '1234', color: 'text-indigo-600', badge: 'bg-indigo-100 text-indigo-700' },
+  { role: '사원 1 (개발)', name: '이개발', email: 'user1@test.com', pw: '1234', color: 'text-emerald-600', badge: 'bg-emerald-100 text-emerald-700' },
+  { role: '사원 2 (기획)', name: '정기획', email: 'user2@test.com', pw: '1234', color: 'text-emerald-600', badge: 'bg-emerald-100 text-emerald-700' },
+];
+
 export const LoginPage: React.FC = () => {
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
@@ -95,62 +106,31 @@ export const LoginPage: React.FC = () => {
         </form>
 
         {/* Quick Test Account Selector */}
-        <div className="mt-6 pt-5 border-t border-slate-100">
-          <p className="text-xs font-bold text-slate-500 mb-2.5 text-center">
-            테스트 계정 빠른 선택
+        <div className="mt-5 pt-4 border-t border-slate-100">
+          <p className="text-xs font-bold text-slate-500 mb-2 text-center">
+            테스트 계정 빠른 선택 (8인 전체)
           </p>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setLoginId('admin@helpdesk.com');
-                setPassword('admin');
-              }}
-              className="p-2.5 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 border border-slate-200 rounded-xl text-left transition-all cursor-pointer"
-            >
-              <div className="text-xs font-bold text-slate-800">관리자</div>
-              <div className="text-[10px] text-slate-400 font-mono mt-0.5">admin@helpdesk.com</div>
-              <div className="text-[10px] text-indigo-600 font-semibold mt-0.5">비번: admin</div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setLoginId('officer@test.com');
-                setPassword('1234');
-              }}
-              className="p-2.5 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 border border-slate-200 rounded-xl text-left transition-all cursor-pointer"
-            >
-              <div className="text-xs font-bold text-slate-800">IT 담당자</div>
-              <div className="text-[10px] text-slate-400 font-mono mt-0.5">officer@test.com</div>
-              <div className="text-[10px] text-indigo-600 font-semibold mt-0.5">비번: 1234</div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setLoginId('user1@test.com');
-                setPassword('1234');
-              }}
-              className="p-2.5 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 border border-slate-200 rounded-xl text-left transition-all cursor-pointer"
-            >
-              <div className="text-xs font-bold text-slate-800">사원 1 (user1)</div>
-              <div className="text-[10px] text-slate-400 font-mono mt-0.5">user1@test.com</div>
-              <div className="text-[10px] text-emerald-600 font-semibold mt-0.5">비번: 1234</div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setLoginId('user2@test.com');
-                setPassword('1234');
-              }}
-              className="p-2.5 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 border border-slate-200 rounded-xl text-left transition-all cursor-pointer"
-            >
-              <div className="text-xs font-bold text-slate-800">사원 2 (user2)</div>
-              <div className="text-[10px] text-slate-400 font-mono mt-0.5">user2@test.com</div>
-              <div className="text-[10px] text-emerald-600 font-semibold mt-0.5">비번: 1234</div>
-            </button>
+          <div className="grid grid-cols-2 gap-1.5 max-h-56 overflow-y-auto pr-1">
+            {TEST_ACCOUNTS.map((acc) => (
+              <button
+                key={acc.email}
+                type="button"
+                onClick={() => {
+                  setLoginId(acc.email);
+                  setPassword(acc.pw);
+                }}
+                className="p-2 bg-slate-50 hover:bg-indigo-50/70 hover:border-indigo-200 border border-slate-200 rounded-xl text-left transition-all cursor-pointer"
+              >
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${acc.badge}`}>
+                    {acc.role}
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-medium">{acc.name}</span>
+                </div>
+                <div className="text-[10px] text-slate-500 font-mono truncate">{acc.email}</div>
+                <div className={`text-[10px] font-semibold mt-0.5 ${acc.color}`}>비번: {acc.pw}</div>
+              </button>
+            ))}
           </div>
         </div>
 

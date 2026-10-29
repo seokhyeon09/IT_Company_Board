@@ -195,6 +195,10 @@ export const DashboardPage: React.FC = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={handleRefresh}
+        onSelectTicket={(ticketId: number) => {
+          setIsModalOpen(false);
+          setSelectedTicketId(ticketId);
+        }}
       />
 
       <TicketDetailModal
@@ -202,6 +206,7 @@ export const DashboardPage: React.FC = () => {
         ticketId={selectedTicketId}
         onClose={() => setSelectedTicketId(null)}
         onSuccess={handleRefresh}
+        onSelectTicket={(ticketId: number) => setSelectedTicketId(ticketId)}
       />
 
       <OfficerStatsModal

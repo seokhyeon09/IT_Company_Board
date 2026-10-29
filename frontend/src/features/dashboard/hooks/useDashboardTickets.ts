@@ -40,7 +40,7 @@ export function useDashboardTickets() {
   const fetchStats = useCallback(async () => {
     try {
       const data = await ticketApi.getStats();
-      setStats(data);
+      setStats((data as any)?.data || data);
     } catch (err) {
       console.error('Failed to fetch ticket stats:', err);
     }
