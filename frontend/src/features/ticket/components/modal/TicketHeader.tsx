@@ -42,7 +42,10 @@ export const TicketHeader: React.FC<TicketHeaderProps> = ({
       <div className="flex items-center space-x-3">
         {ticket && (
           <>
-            <span className="font-mono text-xs font-bold text-slate-600 bg-white border border-slate-200 px-2.5 py-1 rounded-md shadow-xs">
+            <span
+              data-testid="modal-ticket-number"
+              className="font-mono text-xs font-bold text-slate-600 bg-white border border-slate-200 px-2.5 py-1 rounded-md shadow-xs"
+            >
               {ticket.ticket_number}
             </span>
             <span className={`text-xs px-2.5 py-1 rounded-full border font-semibold ${statusInfo.color}`}>
