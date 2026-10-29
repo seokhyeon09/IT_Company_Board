@@ -33,7 +33,7 @@ export const workflowApi = {
   },
 
   replyPending: async (id: number, content: string): Promise<TicketDetail> => {
-    const response = await apiClient.post<TicketDetail>(`/tickets/${id}/reply-pending`, { content });
+    const response = await apiClient.post<TicketDetail>(`/tickets/${id}/reply-pending`, { content, reason: content });
     return response.data;
   },
 
@@ -50,12 +50,12 @@ export const workflowApi = {
   },
 
   restartInquiry: async (id: number, content: string): Promise<TicketDetail> => {
-    const response = await apiClient.post<TicketDetail>(`/tickets/${id}/restart`, { content });
+    const response = await apiClient.post<TicketDetail>(`/tickets/${id}/restart`, { content, reason: content });
     return response.data;
   },
 
   closeTicket: async (id: number, reason?: string): Promise<TicketDetail> => {
-    const response = await apiClient.post<TicketDetail>(`/tickets/${id}/close`, { reason });
+    const response = await apiClient.post<TicketDetail>(`/tickets/${id}/close`, { reason, note: reason });
     return response.data;
   },
 
@@ -66,7 +66,8 @@ export const workflowApi = {
 
   submitRating: async (id: number, rating: number, comment?: string): Promise<TicketDetail> => {
     const response = await apiClient.post<TicketDetail>(`/tickets/${id}/rate`, {
-      rating,
+      rating: String(rating),
+      rating_comment: comment,
       comment,
     });
     return response.data;

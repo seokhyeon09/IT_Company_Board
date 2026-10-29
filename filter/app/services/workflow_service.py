@@ -27,14 +27,15 @@ class WorkflowService:
         params = {
             "ticket_id": ticket_id,
             "resolution_note": dto.resolution_note,
-            "if_match_write_date": dto.if_match_write_date
+            "if_match_write_date": dto.if_match_write_date or dto.expected_write_date
         }
         result = await odoo_client.call_json("/api/v1/tickets/resolve", params=params, user_id=user_id)
         return result.get("data", {})
 
     async def restart_ticket(self, ticket_id: int, dto: TicketRestartDTO, claims: dict) -> TicketResponseDTO:
         user_id = int(claims["sub"])
-        params = {"ticket_id": ticket_id, "reason": dto.reason}
+        reason = (dto.reason if dto else None) or (dto.content if dto else None)
+        params = {"ticket_id": ticket_id, "reason": reason}
         result = await odoo_client.call_json("/api/v1/tickets/restart", params=params, user_id=user_id)
         return result.get("data", {})
 
@@ -48,7 +49,7 @@ class WorkflowService:
         params = {
             "ticket_id": ticket_id,
             "resolution_note": dto.resolution_note,
-            "if_match_write_date": dto.if_match_write_date
+            "if_match_write_date": dto.if_match_write_date or dto.expected_write_date
         }
         result = await odoo_client.call_json("/api/v1/tickets/update-resolution", params=params, user_id=user_id)
         return result.get("data", {})
@@ -101,9 +102,10 @@ class WorkflowService:
                 detail="Helpdesk officer role required to close tickets"
             )
         user_id = int(claims["sub"])
+        note = (dto.note if dto else None) or (dto.reason if dto else None)
         result = await odoo_client.call_json(
             "/api/v1/tickets/close",
-            params={"ticket_id": ticket_id, "note": dto.note},
+            params={"ticket_id": ticket_id, "note": note},
             user_id=user_id
         )
         return result.get("data", {})
@@ -132,8 +134,8 @@ class WorkflowService:
         params = {
             "ticket_id": ticket_id,
             "rating": str(dto.rating),
-            "rating_comment": dto.rating_comment,
-            "if_match_write_date": dto.if_match_write_date
+            "rating_comment": dto.rating_comment or dto.comment,
+            "if_match_write_date": dto.if_match_write_date or dto.expected_write_date
         }
         result = await odoo_client.call_json("/api/v1/tickets/rate", params=params, user_id=user_id)
         return result.get("data", {})

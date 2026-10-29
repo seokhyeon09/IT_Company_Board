@@ -60,6 +60,7 @@ export function useTicketInquiryEdit({ ticket, onSuccess, reloadTicket }: UseTic
       await ticketApi.updateTicket(ticket.id, {
         title: editTitle,
         category: editCategory,
+        priority: editPriority,
         content: editContent,
       });
       setIsEditingTicket(false);

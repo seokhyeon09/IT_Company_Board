@@ -19,6 +19,7 @@ export interface TicketCreatePayload {
 export interface TicketUpdatePayload {
   title?: string;
   category?: string;
+  priority?: string;
   content?: string;
 }
 
