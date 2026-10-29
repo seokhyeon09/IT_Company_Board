@@ -13,9 +13,11 @@ export const workflowApi = {
     return response.data;
   },
 
-  assignOfficer: async (id: number, officerId: number): Promise<TicketDetail> => {
+  assignOfficer: async (id: number, officerId: number, reason?: string): Promise<TicketDetail> => {
     const response = await apiClient.post<TicketDetail>(`/tickets/${id}/assign`, {
+      assignee_id: officerId,
       officer_id: officerId,
+      reason,
     });
     return response.data;
   },

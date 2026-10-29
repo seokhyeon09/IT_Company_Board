@@ -43,13 +43,16 @@ export function useTicketWorkflow({
   const [closeError, setCloseError] = useState('');
 
   useEffect(() => {
-    if (isOpen && user?.is_officer) {
+    if (isOpen && (user?.is_officer || user?.is_manager || user?.is_admin)) {
       ticketApi
         .getOfficers()
-        .then((res) => setOfficers(res.officers || []))
+        .then((res: any) => {
+          const list = Array.isArray(res) ? res : res?.officers || res?.data || [];
+          setOfficers(list);
+        })
         .catch(() => setOfficers([]));
     }
-  }, [isOpen, user?.is_officer]);
+  }, [isOpen, user?.is_officer, user?.is_manager, user?.is_admin]);
 
   const onAssignToMe = async () => {
     if (!ticket) return;
@@ -91,7 +94,11 @@ export function useTicketWorkflow({
     setSubmittingDesignate(true);
     setDesignateError('');
     try {
-      await workflowApi.assignOfficer(ticket.id, Number(selectedAssignOfficerId));
+      await workflowApi.assignOfficer(
+        ticket.id,
+        Number(selectedAssignOfficerId),
+        assignReason.trim() || undefined
+      );
       setShowDesignateModal(false);
       reloadTicket();
       if (onSuccess) onSuccess();

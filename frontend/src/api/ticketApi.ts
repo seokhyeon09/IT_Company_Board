@@ -92,6 +92,14 @@ export const ticketApi = {
 
   getOfficers: async (): Promise<{ officers: OfficerSimpleItem[] }> => {
     const response = await apiClient.get<any>('/tickets/officers');
-    return (response.data as any)?.data || response.data;
+    const d = response.data;
+    const list: OfficerSimpleItem[] = Array.isArray(d)
+      ? d
+      : Array.isArray(d?.data)
+      ? d.data
+      : Array.isArray(d?.officers)
+      ? d.officers
+      : [];
+    return { officers: list };
   },
 };
