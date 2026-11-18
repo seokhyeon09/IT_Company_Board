@@ -14,7 +14,7 @@
                 <field name="state" widget="badge" decoration-success="state == 'sent'" decoration-danger="state == 'failed'" decoration-muted="state == 'skipped'"/>
                 <field name="attempts"/>
                 <field name="error"/>
-                <field name="mail_id"/>
+                <field name="mail_id" options="{'format': false}"/>
             </list>
         </field>
     </record>

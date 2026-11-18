@@ -4,7 +4,7 @@
         <field name="name">it.helpdesk.escalation.rule.list</field>
         <field name="model">it.helpdesk.escalation.rule</field>
         <field name="arch" type="xml">
-            <list string="에스컬레이션 규칙">
+            <list string="에스컬레이션 규칙" decoration-muted="not active">
                 <field name="sequence" widget="handle"/>
                 <field name="name"/>
                 <field name="trigger"/>
@@ -76,6 +76,7 @@
         <field name="name">에스컬레이션 규칙</field>
         <field name="res_model">it.helpdesk.escalation.rule</field>
         <field name="view_mode">list,form</field>
+        <field name="context">{'active_test': False}</field>
     </record>
 
     <record id="action_helpdesk_escalation_log" model="ir.actions.act_window">
