@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Ticket } from './TicketCard';
+import { Ticket } from '../features/ticket/types/ticket';
 import {
   HelpCircle,
   ChevronDown,
