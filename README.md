@@ -93,7 +93,7 @@ IT_Company_Board/
 │   │   ├── client/odoo_client.py             # [Layer 2] 영속 커넥션 풀(Keep-Alive) 기반 JSON-RPC 클라이언트
 │   │   ├── services/                         # [Layer 3] auth_service.py, ticket_service.py, workflow_service.py, attachment_service.py, insight_service.py
 │   │   └── api/v1/endpoints/                 # [Layer 5] auth.py, tickets.py, ticket_workflow.py, ticket_attachments.py, ticket_insights.py
-│   └── tests/test_gateway.py                 # 게이트웨이 단위 테스트 (Pytest 7종)
+│   └── tests/                                # 게이트웨이 단위 + 엔드포인트 테스트 (Pytest 21종)
 └── addons/
     └── it_helpdesk/                          # [Tier 3] Odoo 18 Headless Backend Addon
         ├── models/                           # [Layer 3] ticket.py, ticket_workflow_mixin.py, ticket_rating.py, notification_read.py
@@ -288,10 +288,10 @@ python scripts/seed_demo_data.py
 # 1. Odoo 18 백엔드 단위, 3계층 권한 계층화 및 보안 감사 테스트 (43종)
 docker exec it_helpdesk_odoo odoo -d helpdesk_db --db_host=db -r odooU -w odooPW --http-port=8070 -u it_helpdesk --test-enable --test-tags=it_helpdesk --stop-after-init
 
-# 2. FastAPI 게이트웨이 단위 테스트 (7종)
+# 2. FastAPI 게이트웨이 단위 및 엔드포인트/에러 핸들링 테스트 (21종)
 docker exec it_helpdesk_filter pytest -v
 
-# 3. 프론트엔드 단위 테스트 (Vitest 17종) 및 프로덕션 빌드
+# 3. 프론트엔드 단위 테스트 (Vitest 25종) 및 프로덕션 빌드
 docker exec it_helpdesk_frontend npm run test
 
 # 4. 전체 기능 관통 E2E 시나리오 자동화 테스트 (4개 역할, 5대 시나리오 66개 체크 100% 검증)
