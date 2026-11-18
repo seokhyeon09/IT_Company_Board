@@ -106,7 +106,7 @@ class TicketCreateDTO(BaseModel):
         }
         if s in mapping:
             return mapping[s]
-        raise ValueError(f"Invalid priority '{v}'. Must be 0, 1, 2, or 3.")
+        raise ValueError(f"긴급도 값이 올바르지 않습니다. ('{v}')")
 
 class TicketUpdateDTO(BaseModel):
     model_config = ConfigDict(extra="forbid")

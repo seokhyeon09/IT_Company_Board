@@ -17,7 +17,7 @@ class InsightAPIController(http.Controller):
         req_env = get_current_request().env
         user = verify_gateway_request()
         if not (user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()):
-            raise AccessError("Only IT officers can view officer statistics.")
+            raise AccessError("IT 담당자만 담당자 통계를 조회할 수 있습니다.")
 
         data = compute_officer_stats_payload(req_env, user)
         return {"status": "success", "data": data}
@@ -47,7 +47,7 @@ class InsightAPIController(http.Controller):
         req_env = get_current_request().env
         user = verify_gateway_request()
         if not notification_ids:
-            return {"status": "success", "message": "No notification IDs provided."}
+            return {"status": "success", "message": "읽음 처리할 알림이 없습니다."}
 
         target_ids = list(notification_ids) if isinstance(notification_ids, (list, tuple)) else [str(notification_ids)]
         ReadModel = req_env['it.helpdesk.notification.read'].sudo()
@@ -71,7 +71,7 @@ class InsightAPIController(http.Controller):
         req_env = get_current_request().env
         user = verify_gateway_request()
         if not (user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()):
-            raise AccessError("Only IT officers can view officers list.")
+            raise AccessError("IT 담당자만 담당자 목록을 조회할 수 있습니다.")
 
         officer_ids = set()
         for xmlid in ('it_helpdesk.group_helpdesk_officer', 'base.group_system'):

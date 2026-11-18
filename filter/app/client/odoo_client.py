@@ -92,7 +92,7 @@ class OdooClient:
                     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=message)
                 if "ConcurrencyError" in name:
                     raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=message)
-                if "UserError" in name and "not found" in str(message).lower():
+                if "UserError" in name and ("찾을 수 없" in str(message) or "not found" in str(message).lower()):
                     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=message)
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
 

@@ -22,7 +22,7 @@ _logger = logging.getLogger(__name__)
 def _get_ticket(ticket_id: int, user):
     ticket = get_current_request().env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
     if not ticket.exists():
-        raise UserError("Ticket not found.")
+        raise UserError("문의를 찾을 수 없습니다.")
     return ticket
 
 
@@ -114,7 +114,7 @@ class TicketWorkflowAPIController(http.Controller):
 
         target_user = req_env['res.users'].browse(int(assignee_id)) if assignee_id else user
         if not target_user.exists():
-            raise UserError("Target officer user not found.")
+            raise UserError("지정한 담당자를 찾을 수 없습니다.")
 
         old_assignee_name = ticket.assignee_name
         ticket.action_assign_to_user(target_user)

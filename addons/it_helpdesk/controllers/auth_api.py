@@ -18,7 +18,7 @@ class AuthAPIController(http.Controller):
             auth_info = req.session.authenticate(db, credential)
             uid = auth_info.get('uid') if isinstance(auth_info, dict) else auth_info
             if not uid:
-                return {'status': 'error', 'message': 'Invalid credentials'}
+                return {'status': 'error', 'message': '아이디 또는 비밀번호가 올바르지 않습니다.'}
             
             user = req.env['res.users'].sudo().browse(uid)
             is_admin = user._is_admin()

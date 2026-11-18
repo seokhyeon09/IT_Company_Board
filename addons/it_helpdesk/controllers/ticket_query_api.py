@@ -90,11 +90,11 @@ class TicketQueryAPIController(http.Controller):
         user = verify_gateway_request()
         ticket = req_env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
         if not ticket.exists():
-            raise UserError("Ticket not found.")
+            raise UserError("문의를 찾을 수 없습니다.")
 
         is_officer = user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()
         if not is_officer and ticket.author_id.id != user.id and not ticket.is_faq:
-            raise AccessError("You do not have permission to view this ticket.")
+            raise AccessError("이 문의를 조회할 권한이 없습니다.")
 
         data = serialize_ticket_detail(ticket, user, req_env)
         return {"status": "success", "data": data}
@@ -114,7 +114,7 @@ class TicketQueryAPIController(http.Controller):
             raw_p = vals['priority']
             str_p = str(raw_p).strip() if raw_p is not None else '1'
             if str_p not in {'0', '1', '2', '3'}:
-                raise UserError(f"Invalid priority '{raw_p}'. Must be '0', '1', '2', or '3'.")
+                raise UserError(f"긴급도 값이 올바르지 않습니다. ('{raw_p}')")
             vals['priority'] = str_p
 
         ticket = create_ticket_with_auto_assign(ticket_env, vals)
@@ -157,14 +157,14 @@ class TicketQueryAPIController(http.Controller):
         user = verify_gateway_request()
         ticket = req_env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
         if not ticket.exists():
-            raise UserError("Ticket not found.")
+            raise UserError("문의를 찾을 수 없습니다.")
 
         is_officer = user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()
         if not is_officer and ticket.author_id.id != user.id:
-            raise AccessError("Only the author can update this ticket.")
+            raise AccessError("작성자만 문의를 수정할 수 있습니다.")
 
         if ticket.status != 'submitted':
-            raise UserError("Only tickets in 'submitted' (waiting) status can be updated.")
+            raise UserError("접수대기 상태의 문의만 수정할 수 있습니다.")
 
         allowed = {'title', 'content', 'category', 'priority'}
         vals = {k: v for k, v in kwargs.items() if k in allowed and v is not None}
@@ -172,19 +172,19 @@ class TicketQueryAPIController(http.Controller):
         if 'title' in vals:
             clean_title = str(vals['title']).strip()
             if not clean_title:
-                raise UserError("Title cannot be empty.")
+                raise UserError("제목을 입력해 주세요.")
             vals['title'] = clean_title
 
         if 'content' in vals:
             clean_content = str(vals['content']).strip()
             if not clean_content:
-                raise UserError("Content cannot be empty.")
+                raise UserError("내용을 입력해 주세요.")
             vals['content'] = clean_content
 
         if 'priority' in vals:
             str_p = str(vals['priority']).strip()
             if str_p not in {'0', '1', '2', '3'}:
-                raise UserError("Invalid priority value.")
+                raise UserError("긴급도 값이 올바르지 않습니다.")
             vals['priority'] = str_p
 
         ticket.write(vals)
