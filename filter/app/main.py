@@ -103,6 +103,8 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # 브라우저 JS가 CSV 내보내기 응답 헤더를 읽을 수 있도록 노출
+    expose_headers=["Content-Disposition", "X-Export-Truncated", "Retry-After"],
 )
 
 # Mount API Routers
