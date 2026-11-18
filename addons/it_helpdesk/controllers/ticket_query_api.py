@@ -10,6 +10,8 @@ from ..utils import (
     verify_gateway_request,
     get_current_request,
     serialize_ticket_detail, create_ticket_with_auto_assign,
+    ALLOWED_SORTS,
+    build_ticket_domain,
 )
 
 _logger = logging.getLogger(__name__)
@@ -30,49 +32,9 @@ class TicketQueryAPIController(http.Controller):
         user = verify_gateway_request()
         ticket_env = req_env['it.helpdesk.ticket'].with_user(user)
 
-        domain = []
-        is_officer = user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()
-
-        if is_faq is True:
-            domain.append(('is_faq', '=', True))
-        elif is_faq is False:
-            domain.append(('is_faq', '=', False))
-            if not is_officer:
-                domain.append(('author_id', '=', user.id))
-        else:
-            if not is_officer:
-                domain.append(('author_id', '=', user.id))
-
-        if category in ('hw', 'sw', 'network', 'account', 'etc'):
-            domain.append(('category', '=', category))
-        if priority in ('0', '1', '2', '3'):
-            domain.append(('priority', '=', str(priority)))
-        if status == 'waiting':
-            domain.append(('status', 'in', ['submitted', 'assigned']))
-        elif status == 'overdue':
-            domain.append(('is_overdue', '=', True))
-            domain.append(('status', 'not in', ['resolved', 'closed']))
-        elif status in ('submitted', 'assigned', 'in_progress', 'pending', 'resolved', 'closed', 'canceled'):
-            domain.append(('status', '=', status))
-        if is_overdue is True or str(is_overdue).lower() == 'true':
-            domain.append(('is_overdue', '=', True))
-            domain.append(('status', 'not in', ['resolved', 'closed']))
-        if assigned_to_me is True or str(assigned_to_me).lower() == 'true':
-            domain.append(('assignee_id', '=', user.id))
-
-        if search and isinstance(search, str):
-            safe_term = search.strip()[:100]
-            domain.extend(['|', ('ticket_number', 'ilike', safe_term), ('title', 'ilike', safe_term)])
-
-        ALLOWED_SORTS = {
-            'id desc': 'id desc',
-            'id asc': 'id asc',
-            'deadline asc': 'deadline asc',
-            'deadline desc': 'deadline desc',
-            'priority desc': 'priority desc, id desc',
-            'priority asc': 'priority asc, id desc',
-            'write_date desc': 'write_date desc',
-        }
+        domain = build_ticket_domain(
+            user, category, priority, status, search, is_faq, is_overdue, assigned_to_me
+        )
         order_clause = ALLOWED_SORTS.get(sort_by, 'id desc') if sort_by else 'id desc'
 
         tickets = ticket_env.search_read(

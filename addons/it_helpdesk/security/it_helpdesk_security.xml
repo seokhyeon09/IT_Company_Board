@@ -74,4 +74,38 @@
         <field name="groups" eval="[(4, ref('group_helpdesk_officer'))]"/>
         <field name="domain_force">[(1, '=', 1)]</field>
     </record>
+
+    <!-- 답변 상용구 Record Rule: 담당자는 전체 조회/생성 가능, 수정/삭제는 본인 작성분만 허용 -->
+    <record id="helpdesk_reply_template_rule_officer_read" model="ir.rule">
+        <field name="name">답변 상용구 전체 조회 및 생성 (담당자)</field>
+        <field name="model_id" ref="model_it_helpdesk_reply_template"/>
+        <field name="groups" eval="[(4, ref('group_helpdesk_officer'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <record id="helpdesk_reply_template_rule_officer_own" model="ir.rule">
+        <field name="name">답변 상용구 본인분 수정 및 삭제 (담당자)</field>
+        <field name="model_id" ref="model_it_helpdesk_reply_template"/>
+        <field name="groups" eval="[(4, ref('group_helpdesk_officer'))]"/>
+        <field name="domain_force">[('create_uid', '=', user.id)]</field>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+
+    <record id="helpdesk_reply_template_rule_manager" model="ir.rule">
+        <field name="name">답변 상용구 전체 권한 (관리자)</field>
+        <field name="model_id" ref="model_it_helpdesk_reply_template"/>
+        <field name="groups" eval="[(4, ref('group_helpdesk_manager'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
 </odoo>

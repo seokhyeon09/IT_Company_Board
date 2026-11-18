@@ -24,7 +24,9 @@ def pick_officer(env, category):
         return None
     rule = env['it.helpdesk.assign.rule'].sudo().browse(row[0])
     candidates = rule.officer_ids.filtered(
-        lambda u: u.active and u.has_group('it_helpdesk.group_helpdesk_officer')
+        lambda u: u.active
+        and u.has_group('it_helpdesk.group_helpdesk_officer')
+        and not u._helpdesk_is_absent()
     )
     if not candidates:
         return None

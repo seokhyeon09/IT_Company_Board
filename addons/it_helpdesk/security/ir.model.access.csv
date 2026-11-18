@@ -10,3 +10,5 @@ access_it_helpdesk_notification_read_officer,it.helpdesk.notification.read.offic
 access_it_helpdesk_notification_read_manager,it.helpdesk.notification.read.manager,model_it_helpdesk_notification_read,it_helpdesk.group_helpdesk_manager,1,1,1,1
 access_it_helpdesk_assign_rule_officer,it.helpdesk.assign.rule.officer,model_it_helpdesk_assign_rule,it_helpdesk.group_helpdesk_officer,1,0,0,0
 access_it_helpdesk_assign_rule_manager,it.helpdesk.assign.rule.manager,model_it_helpdesk_assign_rule,it_helpdesk.group_helpdesk_manager,1,1,1,1
+access_it_helpdesk_reply_template_officer,it.helpdesk.reply.template.officer,model_it_helpdesk_reply_template,it_helpdesk.group_helpdesk_officer,1,1,1,1
+access_it_helpdesk_reply_template_manager,it.helpdesk.reply.template.manager,model_it_helpdesk_reply_template,it_helpdesk.group_helpdesk_manager,1,1,1,1

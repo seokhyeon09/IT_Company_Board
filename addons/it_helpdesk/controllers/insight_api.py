@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """담당자 통계 및 모의 이메일 알림 API"""
-from odoo import http
+from odoo import http, fields
 from odoo.exceptions import AccessError
 
 from ..utils import verify_gateway_request, get_current_request
@@ -83,9 +83,16 @@ class InsightAPIController(http.Controller):
         for u in req_env['res.users'].sudo().browse(sorted(officer_ids)):
             if not u.exists() or u.id == 1:
                 continue
+            is_absent = u._helpdesk_is_absent()
             officer_list.append({
                 "id": u.id,
                 "name": u.name,
                 "login": u.login,
+                "is_absent": is_absent,
+                "absent_until": (
+                    fields.Date.to_string(u.helpdesk_absent_until)
+                    if is_absent and u.helpdesk_absent_until
+                    else None
+                ),
             })
         return {"status": "success", "data": officer_list}

@@ -7,3 +7,6 @@ from . import test_auto_assign
 from . import test_sla_monitor
 from . import test_webhook
 from . import test_mttr
+from . import test_reply_template
+from . import test_officer_absence
+from . import test_ticket_export

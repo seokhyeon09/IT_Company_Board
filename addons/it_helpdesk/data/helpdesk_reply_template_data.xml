@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="reply_template_common_greeting" model="it.helpdesk.reply.template">
+            <field name="name">접수 확인 및 처리 안내</field>
+            <field name="category" eval="False"/>
+            <field name="body">안녕하세요, {{requester_name}}님.
+접수하신 문의({{ticket_number}})를 확인하여 담당자 {{officer_name}}이(가) 처리를 진행하고 있습니다.
+추가 확인이 필요한 사항이 있을 경우 별도로 안내드리겠습니다.</field>
+        </record>
+
+        <record id="reply_template_hw_printer" model="it.helpdesk.reply.template">
+            <field name="name">프린터 드라이버 재설치 안내</field>
+            <field name="category">hw</field>
+            <field name="body">{{requester_name}}님, 안녕하세요. 담당자 {{officer_name}}입니다.
+프린터 출력 오류 조치를 위해 기존 드라이버를 제거한 뒤, 사내 공용 드라이버 설치 경로에서 최신 드라이버를 재설치하고 테스트 인쇄를 진행하였습니다.
+동일 증상이 재발할 경우 {{ticket_number}} 문의로 재요청해 주세요.</field>
+        </record>
+
+        <record id="reply_template_sw_license" model="it.helpdesk.reply.template">
+            <field name="name">업무 소프트웨어 재설치 및 라이선스 조치</field>
+            <field name="category">sw</field>
+            <field name="body">안녕하세요, {{requester_name}}님.
+요청하신 소프트웨어 오류 건({{ticket_number}})에 대해 프로그램 캐시 초기화 및 최신 버전 재설치, 라이선스 재인증을 완료하였습니다.
+프로그램을 완전히 종료한 후 다시 실행하여 정상 동작 여부를 확인해 주세요.</field>
+        </record>
+
+        <record id="reply_template_network_vpn" model="it.helpdesk.reply.template">
+            <field name="name">VPN 재접속 및 네트워크 초기화 안내</field>
+            <field name="category">network</field>
+            <field name="body">{{requester_name}}님, 안녕하세요.
+VPN 연결 오류 해결을 위해 네트워크 어댑터 초기화 및 인증서 갱신을 진행하였습니다.
+VPN 클라이언트를 재실행한 뒤 사내 계정으로 다시 로그인하여 접속해 보시기 바랍니다.</field>
+        </record>
+
+        <record id="reply_template_account_password" model="it.helpdesk.reply.template">
+            <field name="name">비밀번호 초기화 및 계정 잠금 해제 안내</field>
+            <field name="category">account</field>
+            <field name="body">안녕하세요, {{requester_name}}님. 담당자 {{officer_name}}입니다.
+요청하신 계정의 잠금을 해제하고 임시 비밀번호를 발급하여 등록된 사내 메일로 전달드렸습니다.
+최초 로그인 직후 보안을 위해 비밀번호를 변경해 주시기 바랍니다. (문의번호: {{ticket_number}})</field>
+        </record>
+
+        <record id="reply_template_etc_complete" model="it.helpdesk.reply.template">
+            <field name="name">요청 사항 처리 완료 안내</field>
+            <field name="category">etc</field>
+            <field name="body">안녕하세요, {{requester_name}}님.
+접수해 주신 {{ticket_number}} 문의 건의 확인 및 조치가 완료되었습니다.
+추가 문의 사항이 있으시면 언제든 재문의 남겨 주시기 바랍니다. 감사합니다.</field>
+        </record>
+    </data>
+</odoo>

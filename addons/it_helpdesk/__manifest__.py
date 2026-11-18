@@ -1,6 +1,6 @@
 {
     "name": "사내 IT 헬프데스크",
-    "version": "1.1",
+    "version": "1.2",
     "summary": "사내 IT문제 해결 게시판",
     "author": "j",
     "category": "Services/Helpdesk",
@@ -12,6 +12,7 @@
         "data/helpdesk_cron.xml",
         "data/helpdesk_sla_cron.xml",
         "data/helpdesk_config.xml",
+        "data/helpdesk_reply_template_data.xml",
         "views/ticket_views.xml",
         "views/assign_rule_views.xml",
     ],
