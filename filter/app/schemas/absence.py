@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 from datetime import date
-from typing import Any, Optional
+from typing import Any, List, Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.core.messages import MSG_ABSENT_UNTIL_INVALID
@@ -16,9 +16,20 @@ class OfficerAbsenceDTO(BaseModel):
     absent_until: Optional[str] = None
 
 
+class AbsenceOpenTicketDTO(BaseModel):
+    id: int
+    ticket_number: str
+    title: Optional[str] = None
+    status: str
+    priority: str
+    category: Optional[str] = None
+
+
 class OfficerAbsenceResponseDTO(BaseModel):
     status: str = "success"
     data: OfficerAbsenceDTO
+    open_tickets: List[AbsenceOpenTicketDTO] = []
+    open_ticket_total: int = 0
 
 
 class OfficerAbsenceUpdateDTO(BaseModel):

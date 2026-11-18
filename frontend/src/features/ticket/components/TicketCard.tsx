@@ -9,9 +9,18 @@ export type { Ticket };
 interface TicketCardProps {
   ticket: Ticket;
   onClick: (ticket: Ticket) => void;
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (ticketId: number) => void;
 }
 
-export const TicketCard: React.FC<TicketCardProps> = ({ ticket, onClick }) => {
+export const TicketCard: React.FC<TicketCardProps> = ({
+  ticket,
+  onClick,
+  selectable = false,
+  selected = false,
+  onToggleSelect,
+}) => {
   const statusInfo = statusMap[ticket.status] || {
     label: ticket.status,
     color: 'bg-slate-100 text-slate-700',
@@ -32,11 +41,23 @@ export const TicketCard: React.FC<TicketCardProps> = ({ ticket, onClick }) => {
   return (
     <div
       onClick={() => onClick(ticket)}
-      className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer flex flex-col justify-between"
+      className={`bg-white rounded-xl border p-5 shadow-xs hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer flex flex-col justify-between ${
+        selected ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-slate-200'
+      }`}
     >
       <div>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center space-x-2">
+            {selectable && (
+              <input
+                type="checkbox"
+                aria-label="문의 선택"
+                checked={selected}
+                onClick={(e) => e.stopPropagation()}
+                onChange={() => onToggleSelect?.(ticket.id)}
+                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+              />
+            )}
             <span className="font-mono text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
               {ticket.ticket_number}
             </span>

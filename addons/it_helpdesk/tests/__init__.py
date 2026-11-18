@@ -13,3 +13,6 @@ from . import test_officer_absence
 from . import test_ticket_export
 from . import test_gateway_secret
 from . import test_sla_report
+from . import test_ticket_bulk
+from . import test_internal_notes
+from . import test_absence_reassign

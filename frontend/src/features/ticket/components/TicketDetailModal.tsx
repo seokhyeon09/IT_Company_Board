@@ -11,6 +11,7 @@ import { TicketWorkflowBar } from './modal/TicketWorkflowBar';
 import { TicketTimeline } from './modal/TicketTimeline';
 import { TicketActionForms } from './modal/TicketActionForms';
 import { TicketOfficerLogs } from './modal/TicketOfficerLogs';
+import { InternalNotes } from './modal/InternalNotes';
 import { TicketRelatedAndEmails } from './modal/TicketRelatedAndEmails';
 import { InlineErrorNotice } from './modal/InlineErrorNotice';
 
@@ -30,17 +31,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   onSelectTicket,
 }) => {
   const s = useTicketModalState(ticketId, isOpen, onSuccess);
-  const hasOpenSubForm =
-    s.showCancelModal ||
-    s.showPendingModal ||
-    s.showCloseModal ||
-    s.showDesignateModal ||
-    s.showPendingReplyForm ||
-    s.showRestartForm ||
-    s.isEditingTicket ||
-    s.isEditingResolution;
-
-  useModalBehavior({ isOpen, onClose, closeOnEscape: !hasOpenSubForm });
+  useModalBehavior({ isOpen, onClose, closeOnEscape: !s.hasOpenSubForm });
 
   if (!isOpen) return null;
 
@@ -228,6 +219,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 onSelectRelatedTicket={onSelectTicket}
               />
 
+              <InternalNotes ticketId={s.ticket.id} initialNotes={s.ticket.internal_notes} isOfficer={s.isOfficer} onNoteAdded={s.reloadTicket} />
               <TicketOfficerLogs logs={s.ticket.logs} isOfficer={s.isOfficer} />
             </>
           ) : null}

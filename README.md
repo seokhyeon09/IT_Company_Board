@@ -93,7 +93,7 @@ IT_Company_Board/
 │   │   ├── client/odoo_client.py             # [Layer 2] 영속 커넥션 풀(Keep-Alive) 기반 JSON-RPC 클라이언트
 │   │   ├── services/                         # [Layer 3] auth_service.py, ticket_service.py, workflow_service.py, attachment_service.py, insight_service.py
 │   │   └── api/v1/endpoints/                 # [Layer 5] auth.py, tickets.py, ticket_workflow.py, ticket_attachments.py, ticket_insights.py
-│   └── tests/                                # 게이트웨이 단위 + 엔드포인트 테스트 (Pytest 70종)
+│   └── tests/                                # 게이트웨이 단위 + 엔드포인트 테스트 (Pytest 95종)
 └── addons/
     └── it_helpdesk/                          # [Tier 3] Odoo 18 Headless Backend Addon
         ├── models/                           # [Layer 3] ticket.py, ticket_workflow_mixin.py, ticket_rating.py, notification_read.py
@@ -101,7 +101,7 @@ IT_Company_Board/
         ├── controllers/                      # [Layer 5] auth_api.py, ticket_query_api.py, ticket_workflow_api.py, attachment_api.py, insight_api.py
         ├── security/                         # 3계층 RBAC 그룹 및 Record Rules (ir.model.access.csv, it_helpdesk_security.xml)
         ├── data/                             # 자동 채번 시퀀스 및 SLA/자동종결 Cron 스케줄러
-        └── tests/                            # 백엔드 단위, 권한 계층화 및 보안 감사 테스트 (TransactionCase 80종)
+        └── tests/                            # 백엔드 단위, 권한 계층화 및 보안 감사 테스트 (TransactionCase 106종)
 ```
 
 ---
@@ -303,13 +303,13 @@ python scripts/seed_demo_data.py
 본 프로젝트는 백엔드 단위 테스트, 게이트웨이 테스트, 다중 사용자 E2E 시나리오, 가상 브라우저 UI 자동화 테스트를 모두 갖추고 있습니다.
 
 ```bash
-# 1. Odoo 18 백엔드 단위, 3계층 권한 계층화 및 보안 감사 테스트 (80종)
+# 1. Odoo 18 백엔드 단위, 3계층 권한 계층화 및 보안 감사 테스트 (106종)
 docker exec it_helpdesk_odoo odoo -d helpdesk_db --db_host=db -r odooU -w odooPW --http-port=8070 -u it_helpdesk --test-enable --test-tags=it_helpdesk --stop-after-init
 
-# 2. FastAPI 게이트웨이 단위 및 엔드포인트/에러 핸들링 테스트 (70종)
+# 2. FastAPI 게이트웨이 단위 및 엔드포인트/에러 핸들링 테스트 (95종)
 docker exec it_helpdesk_filter pytest -v
 
-# 3. 프론트엔드 단위 테스트 (Vitest 69종) 및 프로덕션 빌드
+# 3. 프론트엔드 단위 테스트 (Vitest 88종) 및 프로덕션 빌드
 docker exec it_helpdesk_frontend npm run test
 
 # 4. 전체 기능 관통 E2E 시나리오 자동화 테스트 (4개 역할, 5대 시나리오 66개 체크 100% 검증)

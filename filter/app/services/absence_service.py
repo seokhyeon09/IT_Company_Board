@@ -18,6 +18,8 @@ class AbsenceService:
         return OfficerAbsenceResponseDTO(
             status="success",
             data=result.get("data", {}),
+            open_tickets=result.get("open_tickets", []),
+            open_ticket_total=result.get("open_ticket_total", 0),
         )
 
     async def update_my_absence(
@@ -43,6 +45,8 @@ class AbsenceService:
         return OfficerAbsenceResponseDTO(
             status="success",
             data=result.get("data", {}),
+            open_tickets=result.get("open_tickets", []),
+            open_ticket_total=result.get("open_ticket_total", 0),
         )
 
 

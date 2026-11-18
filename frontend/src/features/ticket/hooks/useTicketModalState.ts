@@ -47,9 +47,21 @@ export function useTicketModalState(
     reloadTicket,
   });
 
+  const hasOpenSubForm =
+    inquiryEdit.showCancelModal ||
+    workflow.showPendingModal ||
+    workflow.showCloseModal ||
+    workflow.showDesignateModal ||
+    resolution.showPendingReplyForm ||
+    resolution.showRestartForm ||
+    inquiryEdit.isEditingTicket ||
+    resolution.isEditingResolution;
+
   return {
     // Detail & Permissions
     ticket: detail.ticket,
+    reloadTicket: detail.reloadTicket,
+    hasOpenSubForm,
     templateContext: detail.ticket ? buildTemplateContext(detail.ticket) : undefined,
     loading: detail.loading,
     fetchError: detail.fetchError,

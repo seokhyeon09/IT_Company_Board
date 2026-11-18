@@ -2,6 +2,12 @@ import React from 'react';
 import { Inbox } from 'lucide-react';
 import { TicketCard, Ticket } from '../../ticket/components/TicketCard';
 
+export interface TicketSelectionConfig {
+  selectable: boolean;
+  selectedIds: number[];
+  onToggleSelect: (ticketId: number) => void;
+}
+
 interface DashboardTicketListProps {
   loading: boolean;
   error: string | null;
@@ -10,6 +16,7 @@ interface DashboardTicketListProps {
   onRetry: () => void;
   onResetFilters: () => void;
   onSelectTicket: (ticketId: number) => void;
+  selection?: TicketSelectionConfig;
 }
 
 export const DashboardTicketList: React.FC<DashboardTicketListProps> = ({
@@ -20,6 +27,7 @@ export const DashboardTicketList: React.FC<DashboardTicketListProps> = ({
   onRetry,
   onResetFilters,
   onSelectTicket,
+  selection,
 }) => {
   if (loading) {
     return (
@@ -73,6 +81,8 @@ export const DashboardTicketList: React.FC<DashboardTicketListProps> = ({
     );
   }
 
+  const selectedSet = new Set(selection?.selectedIds || []);
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
       {tickets.map((ticket: Ticket) => (
@@ -80,6 +90,9 @@ export const DashboardTicketList: React.FC<DashboardTicketListProps> = ({
           key={ticket.id}
           ticket={ticket}
           onClick={(t) => onSelectTicket(t.id)}
+          selectable={Boolean(selection?.selectable)}
+          selected={selectedSet.has(ticket.id)}
+          onToggleSelect={selection?.onToggleSelect}
         />
       ))}
     </div>

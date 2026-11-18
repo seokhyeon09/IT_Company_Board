@@ -48,7 +48,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             새로고침
           </button>
 
-          {user?.is_officer && <OfficerAbsenceControl />}
+          {user?.is_officer && <OfficerAbsenceControl onTicketsChanged={onRefresh} />}
 
           {user?.is_officer && exportState && (
             <button

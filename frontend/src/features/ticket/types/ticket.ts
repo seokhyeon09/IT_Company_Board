@@ -59,6 +59,14 @@ export interface TicketLog {
   message_type?: string;
 }
 
+export interface InternalNote {
+  id: number;
+  author_id?: number | null;
+  author_name: string;
+  date?: string;
+  content: string;
+}
+
 export interface RelatedTicketItem {
   id: number;
   ticket_number: string;
@@ -106,6 +114,7 @@ export interface TicketDetail extends Ticket {
   resolutions?: ResolutionNote[];
   follow_ups?: FollowUpInquiry[];
   logs?: TicketLog[];
+  internal_notes?: InternalNote[];
   attachments?: Attachment[];
   related_tickets?: RelatedTicketItem[];
   email_notifications?: EmailNotificationItem[];

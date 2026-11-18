@@ -4,7 +4,10 @@ from datetime import date
 from odoo import http, fields
 from odoo.exceptions import UserError
 
-from ..utils import verify_gateway_request, ensure_officer
+from ..utils import verify_gateway_request, ensure_officer, get_current_request
+
+OPEN_TICKET_STATUSES = ('assigned', 'in_progress', 'pending')
+OPEN_TICKET_LIMIT = 100
 
 
 def _serialize_absence(user):
@@ -17,6 +20,33 @@ def _serialize_absence(user):
     return {"is_absent": effective, "absent_until": until}
 
 
+def _fetch_open_tickets(user):
+    ticket_env = get_current_request().env['it.helpdesk.ticket'].with_user(user)
+    domain = [
+        ('assignee_id', '=', user.id),
+        ('status', 'in', OPEN_TICKET_STATUSES),
+    ]
+    total = ticket_env.search_count(domain)
+    records = ticket_env.search_read(
+        domain,
+        ['id', 'ticket_number', 'title', 'status', 'priority', 'category'],
+        order='id desc',
+        limit=OPEN_TICKET_LIMIT,
+    )
+    items = [
+        {
+            "id": rec["id"],
+            "ticket_number": rec["ticket_number"],
+            "title": rec["title"],
+            "status": rec["status"],
+            "priority": rec["priority"],
+            "category": rec["category"],
+        }
+        for rec in records
+    ]
+    return items, total
+
+
 class OfficerAbsenceAPIController(http.Controller):
     """Officer Absence Self-Management API"""
 
@@ -24,7 +54,12 @@ class OfficerAbsenceAPIController(http.Controller):
     def get_my_absence(self, **kwargs):
         user = verify_gateway_request()
         ensure_officer(user)
-        return {"status": "success", "data": _serialize_absence(user)}
+        return {
+            "status": "success",
+            "data": _serialize_absence(user),
+            "open_tickets": [],
+            "open_ticket_total": 0,
+        }
 
     @http.route('/api/v1/officers/me/absence/set', type='json', auth='none', methods=['POST'], csrf=False)
     def set_my_absence(self, is_absent=False, absent_until=None, **kwargs):
@@ -37,7 +72,12 @@ class OfficerAbsenceAPIController(http.Controller):
                 "helpdesk_absent": False,
                 "helpdesk_absent_until": False,
             })
-            return {"status": "success", "data": _serialize_absence(user)}
+            return {
+                "status": "success",
+                "data": _serialize_absence(user),
+                "open_tickets": [],
+                "open_ticket_total": 0,
+            }
 
         until_val = False
         if absent_until not in (None, False, ""):
@@ -53,4 +93,14 @@ class OfficerAbsenceAPIController(http.Controller):
             "helpdesk_absent": True,
             "helpdesk_absent_until": until_val,
         })
-        return {"status": "success", "data": _serialize_absence(user)}
+        absence_data = _serialize_absence(user)
+        if absence_data["is_absent"]:
+            open_tickets, open_ticket_total = _fetch_open_tickets(user)
+        else:
+            open_tickets, open_ticket_total = [], 0
+        return {
+            "status": "success",
+            "data": absence_data,
+            "open_tickets": open_tickets,
+            "open_ticket_total": open_ticket_total,
+        }

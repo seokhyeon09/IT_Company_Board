@@ -1,12 +1,24 @@
 # -*- coding: utf-8 -*-
 import html
-from .text_utils import (
-    _format_datetime_utc,
-    _clean_html,
-    _extract_thread_content,
-)
+import re
+from .text_utils import _format_datetime_utc, _clean_html, _extract_thread_content
 from .related_tickets import find_related_tickets
-from .mock_email import build_mock_emails
+from .mock_email import build_mock_emails, is_internal_note_message
+
+def _extract_internal_note_content(raw_html: str) -> str:
+    """Extract pure body text from an internal note message without header artifacts."""
+    if not raw_html:
+        return ""
+    # 채터 본문은 이스케이프되어 저장되므로 먼저 풀어서 헤더 마커를 기준으로 자른다.
+    text = html.unescape(str(raw_html))
+    if '[내부 메모]' in text:
+        text = text.split('[내부 메모]', 1)[1]
+    elif 'data-msg-type="internal_note">' in text:
+        text = text.split('data-msg-type="internal_note">', 1)[1]
+    text = re.sub(r'^(\s*</?b>\s*|\s*<br\s*/?>\s*)+', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'<br\s*/?>|</p>', '\n', text, flags=re.IGNORECASE)
+    text = html.unescape(re.sub(r'<[^>]+>', '', text))
+    return text.replace('\xa0', ' ').replace('&nbsp;', ' ').strip()
 
 def build_sequential_timeline(ticket, initial_inquiry: dict) -> list:
     """Build chronological multi-round Q&A sequential timeline."""
@@ -15,6 +27,8 @@ def build_sequential_timeline(ticket, initial_inquiry: dict) -> list:
 
     for msg in ticket.message_ids.sorted(key=lambda m: (m.date, m.id), reverse=False):
         body = msg.body or ""
+        if is_internal_note_message(body):
+            continue
         author_name = msg.author_id.name if msg.author_id else "시스템"
         clean_b = _clean_html(body)
         body_un = html.unescape(body)
@@ -212,8 +226,26 @@ def serialize_ticket_detail(ticket, user, req_env) -> dict:
             for msg in ticket.message_ids.sorted(key=lambda m: m.id, reverse=True)[:50]
             if _clean_html(msg.body)
         ] if is_officer else [],
+        "internal_notes": _serialize_internal_notes(ticket) if is_officer else [],
         "related_tickets": find_related_tickets(user, ticket, is_officer),
         "email_notifications": build_mock_emails(ticket, user, is_officer, read_ids=read_notification_ids),
     }
 
     return data
+
+
+def _serialize_internal_notes(ticket) -> list:
+    notes = []
+    for msg in ticket.message_ids.sorted(key=lambda m: (m.date, m.id), reverse=True):
+        if not is_internal_note_message(msg.body):
+            continue
+        content = _extract_internal_note_content(msg.body)
+        if content:
+            notes.append({
+                "id": msg.id, "author_id": msg.author_id.id if msg.author_id else None,
+                "author_name": msg.author_id.name if msg.author_id else "시스템",
+                "date": _format_datetime_utc(msg.date), "content": content,
+            })
+            if len(notes) >= 50:
+                break
+    return notes

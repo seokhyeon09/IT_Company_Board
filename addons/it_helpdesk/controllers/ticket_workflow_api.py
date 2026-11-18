@@ -14,6 +14,9 @@ from ..utils import (
     ensure_assignee_or_admin,
     ensure_author,
     ensure_author_or_officer,
+    do_assign,
+    do_start_progress,
+    do_close,
 )
 
 _logger = logging.getLogger(__name__)
@@ -113,17 +116,7 @@ class TicketWorkflowAPIController(http.Controller):
         ticket = _get_ticket(ticket_id, user)
 
         target_user = req_env['res.users'].browse(int(assignee_id)) if assignee_id else user
-        if not target_user.exists():
-            raise UserError("지정한 담당자를 찾을 수 없습니다.")
-
-        old_assignee_name = ticket.assignee_name
-        ticket.action_assign_to_user(target_user)
-
-        safe_reason = _safe_html_text(reason) if reason else ""
-        reason_html = f"<br/>인계 사유: {safe_reason}" if safe_reason else ""
-        ticket.message_post(
-            body=f'<div data-msg-type="reassign"><b>[담당자 변경]</b> {html.escape(old_assignee_name)} -> {html.escape(target_user.name)}{reason_html}</div>'
-        )
+        do_assign(ticket, user, target_user, reason=reason)
         return _workflow_res(ticket, assignee_id=ticket.assignee_id.id, assignee_name=ticket.assignee_name)
 
     @http.route('/api/v1/tickets/start-progress', type='json', auth='none', methods=['POST'], csrf=False)
@@ -132,9 +125,7 @@ class TicketWorkflowAPIController(http.Controller):
         user = verify_gateway_request()
         ensure_officer(user)
         ticket = _get_ticket(ticket_id, user)
-        ensure_assignee_or_admin(ticket, user)
-        ticket.action_start_progress()
-        ticket.message_post(body=f"<b>[처리 시작]</b> 담당자({html.escape(user.name)})가 문의 처리를 시작하였습니다.")
+        do_start_progress(ticket, user)
         return _workflow_res(ticket)
 
     @http.route('/api/v1/tickets/pending', type='json', auth='none', methods=['POST'], csrf=False)
@@ -158,15 +149,7 @@ class TicketWorkflowAPIController(http.Controller):
         user = verify_gateway_request()
         ensure_officer(user)
         ticket = _get_ticket(ticket_id, user)
-
-        if note:
-            safe_note = _safe_html_text(note)
-            ticket.resolution_note = safe_note
-        elif not ticket.resolution_note:
-            ticket.resolution_note = "담당자 직권 종결 처리"
-
-        ticket.action_close()
-        ticket.message_post(body=f"<b>[티켓 종결]</b> IT 담당자({html.escape(user.name)})에 의해 문의가 종결되었습니다.")
+        do_close(ticket, user, note=note)
         return _workflow_res(ticket)
 
     @http.route('/api/v1/tickets/cancel', type='json', auth='none', methods=['POST'], csrf=False)

@@ -39,6 +39,7 @@ from app.schemas.insight import (
     TicketStatsDataDTO,
     TicketStatsResponseDTO,
 )
+from app.schemas.note import InternalNoteDTO
 
 __all__ = [
     "TicketCategoryEnum",
@@ -74,6 +75,7 @@ __all__ = [
     "ResolutionNoteDTO",
     "FollowUpInquiryDTO",
     "TicketLogDTO",
+    "InternalNoteDTO",
     "TicketResponseDTO",
     "TicketDetailResponseDTO",
     "TicketListResponseDTO",
@@ -174,6 +176,7 @@ class TicketDetailResponseDTO(TicketResponseDTO):
     logs: List[TicketLogDTO] = []
     attachments: List[AttachmentDTO] = []
     pending_reason: Optional[str] = None
+    internal_notes: List[InternalNoteDTO] = []
     related_tickets: List[RelatedTicketDTO] = []
     email_notifications: List[EmailNotificationDTO] = []
 

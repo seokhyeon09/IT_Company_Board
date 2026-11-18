@@ -18,6 +18,14 @@ SENT_STATUS = "발송완료 (모의)"
 
 AUTHOR_EVENTS = ("assigned", "pending_request", "resolved")
 ASSIGNEE_EVENTS = ("assigned", "follow_up", "rated")
+INTERNAL_NOTE_MARKER = 'data-msg-type="internal_note"'
+
+
+def is_internal_note_message(body: str) -> bool:
+    """Return True when a mail.message body is an officer-only internal note."""
+    if not body:
+        return False
+    return INTERNAL_NOTE_MARKER in html.unescape(body)
 
 
 def _mail(ticket, suffix, event_type, audience, recipient, subject, body, sent_at):
@@ -62,6 +70,8 @@ def _collect_events(ticket):
     has_assigned = has_resolved = False
     for msg in ticket.message_ids.sorted(key=lambda m: (m.date, m.id)):
         body = msg.body or ""
+        if is_internal_note_message(body):
+            continue
         clean_b = _clean_html(body)
         body_un = html.unescape(body)
         at = _format_datetime_utc(msg.date)

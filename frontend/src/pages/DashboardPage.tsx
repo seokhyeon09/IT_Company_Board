@@ -8,6 +8,7 @@ import { TicketCreateModal } from '../features/ticket/components/TicketCreateMod
 import { DashboardHeader } from '../features/dashboard/components/DashboardHeader';
 import { DashboardFilterBar } from '../features/dashboard/components/DashboardFilterBar';
 import { DashboardTicketList } from '../features/dashboard/components/DashboardTicketList';
+import { BulkActionBar } from '../features/dashboard/components/BulkActionBar';
 import { DashboardPagination } from '../features/dashboard/components/DashboardPagination';
 import { OfficerStatsModal } from '../features/dashboard/components/OfficerStatsModal';
 import { SlaReportModal } from '../features/dashboard/components/SlaReportModal';
@@ -15,6 +16,8 @@ import { EmailNotificationModal } from '../features/notification/components/Emai
 import { useEmailNotifications } from '../features/notification/hooks/useEmailNotifications';
 import { useDashboardTickets } from '../features/dashboard/hooks/useDashboardTickets';
 import { useTicketExport } from '../features/dashboard/hooks/useTicketExport';
+import { useTicketSelection } from '../features/dashboard/hooks/useTicketSelection';
+import { useBulkActions } from '../features/dashboard/hooks/useBulkActions';
 import {
   buildSearchWithTicketId,
   parseTicketIdFromSearch,
@@ -23,9 +26,20 @@ import {
 
 export const DashboardPage: React.FC = () => {
   const { user } = useAuthStore();
+  const isOfficer = Boolean(user?.is_officer);
   const mail = useEmailNotifications(user?.uid);
   const dash = useDashboardTickets();
   const csvExport = useTicketExport(dash.exportParams);
+  const selectionResetKey = `${dash.activeTab}|${dash.search}|${dash.statusFilter}|${dash.categoryFilter}|${dash.priorityFilter}|${dash.sortBy}|${dash.isOverdueOnly}|${dash.assignedToMe}|${dash.page}`;
+  const selection = useTicketSelection(selectionResetKey);
+  const bulk = useBulkActions({
+    isOfficer,
+    onSuccess: (res) => {
+      selection.keepFailedOnly(res.results);
+      dash.refreshAll();
+    },
+  });
+  const pageTicketIds = dash.tickets.map((t) => t.id);
 
   // Modals & deep-link ticket_id state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -107,6 +121,24 @@ export const DashboardPage: React.FC = () => {
         />
       ) : (
         <>
+          {isOfficer && (
+            <BulkActionBar
+              selectedIds={selection.selectedIds}
+              pageTicketIds={pageTicketIds}
+              officers={bulk.officers}
+              state={{
+                submitting: bulk.submitting,
+                error: bulk.error,
+                result: bulk.result,
+                limitWarning: selection.limitWarning,
+                onTogglePageAll: () => selection.togglePageAll(pageTicketIds),
+                onClearSelection: selection.clearSelection,
+                onExecuteBulk: bulk.executeBulk,
+                onDismissResult: bulk.clearResult,
+              }}
+            />
+          )}
+
           <DashboardTicketList
             loading={dash.loading}
             error={dash.error}
@@ -115,6 +147,15 @@ export const DashboardPage: React.FC = () => {
             onRetry={dash.refreshAll}
             onResetFilters={dash.resetFilters}
             onSelectTicket={(ticketId: number) => setSelectedTicketId(ticketId)}
+            selection={
+              isOfficer
+                ? {
+                    selectable: true,
+                    selectedIds: selection.selectedIds,
+                    onToggleSelect: selection.toggleTicket,
+                  }
+                : undefined
+            }
           />
 
           <DashboardPagination

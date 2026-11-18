@@ -1,12 +1,19 @@
 import { apiClient } from './client';
-import { OfficerAbsence, OfficerAbsenceInput } from '../features/dashboard/types/officer';
+import {
+  AbsenceOpenTicket,
+  OfficerAbsence,
+  OfficerAbsenceInput,
+  OfficerAbsenceSaveResult,
+} from '../features/dashboard/types/officer';
 
-interface WrappedResponse<T> {
+interface WrappedAbsenceResponse {
   status?: string;
-  data?: T;
+  data?: OfficerAbsence;
+  open_tickets?: AbsenceOpenTicket[];
+  open_ticket_total?: number;
 }
 
-function unwrapAbsence(body: WrappedResponse<OfficerAbsence> | OfficerAbsence): OfficerAbsence {
+function unwrapAbsence(body: WrappedAbsenceResponse | OfficerAbsence): OfficerAbsence {
   const raw = body && typeof body === 'object' && 'data' in body && body.data
     ? body.data
     : (body as OfficerAbsence);
@@ -18,21 +25,29 @@ function unwrapAbsence(body: WrappedResponse<OfficerAbsence> | OfficerAbsence): 
 
 export const officerApi = {
   getAbsence: async (): Promise<OfficerAbsence> => {
-    const response = await apiClient.get<WrappedResponse<OfficerAbsence> | OfficerAbsence>(
+    const response = await apiClient.get<WrappedAbsenceResponse | OfficerAbsence>(
       '/officers/me/absence'
     );
     return unwrapAbsence(response.data);
   },
 
-  setAbsence: async (payload: OfficerAbsenceInput): Promise<OfficerAbsence> => {
+  setAbsence: async (payload: OfficerAbsenceInput): Promise<OfficerAbsenceSaveResult> => {
     const normalized: OfficerAbsenceInput = {
       is_absent: payload.is_absent,
       absent_until: payload.is_absent ? payload.absent_until || null : null,
     };
-    const response = await apiClient.put<WrappedResponse<OfficerAbsence> | OfficerAbsence>(
+    const response = await apiClient.put<WrappedAbsenceResponse | OfficerAbsence>(
       '/officers/me/absence',
       normalized
     );
-    return unwrapAbsence(response.data);
+    const body = response.data as WrappedAbsenceResponse;
+    const openTickets = Array.isArray(body?.open_tickets) ? body.open_tickets : [];
+    const openTicketTotal =
+      typeof body?.open_ticket_total === 'number' ? body.open_ticket_total : openTickets.length;
+    return {
+      absence: unwrapAbsence(body),
+      openTickets,
+      openTicketTotal,
+    };
   },
 };

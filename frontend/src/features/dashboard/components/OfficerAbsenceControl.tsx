@@ -2,13 +2,36 @@ import React, { useEffect, useRef, useState } from 'react';
 import { CalendarOff, Loader2 } from 'lucide-react';
 import { formatAbsenceLabel, todayIsoDate } from '../../../shared/utils/absenceUtils';
 import { useOfficerAbsence } from '../hooks/useOfficerAbsence';
+import { AbsenceReassignPanel } from './AbsenceReassignPanel';
 
-export const OfficerAbsenceControl: React.FC = () => {
-  const { absence, saving, error, clearError, saveAbsence } = useOfficerAbsence();
+interface OfficerAbsenceControlProps {
+  onTicketsChanged?: () => void;
+}
+
+export const OfficerAbsenceControl: React.FC<OfficerAbsenceControlProps> = ({
+  onTicketsChanged,
+}) => {
+  const {
+    absence,
+    saving,
+    error,
+    openTickets,
+    openTicketTotal,
+    officers,
+    reassigning,
+    reassignError,
+    reassignResult,
+    clearError,
+    saveAbsence,
+    reassignOpenTickets,
+    dismissReassignPanel,
+  } = useOfficerAbsence(onTicketsChanged);
   const [isOpen, setIsOpen] = useState(false);
   const [draftAbsent, setDraftAbsent] = useState(false);
   const [draftUntil, setDraftUntil] = useState('');
   const containerRef = useRef<HTMLDivElement | null>(null);
+
+  const showReassignPanel = openTickets.length > 0 || reassignResult !== null;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -37,18 +60,24 @@ export const OfficerAbsenceControl: React.FC = () => {
       setDraftAbsent(absence.is_absent);
       setDraftUntil(absence.absent_until || '');
       clearError();
+      dismissReassignPanel();
     }
     setIsOpen((prev) => !prev);
   };
 
   const handleSave = async () => {
-    const ok = await saveAbsence({
+    const res = await saveAbsence({
       is_absent: draftAbsent,
       absent_until: draftAbsent && draftUntil ? draftUntil : null,
     });
-    if (ok) {
+    if (res && res.openTickets.length === 0) {
       setIsOpen(false);
     }
+  };
+
+  const handleDismissReassign = () => {
+    dismissReassignPanel();
+    setIsOpen(false);
   };
 
   const buttonLabel = absence.is_absent ? formatAbsenceLabel(absence) : '부재 설정';
@@ -71,56 +100,73 @@ export const OfficerAbsenceControl: React.FC = () => {
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-72 z-30 bg-white border border-slate-200 rounded-2xl shadow-xl p-4 space-y-3">
-          <div className="text-xs font-bold text-slate-900">담당자 부재(휴가) 설정</div>
-
-          <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={draftAbsent}
-              onChange={(e) => setDraftAbsent(e.target.checked)}
-              className="rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+        <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-80 z-30 bg-white border border-slate-200 rounded-2xl shadow-xl p-4 space-y-3">
+          {showReassignPanel ? (
+            <AbsenceReassignPanel
+              openTickets={openTickets}
+              openTicketTotal={openTicketTotal}
+              officers={officers}
+              state={{
+                reassigning,
+                error: reassignError,
+                result: reassignResult,
+                onReassign: reassignOpenTickets,
+                onDismiss: handleDismissReassign,
+              }}
             />
-            <span>부재 중으로 설정</span>
-          </label>
+          ) : (
+            <>
+              <div className="text-xs font-bold text-slate-900">담당자 부재(휴가) 설정</div>
 
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-              종료일(선택)
-            </label>
-            <input
-              type="date"
-              min={minDate}
-              value={draftUntil}
-              onChange={(e) => setDraftUntil(e.target.value)}
-              className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
-            />
-          </div>
+              <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={draftAbsent}
+                  onChange={(e) => setDraftAbsent(e.target.checked)}
+                  className="rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                />
+                <span>부재 중으로 설정</span>
+              </label>
 
-          <p className="text-[11px] text-slate-500 leading-relaxed">
-            부재 중에는 자동 배정 대상에서 제외됩니다. 종료일이 지나면 자동으로 해제됩니다.
-          </p>
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                  종료일(선택)
+                </label>
+                <input
+                  type="date"
+                  min={minDate}
+                  value={draftUntil}
+                  onChange={(e) => setDraftUntil(e.target.value)}
+                  className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
 
-          {error && <p className="text-xs text-rose-600 font-medium">{error}</p>}
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                부재 중에는 자동 배정 대상에서 제외됩니다. 종료일이 지나면 자동으로 해제됩니다.
+              </p>
 
-          <div className="flex justify-end gap-2 pt-1">
-            <button
-              type="button"
-              onClick={() => setIsOpen(false)}
-              className="px-2.5 py-1.5 text-xs text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              disabled={saving}
-              onClick={handleSave}
-              className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-lg disabled:opacity-50 cursor-pointer"
-            >
-              {saving && <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />}
-              저장
-            </button>
-          </div>
+              {error && <p className="text-xs text-rose-600 font-medium">{error}</p>}
+
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="px-2.5 py-1.5 text-xs text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={handleSave}
+                  className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-lg disabled:opacity-50 cursor-pointer"
+                >
+                  {saving && <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />}
+                  저장
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
