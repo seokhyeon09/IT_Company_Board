@@ -17,6 +17,17 @@ from app.api.v1.endpoints import auth, officer_absence, reply_templates, tickets
 _logger = logging.getLogger(__name__)
 
 
+def _client_ip(request: Request) -> str:
+    """Resolve client IP for rate limiting, trusting X-Forwarded-For only behind a trusted proxy."""
+    if settings.TRUST_PROXY_HEADERS:
+        forwarded = request.headers.get("X-Forwarded-For")
+        if forwarded:
+            last_hop = forwarded.split(",")[-1].strip()
+            if last_hop:
+                return last_hop
+    return request.client.host if request.client and request.client.host else "unknown"
+
+
 class SlidingWindowRateLimitMiddleware(BaseHTTPMiddleware):
     """In-memory sliding window rate limiter.
     
@@ -28,11 +39,7 @@ class SlidingWindowRateLimitMiddleware(BaseHTTPMiddleware):
         self.requests = defaultdict(list)
 
     async def dispatch(self, request: Request, call_next):
-        forwarded = request.headers.get("X-Forwarded-For")
-        if forwarded:
-            client_ip = forwarded.split(",")[0].strip()
-        else:
-            client_ip = request.client.host if request.client else "unknown"
+        client_ip = _client_ip(request)
         path = request.url.path
         now = time.time()
         window = 60.0  # 1 minute sliding window

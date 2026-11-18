@@ -44,6 +44,7 @@ services:
       - ODOO_DB=helpdesk_db
       - GATEWAY_SHARED_SECRET=secure_inter_tier_hmac_secret_key_32_chars
       - JWT_SECRET_KEY=it_company_board_super_secret_jwt_key_2026_xyz
+      - TRUST_PROXY_HEADERS=${TRUST_PROXY_HEADERS:-false}
     restart: unless-stopped
 
   frontend:

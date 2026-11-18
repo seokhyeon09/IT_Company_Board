@@ -239,6 +239,7 @@ stateDiagram-v2
    * 두 명의 담당자가 동시에 동일 티켓을 조치하거나 수정할 때 `if_match_write_date` 타임스탬프를 비교하여, 선행 수정이 감지되면 데이터 덮어쓰기를 막고 `HTTP 409 Conflict`를 반환합니다.
 5. **슬라이딩 윈도우 Rate Limiting**:
    * 인메모리 슬라이딩 윈도우 미들웨어를 통해 로그인 엔드포인트(분당 15회 초과 시 차단)와 일반 API(분당 180회)에 대한 브루트포스 및 과호출을 방어하고 `HTTP 429 Too Many Requests` 및 `Retry-After` 헤더를 반환합니다.
+   * 기본적으로 연결 IP(`request.client.host`) 기준으로 집계합니다. 리버스 프록시 뒤에 배포하여 `X-Forwarded-For`를 사용해야 한다면 `TRUST_PROXY_HEADERS=true`를 설정하세요(마지막 항목, 즉 프록시가 덧붙인 값만 사용). 프록시 없이 켜면 헤더 위조로 제한을 우회할 수 있으므로 기본값은 `false`입니다.
 
 ---
 

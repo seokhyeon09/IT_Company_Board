@@ -27,4 +27,7 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173",
     ]
 
+    # 신뢰할 리버스 프록시 뒤에서만 True
+    TRUST_PROXY_HEADERS: bool = False
+
 settings = Settings()
