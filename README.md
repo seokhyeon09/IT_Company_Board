@@ -291,7 +291,7 @@ docker exec it_helpdesk_odoo odoo -d helpdesk_db --db_host=db -r odooU -w odooPW
 # 2. FastAPI 게이트웨이 단위 및 엔드포인트/에러 핸들링 테스트 (21종)
 docker exec it_helpdesk_filter pytest -v
 
-# 3. 프론트엔드 단위 테스트 (Vitest 25종) 및 프로덕션 빌드
+# 3. 프론트엔드 단위 테스트 (Vitest 39종) 및 프로덕션 빌드
 docker exec it_helpdesk_frontend npm run test
 
 # 4. 전체 기능 관통 E2E 시나리오 자동화 테스트 (4개 역할, 5대 시나리오 66개 체크 100% 검증)
