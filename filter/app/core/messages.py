@@ -1,0 +1,13 @@
+# -*- coding: utf-8 -*-
+"""User-facing gateway error message constants (Korean)."""
+
+MSG_LOGIN_FAILED = "아이디 또는 비밀번호가 올바르지 않습니다."
+MSG_AUTH_INVALID = "인증이 만료되었거나 유효하지 않습니다. 다시 로그인해 주세요."
+MSG_OFFICER_REQUIRED = "IT 담당자 이상 권한이 필요한 작업입니다."
+
+MSG_BACKEND_ERROR = "백엔드 서버 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
+MSG_BACKEND_UNAVAILABLE = "백엔드 서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요."
+MSG_BACKEND_TIMEOUT = "백엔드 서버 응답 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요."
+MSG_CONFLICT_DEFAULT = "다른 사용자가 먼저 수정했습니다. 새로고침 후 다시 시도해 주세요."
+MSG_RPC_ERROR_DEFAULT = "요청을 처리하지 못했습니다."
+MSG_INTERNAL_ERROR = "서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."

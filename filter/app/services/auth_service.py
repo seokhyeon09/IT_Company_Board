@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from fastapi import HTTPException, status
 from app.core.config import settings
+from app.core.messages import MSG_LOGIN_FAILED
 from app.core.security import create_access_token
 from app.client.odoo_client import odoo_client
 from app.schemas.auth import LoginRequest, TokenResponse, UserProfile
@@ -18,7 +19,7 @@ class AuthService:
         if result.get("status") != "success":
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=result.get("message", "Invalid username or password")
+                detail=MSG_LOGIN_FAILED,
             )
 
         user_info = result["data"]

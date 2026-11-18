@@ -5,9 +5,17 @@ import httpx
 from typing import Any, Dict, Optional
 from fastapi import HTTPException, status
 from app.core.config import settings
+from app.core.messages import (
+    MSG_BACKEND_ERROR,
+    MSG_BACKEND_TIMEOUT,
+    MSG_BACKEND_UNAVAILABLE,
+    MSG_CONFLICT_DEFAULT,
+    MSG_RPC_ERROR_DEFAULT,
+)
 from app.core.security import generate_hmac_headers
 
 _logger = logging.getLogger(__name__)
+
 
 class OdooClient:
     def __init__(self):
@@ -53,11 +61,12 @@ class OdooClient:
             else:
                 async with httpx.AsyncClient(timeout=timeout) as client:
                     resp = await client.post(url, content=raw_body, headers=headers, timeout=timeout)
-                
+
             if resp.status_code >= 500:
+                _logger.error("Odoo backend server error: HTTP %s", resp.status_code)
                 raise HTTPException(
                     status_code=status.HTTP_502_BAD_GATEWAY,
-                    detail=f"Odoo backend server error (HTTP {resp.status_code})"
+                    detail=MSG_BACKEND_ERROR,
                 )
 
             try:
@@ -66,17 +75,17 @@ class OdooClient:
                 _logger.error("Non-JSON response from Odoo: HTTP %s", resp.status_code)
                 raise HTTPException(
                     status_code=status.HTTP_502_BAD_GATEWAY,
-                    detail=f"Odoo backend returned invalid response (HTTP {resp.status_code})"
+                    detail=MSG_BACKEND_ERROR,
                 ) from decode_err
 
             if resp.status_code == 409:
-                msg = data.get("error", {}).get("data", {}).get("message", "Optimistic concurrency conflict")
+                msg = data.get("error", {}).get("data", {}).get("message") or MSG_CONFLICT_DEFAULT
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=msg)
 
             # Handle JSON-RPC errors
             if "error" in data:
                 err_data = data["error"].get("data", {})
-                message = err_data.get("message") or data["error"].get("message") or "Odoo RPC execution error"
+                message = err_data.get("message") or data["error"].get("message") or MSG_RPC_ERROR_DEFAULT
                 name = err_data.get("name", "")
 
                 if "AccessError" in name:
@@ -94,13 +103,14 @@ class OdooClient:
             _logger.error("Failed to connect to Odoo backend: %s", e)
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Odoo backend is temporarily unavailable"
+                detail=MSG_BACKEND_UNAVAILABLE,
             ) from e
         except httpx.TimeoutException as e:
             _logger.error("Timeout waiting for Odoo backend: %s", e)
             raise HTTPException(
                 status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-                detail="Odoo backend request timed out"
+                detail=MSG_BACKEND_TIMEOUT,
             ) from e
+
 
 odoo_client = OdooClient()

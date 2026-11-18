@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import logging
 import time
 import asyncio
 from collections import defaultdict
@@ -9,8 +10,11 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.config import settings
+from app.core.messages import MSG_INTERNAL_ERROR
 from app.client.odoo_client import odoo_client
 from app.api.v1.endpoints import auth, tickets
+
+_logger = logging.getLogger(__name__)
 
 
 class SlidingWindowRateLimitMiddleware(BaseHTTPMiddleware):
@@ -112,14 +116,16 @@ async def health_check():
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    """Normalize unhandled exceptions into clean JSON response."""
+    """Normalize unhandled exceptions into clean JSON response without exposing internals."""
+    _logger.exception("Unhandled exception on %s %s", request.method, request.url.path, exc_info=exc)
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
+            "detail": MSG_INTERNAL_ERROR,
             "error": {
                 "code": "INTERNAL_SERVER_ERROR",
-                "message": str(exc),
+                "message": MSG_INTERNAL_ERROR,
                 "path": request.url.path,
-            }
-        }
+            },
+        },
     )

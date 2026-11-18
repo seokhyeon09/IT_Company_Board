@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from app.core.messages import MSG_OFFICER_REQUIRED
 from app.core.security import get_current_user_claims
 from app.services.insight_service import insight_service
 from app.schemas.insight import (
@@ -28,7 +29,7 @@ async def get_officer_stats(
     if not claims.get("is_officer", False):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Helpdesk officer role required to view officer statistics",
+            detail=MSG_OFFICER_REQUIRED,
         )
     return await insight_service.get_officer_stats(user_id=int(claims["sub"]))
 
@@ -56,6 +57,6 @@ async def get_officers(
     if not claims.get("is_officer", False):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Helpdesk officer role required to view officers list",
+            detail=MSG_OFFICER_REQUIRED,
         )
     return await insight_service.get_officers(user_id=int(claims["sub"]))

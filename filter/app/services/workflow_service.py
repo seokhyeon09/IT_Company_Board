@@ -2,6 +2,7 @@
 from typing import Optional
 from fastapi import HTTPException, status
 from app.client.odoo_client import odoo_client
+from app.core.messages import MSG_OFFICER_REQUIRED
 from app.schemas.ticket import (
     TicketAssignDTO,
     TicketResolveDTO,
@@ -14,16 +15,21 @@ from app.schemas.ticket import (
     TicketResponseDTO,
 )
 
+def _require_officer(claims: dict) -> int:
+    """Verify IT officer role from JWT claims and return user id."""
+    if not claims.get("is_officer", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=MSG_OFFICER_REQUIRED,
+        )
+    return int(claims["sub"])
+
+
 class WorkflowService:
     """Ticket Workflow and State Transition Orchestration Service"""
 
     async def resolve_ticket(self, ticket_id: int, dto: TicketResolveDTO, claims: dict) -> TicketResponseDTO:
-        if not claims.get("is_officer", False):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Helpdesk officer role required to resolve tickets"
-            )
-        user_id = int(claims["sub"])
+        user_id = _require_officer(claims)
         params = {
             "ticket_id": ticket_id,
             "resolution_note": dto.resolution_note,
@@ -40,12 +46,7 @@ class WorkflowService:
         return result.get("data", {})
 
     async def update_resolution(self, ticket_id: int, dto: TicketUpdateResolutionDTO, claims: dict) -> TicketResponseDTO:
-        if not claims.get("is_officer", False):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Helpdesk officer role required to update resolutions"
-            )
-        user_id = int(claims["sub"])
+        user_id = _require_officer(claims)
         params = {
             "ticket_id": ticket_id,
             "resolution_note": dto.resolution_note,
@@ -55,12 +56,7 @@ class WorkflowService:
         return result.get("data", {})
 
     async def assign_ticket(self, ticket_id: int, claims: dict, dto: Optional[TicketAssignDTO] = None) -> TicketResponseDTO:
-        if not claims.get("is_officer", False):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Helpdesk officer role required to assign tickets"
-            )
-        user_id = int(claims["sub"])
+        user_id = _require_officer(claims)
         params = {"ticket_id": ticket_id}
         if dto:
             target_id = dto.assignee_id or dto.officer_id
@@ -72,22 +68,12 @@ class WorkflowService:
         return result.get("data", {})
 
     async def start_progress_ticket(self, ticket_id: int, claims: dict) -> TicketResponseDTO:
-        if not claims.get("is_officer", False):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Helpdesk officer role required to start progress on tickets"
-            )
-        user_id = int(claims["sub"])
+        user_id = _require_officer(claims)
         result = await odoo_client.call_json("/api/v1/tickets/start-progress", params={"ticket_id": ticket_id}, user_id=user_id)
         return result.get("data", {})
 
     async def pending_ticket(self, ticket_id: int, dto: TicketPendingDTO, claims: dict) -> TicketResponseDTO:
-        if not claims.get("is_officer", False):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Helpdesk officer role required to request pending status"
-            )
-        user_id = int(claims["sub"])
+        user_id = _require_officer(claims)
         result = await odoo_client.call_json(
             "/api/v1/tickets/pending",
             params={"ticket_id": ticket_id, "reason": dto.reason},
@@ -96,12 +82,7 @@ class WorkflowService:
         return result.get("data", {})
 
     async def close_ticket(self, ticket_id: int, dto: TicketCloseDTO, claims: dict) -> TicketResponseDTO:
-        if not claims.get("is_officer", False):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Helpdesk officer role required to close tickets"
-            )
-        user_id = int(claims["sub"])
+        user_id = _require_officer(claims)
         note = (dto.note if dto else None) or (dto.reason if dto else None)
         result = await odoo_client.call_json(
             "/api/v1/tickets/close",
@@ -120,12 +101,7 @@ class WorkflowService:
         return result.get("data", {})
 
     async def toggle_faq(self, ticket_id: int, claims: dict) -> TicketResponseDTO:
-        if not claims.get("is_officer", False):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Helpdesk officer role required to toggle FAQ status"
-            )
-        user_id = int(claims["sub"])
+        user_id = _require_officer(claims)
         result = await odoo_client.call_json("/api/v1/tickets/toggle-faq", params={"ticket_id": ticket_id}, user_id=user_id)
         return result.get("data", {})
 

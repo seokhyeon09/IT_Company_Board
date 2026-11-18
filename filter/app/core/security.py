@@ -8,6 +8,7 @@ from jose import jwt, JWTError
 from fastapi import HTTPException, Security, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.core.config import settings
+from app.core.messages import MSG_AUTH_INVALID
 
 security_scheme = HTTPBearer()
 
@@ -30,7 +31,7 @@ def decode_access_token(token: str) -> Dict[str, Any]:
     except JWTError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
+            detail=MSG_AUTH_INVALID,
             headers={"WWW-Authenticate": "Bearer"},
         ) from e
 
@@ -41,7 +42,8 @@ async def get_current_user_claims(credentials: HTTPAuthorizationCredentials = Se
     if "sub" not in claims:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token payload: missing sub",
+            detail=MSG_AUTH_INVALID,
+            headers={"WWW-Authenticate": "Bearer"},
         )
     return claims
 
