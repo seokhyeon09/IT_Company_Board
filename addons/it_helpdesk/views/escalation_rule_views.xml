@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_helpdesk_escalation_rule_list" model="ir.ui.view">
+        <field name="name">it.helpdesk.escalation.rule.list</field>
+        <field name="model">it.helpdesk.escalation.rule</field>
+        <field name="arch" type="xml">
+            <list string="에스컬레이션 규칙">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="trigger"/>
+                <field name="after_hours"/>
+                <field name="category"/>
+                <field name="priority_min"/>
+                <field name="action"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_helpdesk_escalation_rule_form" model="ir.ui.view">
+        <field name="name">it.helpdesk.escalation.rule.form</field>
+        <field name="model">it.helpdesk.escalation.rule</field>
+        <field name="arch" type="xml">
+            <form string="에스컬레이션 규칙">
+                <sheet>
+                    <group>
+                        <group string="기본 정보">
+                            <field name="name"/>
+                            <field name="sequence"/>
+                            <field name="active"/>
+                        </group>
+                        <group string="대상 조건">
+                            <field name="trigger"/>
+                            <field name="after_hours" invisible="trigger != 'overdue'"/>
+                            <field name="category"/>
+                            <field name="priority_min"/>
+                        </group>
+                    </group>
+                    <group string="실행 작업">
+                        <field name="action"/>
+                        <field name="notify_user_ids" widget="many2many_tags" invisible="action != 'notify'"/>
+                        <field name="target_user_id" invisible="action != 'reassign'"/>
+                    </group>
+                    <notebook>
+                        <page string="실행 이력">
+                            <field name="log_ids" readonly="1">
+                                <list string="실행 이력" create="0" edit="0">
+                                    <field name="executed_at"/>
+                                    <field name="ticket_id"/>
+                                    <field name="result" widget="badge" decoration-success="result == 'done'" decoration-muted="result == 'skipped'"/>
+                                    <field name="note"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_helpdesk_escalation_log_list" model="ir.ui.view">
+        <field name="name">it.helpdesk.escalation.log.list</field>
+        <field name="model">it.helpdesk.escalation.log</field>
+        <field name="arch" type="xml">
+            <list string="에스컬레이션 실행 이력" create="0" edit="0">
+                <field name="executed_at"/>
+                <field name="rule_id"/>
+                <field name="ticket_id"/>
+                <field name="result" widget="badge" decoration-success="result == 'done'" decoration-muted="result == 'skipped'"/>
+                <field name="note"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_helpdesk_escalation_rule" model="ir.actions.act_window">
+        <field name="name">에스컬레이션 규칙</field>
+        <field name="res_model">it.helpdesk.escalation.rule</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_helpdesk_escalation_log" model="ir.actions.act_window">
+        <field name="name">에스컬레이션 실행 이력</field>
+        <field name="res_model">it.helpdesk.escalation.log</field>
+        <field name="view_mode">list</field>
+    </record>
+
+    <menuitem id="menu_helpdesk_escalation_rule"
+        name="에스컬레이션 규칙"
+        parent="menu_helpdesk_manager_root"
+        action="action_helpdesk_escalation_rule"
+        sequence="30"
+        groups="it_helpdesk.group_helpdesk_manager"
+    />
+
+    <menuitem id="menu_helpdesk_escalation_log"
+        name="에스컬레이션 실행 이력"
+        parent="menu_helpdesk_manager_root"
+        action="action_helpdesk_escalation_log"
+        sequence="40"
+        groups="it_helpdesk.group_helpdesk_manager"
+    />
+</odoo>

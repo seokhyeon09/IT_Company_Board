@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """SLA 임박 경고 및 관리자 에스컬레이션 모의 이메일 이벤트 생성기 (Layer 2 유틸)."""
-from .text_utils import _format_datetime_utc
+import re
+
+from .text_utils import _clean_html, _format_datetime_utc
 
 
 def build_sla_warning_events(ticket, sfx, sent_at, mail_fn):
@@ -58,3 +60,31 @@ def build_sla_escalation_events(ticket, sfx, sent_at, mail_fn):
             )
         )
     return events
+
+
+def build_escalation_rule_events(ticket, sfx, sent_at, mail_fn, body_un):
+    """에스컬레이션 규칙 알림: 규칙의 수신 대상(없으면 관리자 전체)에게 발송."""
+    num, title = ticket.ticket_number, ticket.title
+    preview = _clean_html(body_un)
+    match = re.search(r'data-recipient-ids="([\d,]+)"', body_un or "")
+    if match:
+        uids = [int(x) for x in match.group(1).split(",") if x.isdigit()]
+        users = ticket.env["res.users"].sudo().browse(uids).exists().filtered(lambda u: u.active)
+        if users:
+            return [
+                mail_fn(
+                    ticket, f"{sfx}-esc-rule-{u.id}", "escalation_rule", "officer", u,
+                    f"[IT 헬프데스크] 에스컬레이션 규칙 알림 ({num})",
+                    f"{u.name}님,\n'{title}' ({num}) 티켓이 에스컬레이션 규칙 대상에 해당합니다.\n\n{preview}",
+                    sent_at,
+                )
+                for u in users
+            ]
+    return [
+        mail_fn(
+            ticket, f"{sfx}-esc-rule-m", "escalation_rule", "manager", None,
+            f"[IT 헬프데스크] 에스컬레이션 규칙 알림 ({num})",
+            f"IT 관리자님,\n'{title}' ({num}) 티켓이 에스컬레이션 규칙 대상에 해당합니다.\n\n{preview}",
+            sent_at,
+        )
+    ]

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="escalation_rule_urgent_overdue_notify" model="it.helpdesk.escalation.rule">
+            <field name="name">긴급 문의 기한 초과 4시간 후 관리자 알림</field>
+            <field name="active" eval="False"/>
+            <field name="sequence">10</field>
+            <field name="trigger">overdue</field>
+            <field name="after_hours">4</field>
+            <field name="priority_min">3</field>
+            <field name="action">notify</field>
+        </record>
+
+        <record id="escalation_rule_overdue_24h_reassign" model="it.helpdesk.escalation.rule">
+            <field name="name">기한 초과 24시간 후 자동 재배정</field>
+            <field name="active" eval="False"/>
+            <field name="sequence">20</field>
+            <field name="trigger">overdue</field>
+            <field name="after_hours">24</field>
+            <field name="action">reassign</field>
+        </record>
+    </data>
+</odoo>

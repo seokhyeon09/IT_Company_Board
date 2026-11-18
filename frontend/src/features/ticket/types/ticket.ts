@@ -17,6 +17,8 @@ export interface Ticket {
   create_date?: string;
   write_date?: string;
   is_faq: boolean;
+  merged_into_id?: number | null;
+  merged_into_number?: string | null;
 }
 
 export interface ThreadItem {
@@ -102,6 +104,24 @@ export interface OfficerSimpleItem {
   absent_until?: string | null;
 }
 
+export interface MergedTicketItem {
+  id: number;
+  ticket_number: string;
+  title: string;
+  status: string;
+  author_name: string;
+}
+
+export interface MergeCandidateItem {
+  id: number;
+  ticket_number: string;
+  title: string;
+  status: string;
+  author_name: string;
+  create_date?: string | null;
+  score: number;
+}
+
 export interface TicketDetail extends Ticket {
   content: string;
   pending_reason?: string;
@@ -118,4 +138,5 @@ export interface TicketDetail extends Ticket {
   attachments?: Attachment[];
   related_tickets?: RelatedTicketItem[];
   email_notifications?: EmailNotificationItem[];
+  merged_tickets?: MergedTicketItem[];
 }

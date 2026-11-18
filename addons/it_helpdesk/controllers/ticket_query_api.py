@@ -45,10 +45,20 @@ class TicketQueryAPIController(http.Controller):
             order=order_clause
         )
 
+        ticket_ids = [t['id'] for t in tickets]
+        merged_map = {}
+        if ticket_ids:
+            for rec in req_env['it.helpdesk.ticket'].sudo().browse(ticket_ids):
+                if rec.merged_into_id:
+                    merged_map[rec.id] = (rec.merged_into_id.id, rec.merged_into_id.ticket_number)
+
         for t in tickets:
             t['deadline'] = _format_datetime_utc(t.get('deadline'))
             t['create_date'] = _format_datetime_utc(t.get('create_date'))
             t['write_date'] = _format_datetime_utc(t.get('write_date'))
+            m_id, m_num = merged_map.get(t['id'], (None, None))
+            t['merged_into_id'] = m_id
+            t['merged_into_number'] = m_num
 
         total_count = ticket_env.search_count(domain)
         return {"status": "success", "data": tickets, "total": total_count}

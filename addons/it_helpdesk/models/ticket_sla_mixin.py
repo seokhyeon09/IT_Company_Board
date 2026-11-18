@@ -197,5 +197,14 @@ class HelpDeskTicketSlaMixin(models.AbstractModel):
             except Exception:
                 _logger.warning("SLA 모니터 처리 실패: ticket_id=%s", ticket.id, exc_info=True)
 
-        _logger.info("SLA 모니터 실행 완료: 임박 경고 %s건, 에스컬레이션 %s건", warned_count, escalated_count)
-        return {"warned": warned_count, "escalated": escalated_count}
+        rules_res = {"executed": 0, "skipped": 0}
+        try:
+            rules_res = self.env["it.helpdesk.escalation.rule"].sudo()._run_escalation_rules(now=now)
+        except Exception:
+            _logger.warning("에스컬레이션 규칙 실행 실패", exc_info=True)
+
+        _logger.info(
+            "SLA 모니터 실행 완료: 임박 경고 %s건, 에스컬레이션 %s건, 규칙 실행 %s건(건너뜀 %s건)",
+            warned_count, escalated_count, rules_res.get("executed", 0), rules_res.get("skipped", 0),
+        )
+        return {"warned": warned_count, "escalated": escalated_count, "rules": rules_res}

@@ -69,6 +69,11 @@ export const TicketCard: React.FC<TicketCardProps> = ({
                 <HelpCircle className="w-3 h-3 mr-1" /> FAQ
               </span>
             )}
+            {ticket.merged_into_number && (
+              <span className="text-[11px] bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded font-medium">
+                {ticket.merged_into_number} 에 병합됨
+              </span>
+            )}
           </div>
           <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${statusInfo.color}`}>
             {statusInfo.label}

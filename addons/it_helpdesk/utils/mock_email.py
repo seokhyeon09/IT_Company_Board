@@ -11,7 +11,11 @@ import html
 
 from .text_utils import _clean_html, _extract_thread_content, _format_datetime_utc
 from .mock_email_auto import build_auto_assign_events
-from .mock_email_sla import build_sla_warning_events, build_sla_escalation_events
+from .mock_email_sla import (
+    build_escalation_rule_events,
+    build_sla_escalation_events,
+    build_sla_warning_events,
+)
 
 SENDER_EMAIL = "it-helpdesk-noreply@company.com"
 SENT_STATUS = "발송완료 (모의)"
@@ -180,6 +184,8 @@ def _collect_events(ticket):
             events.extend(build_sla_warning_events(ticket, sfx, at, _mail))
         elif 'data-msg-type="sla_escalation"' in body_un:
             events.extend(build_sla_escalation_events(ticket, sfx, at, _mail))
+        elif 'data-msg-type="escalation_rule"' in body_un:
+            events.extend(build_escalation_rule_events(ticket, sfx, at, _mail, body_un))
 
     if assignee and not has_assigned:
         at = _format_datetime_utc(ticket.write_date)

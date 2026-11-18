@@ -30,3 +30,6 @@ MSG_BULK_NOTE_TOO_LONG = "종결 메모는 최대 2000자까지 입력할 수 �
 
 MSG_NOTE_EMPTY = "내용을 입력해 주세요."
 MSG_NOTE_TOO_LONG = "메모는 최대 2000자까지 입력할 수 있습니다."
+
+MSG_MERGE_TARGET_REQUIRED = "병합 대상 문의를 선택해 주세요."
+MSG_MERGE_REASON_TOO_LONG = "병합 사유는 최대 500자까지 입력할 수 있습니다."

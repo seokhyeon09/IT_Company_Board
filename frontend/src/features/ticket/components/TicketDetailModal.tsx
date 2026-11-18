@@ -12,6 +12,7 @@ import { TicketTimeline } from './modal/TicketTimeline';
 import { TicketActionForms } from './modal/TicketActionForms';
 import { TicketOfficerLogs } from './modal/TicketOfficerLogs';
 import { InternalNotes } from './modal/InternalNotes';
+import { MergePanel } from './modal/MergePanel';
 import { TicketRelatedAndEmails } from './modal/TicketRelatedAndEmails';
 import { InlineErrorNotice } from './modal/InlineErrorNotice';
 
@@ -98,6 +99,8 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 pendingReplyError={s.pendingReplyError}
                 onSubmitPendingReply={s.handlePendingReplySubmit}
               />
+
+              <MergePanel ticket={s.ticket} isOfficer={s.isOfficer} onMerged={() => { s.reloadTicket(); onSuccess?.(); }} onSelectTicket={onSelectTicket} />
 
               <TicketWorkflowBar
                 status={s.ticket.status}

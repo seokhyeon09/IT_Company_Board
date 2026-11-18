@@ -40,6 +40,7 @@ from app.schemas.insight import (
     TicketStatsResponseDTO,
 )
 from app.schemas.note import InternalNoteDTO
+from app.schemas.merge import MergedTicketDTO
 
 __all__ = [
     "TicketCategoryEnum",
@@ -76,6 +77,7 @@ __all__ = [
     "FollowUpInquiryDTO",
     "TicketLogDTO",
     "InternalNoteDTO",
+    "MergedTicketDTO",
     "TicketResponseDTO",
     "TicketDetailResponseDTO",
     "TicketListResponseDTO",
@@ -162,6 +164,8 @@ class TicketResponseDTO(BaseModel):
     write_date: Optional[str] = None
     is_faq: bool = False
     rating: Optional[str] = None
+    merged_into_id: Optional[int] = None
+    merged_into_number: Optional[str] = None
 
 class TicketDetailResponseDTO(TicketResponseDTO):
     content: Optional[Any] = None
@@ -179,8 +183,9 @@ class TicketDetailResponseDTO(TicketResponseDTO):
     internal_notes: List[InternalNoteDTO] = []
     related_tickets: List[RelatedTicketDTO] = []
     email_notifications: List[EmailNotificationDTO] = []
+    merged_tickets: List[MergedTicketDTO] = []
 
-    @field_validator("content", "resolution_note", "author_name", "rating_comment", "pending_reason", "sla_paused_at", mode="before")
+    @field_validator("content", "resolution_note", "author_name", "rating_comment", "pending_reason", "sla_paused_at", "merged_into_number", mode="before")
     @classmethod
     def clean_false_to_none(cls, v: Any):
         if v is False or v == "False":

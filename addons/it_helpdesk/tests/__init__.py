@@ -16,3 +16,5 @@ from . import test_sla_report
 from . import test_ticket_bulk
 from . import test_internal_notes
 from . import test_absence_reassign
+from . import test_escalation_rules
+from . import test_ticket_merge

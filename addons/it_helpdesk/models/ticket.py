@@ -106,6 +106,19 @@ class HelpDeskTicket(models.Model):
 
     rating_ids = fields.One2many("it.helpdesk.ticket.rating", "ticket_id", string="만족도 평가 이력", copy=False)
     current_round = fields.Integer(string="현재 평가 차수", compute="_compute_current_round")
+    merged_into_id = fields.Many2one(
+        "it.helpdesk.ticket",
+        string="병합 대상 문의",
+        index=True,
+        ondelete="set null",
+        copy=False,
+    )
+    merged_ticket_ids = fields.One2many(
+        "it.helpdesk.ticket",
+        "merged_into_id",
+        string="병합된 중복 문의",
+        copy=False,
+    )
 
     @api.depends('rating_ids')
     def _compute_current_round(self):

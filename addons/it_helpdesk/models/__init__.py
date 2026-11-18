@@ -7,3 +7,4 @@ from . import ticket_workflow_mixin
 from . import ticket
 from . import reply_template
 from . import res_users
+from . import escalation_rule

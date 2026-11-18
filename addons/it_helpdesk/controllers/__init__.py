@@ -11,3 +11,4 @@ from . import ticket_export_api
 from . import report_api
 from . import ticket_bulk_api
 from . import ticket_note_api
+from . import ticket_merge_api

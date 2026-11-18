@@ -133,6 +133,7 @@ def build_sequential_timeline(ticket, initial_inquiry: dict) -> list:
 
 def serialize_ticket_summary(ticket) -> dict:
     """Serialize basic ticket fields for list and quick cards."""
+    merged_target = ticket.sudo().merged_into_id
     return {
         "id": ticket.id,
         "ticket_number": ticket.ticket_number,
@@ -150,6 +151,8 @@ def serialize_ticket_summary(ticket) -> dict:
         "write_date": _format_datetime_utc(ticket.write_date),
         "is_faq": bool(ticket.is_faq),
         "rating": ticket.rating or None,
+        "merged_into_id": merged_target.id if merged_target else None,
+        "merged_into_number": merged_target.ticket_number if merged_target else None,
     }
 
 def serialize_ticket_detail(ticket, user, req_env) -> dict:
@@ -189,6 +192,7 @@ def serialize_ticket_detail(ticket, user, req_env) -> dict:
     ], ['notification_id'])
     read_notification_ids = {r['notification_id'] for r in read_records}
 
+    merged_target = ticket.sudo().merged_into_id
     data = {
         "id": ticket.id,
         "ticket_number": ticket.ticket_number,
@@ -211,6 +215,18 @@ def serialize_ticket_detail(ticket, user, req_env) -> dict:
         "rating": ticket.rating or None,
         "rating_comment": ticket.rating_comment or None,
         "pending_reason": ticket.pending_reason or None,
+        "merged_into_id": merged_target.id if merged_target else None,
+        "merged_into_number": merged_target.ticket_number if merged_target else None,
+        "merged_tickets": [
+            {
+                "id": m.id,
+                "ticket_number": m.ticket_number,
+                "title": m.title,
+                "status": m.status,
+                "author_name": m.author_id.name if m.author_id else "사원",
+            }
+            for m in ticket.sudo().merged_ticket_ids.sorted(key=lambda r: r.id, reverse=True)[:20]
+        ] if is_officer else [],
         "create_date": _format_datetime_utc(ticket.create_date),
         "write_date": _format_datetime_utc(ticket.write_date),
         "timeline": seq_timeline,

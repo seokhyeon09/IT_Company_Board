@@ -200,6 +200,7 @@
                             <field name="deadline" readonly="status in ('closed','canceled') or not is_officer" force_save="1"/>
                             <field name="sla_paused_at" readonly="1" invisible="not sla_paused_at"/>
                             <field name="sla_paused_seconds" readonly="1"/>
+                            <field name="merged_into_id" readonly="1" invisible="not merged_into_id"/>
                         </group>
     
                         <!-- 오른쪽 열 -->
@@ -279,6 +280,8 @@
                 <filter string="접수 대기" name="filter_submitted" domain="[('status','=','submitted')]"/>
                 <filter string="처리중" name="filter_in_progress" domain="[('status','in',('assigned','in_progress','pending'))]"/>
                 <filter string="긴급도건(높음/긴급)" name="filter_in_priority" domain="[('priority', 'in', ('2','3'))]"/>
+                <filter string="병합된 문의" name="filter_merged" domain="[('merged_into_id', '!=', False)]"/>
+                <filter string="병합 대상 아님" name="filter_not_merged" domain="[('merged_into_id', '=', False)]"/>
             
                 <group expand="0" string="그룹화">
                     <filter string="상태별" name="group_status" context="{'group_by':'status'}"/>
