@@ -100,6 +100,8 @@ export interface TicketDetail extends Ticket {
   resolution_note?: string;
   rating?: string;
   rating_comment?: string;
+  sla_paused_at?: string | null;
+  sla_paused_seconds?: number;
   timeline?: ThreadItem[];
   resolutions?: ResolutionNote[];
   follow_ups?: FollowUpInquiry[];

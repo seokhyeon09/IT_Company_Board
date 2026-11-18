@@ -1,6 +1,6 @@
 {
     "name": "사내 IT 헬프데스크",
-    "version": "1.2",
+    "version": "1.3",
     "summary": "사내 IT문제 해결 게시판",
     "author": "j",
     "category": "Services/Helpdesk",

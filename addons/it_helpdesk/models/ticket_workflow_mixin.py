@@ -81,7 +81,9 @@ class HelpDeskTicketWorkflowMixin(models.AbstractModel):
             if is_html_empty(record.resolution_note):
                 raise UserError("해결 완료 처리를 하려면 조치 내용을 먼저 작성해야 합니다.")
             if not record.first_resolved_date:
+                eff = record._sla_effective_deadline(now)
                 record.first_resolved_date = now
+                record.first_resolved_on_time = bool(eff and now <= eff)
             record.status = "resolved"
             if record.activity_ids:
                 record.activity_ids.action_done()

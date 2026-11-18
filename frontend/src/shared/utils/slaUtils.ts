@@ -18,6 +18,16 @@ export const formatSlaRemaining = (
     return null;
   }
 
+  if (slaState === 'paused' || status === 'pending') {
+    return {
+      text: 'SLA 일시정지 (답변 대기)',
+      badgeClass: 'bg-slate-100 text-slate-600 border-slate-300',
+      isOverdue: false,
+      isImminent: false,
+      isPaused: true,
+    };
+  }
+
   const deadline = new Date(deadlineStr).getTime();
   const now = Date.now();
   const diffMs = deadline - now;
@@ -65,4 +75,17 @@ export const formatSlaRemaining = (
     isOverdue: false,
     isImminent: false,
   };
+};
+
+export const formatPausedDuration = (seconds: number): string => {
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    return '';
+  }
+  const totalMinutes = Math.floor(seconds / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours > 0) {
+    return `${hours}시간 ${minutes}분`;
+  }
+  return `${minutes}분`;
 };

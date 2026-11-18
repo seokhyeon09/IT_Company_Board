@@ -187,7 +187,7 @@ export const TicketMainContent: React.FC<TicketMainContentProps> = ({
       </div>
 
       {/* SLA Warning Banner */}
-      <TicketSlaBanner deadline={ticket.deadline} isOverdue={ticket.is_overdue} />
+      <TicketSlaBanner deadline={ticket.deadline} isOverdue={ticket.is_overdue} slaState={ticket.sla_state} pausedSeconds={ticket.sla_paused_seconds} pausedAt={ticket.sla_paused_at} />
 
       {/* Pending Notice Banner */}
       {ticket.status === 'pending' && (

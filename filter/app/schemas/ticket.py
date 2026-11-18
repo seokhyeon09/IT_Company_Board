@@ -166,6 +166,8 @@ class TicketDetailResponseDTO(TicketResponseDTO):
     resolution_note: Optional[Any] = None
     author_name: Optional[Any] = None
     rating_comment: Optional[Any] = None
+    sla_paused_at: Optional[str] = None
+    sla_paused_seconds: int = 0
     timeline: List[ThreadItemDTO] = []
     resolutions: List[ResolutionNoteDTO] = []
     follow_ups: List[FollowUpInquiryDTO] = []
@@ -175,7 +177,7 @@ class TicketDetailResponseDTO(TicketResponseDTO):
     related_tickets: List[RelatedTicketDTO] = []
     email_notifications: List[EmailNotificationDTO] = []
 
-    @field_validator("content", "resolution_note", "author_name", "rating_comment", "pending_reason", mode="before")
+    @field_validator("content", "resolution_note", "author_name", "rating_comment", "pending_reason", "sla_paused_at", mode="before")
     @classmethod
     def clean_false_to_none(cls, v: Any):
         if v is False or v == "False":

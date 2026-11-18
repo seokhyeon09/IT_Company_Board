@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, AlertTriangle, HelpCircle } from 'lucide-react';
+import { Clock, AlertTriangle, HelpCircle, PauseCircle } from 'lucide-react';
 import { statusMap, categoryMap, priorityMap } from '../../../shared/types/common';
 import { Ticket } from '../types/ticket';
 import { formatSlaRemaining } from '../../../shared/utils/slaUtils';
@@ -79,7 +79,9 @@ export const TicketCard: React.FC<TicketCardProps> = ({ ticket, onClick }) => {
             data-testid="ticket-sla-badge"
             className={`flex items-center px-2 py-0.5 rounded-full border text-[11px] ${slaInfo.badgeClass}`}
           >
-            {slaInfo.isOverdue ? (
+            {slaInfo.isPaused ? (
+              <PauseCircle className="w-3 h-3 mr-1 text-slate-500" />
+            ) : slaInfo.isOverdue ? (
               <AlertTriangle className="w-3 h-3 mr-1 text-rose-600" />
             ) : slaInfo.isImminent ? (
               <AlertTriangle className="w-3 h-3 mr-1 text-amber-600" />

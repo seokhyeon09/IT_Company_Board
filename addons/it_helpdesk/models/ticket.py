@@ -144,7 +144,7 @@ class HelpDeskTicket(models.Model):
     def _compute_is_overdue(self):
         now = fields.Datetime.now()
         for record in self:
-            if record.deadline and record.status not in ('resolved', 'closed', 'canceled'):
+            if record.deadline and record.status not in ('pending', 'resolved', 'closed', 'canceled'):
                 record.is_overdue = record.deadline < now
             else:
                 record.is_overdue = False
@@ -152,9 +152,9 @@ class HelpDeskTicket(models.Model):
     def _search_is_overdue(self, operator, value):
         now = fields.Datetime.now()
         if (operator == '=' and value is True) or (operator == '!=' and value is False):
-            return [('deadline', '<', now), ('status', 'not in', ('resolved', 'closed', 'canceled'))]
+            return [('deadline', '<', now), ('status', 'not in', ('pending', 'resolved', 'closed', 'canceled'))]
         else:
-            return ['|', ('deadline', '>=', now), ('status', 'in', ('resolved', 'closed', 'canceled'))]
+            return ['|', '|', ('deadline', '=', False), ('deadline', '>=', now), ('status', 'in', ('pending', 'resolved', 'closed', 'canceled'))]
 
     def copy(self, default=None):
         default = dict(default or {})
@@ -176,13 +176,18 @@ class HelpDeskTicket(models.Model):
                 vals['deadline'] = self._calculate_deadline(p, base_time=now)
         return super().create(vals_list)
 
+    def _recalc_deadline_for_priority(self, priority, now):
+        return self._calculate_deadline(priority, base_time=self.create_date or now) + timedelta(seconds=self.sla_paused_seconds or 0)
+
     def write(self, vals):
         is_officer = self.env.is_admin() or self.env.user.has_group('it_helpdesk.group_helpdesk_officer')
         is_system = self.env.su
+        vals = dict(vals)
+        now = fields.Datetime.now()
+        recalc_priority_deadlines = 'priority' in vals and 'deadline' not in vals
 
-        if 'priority' in vals and 'deadline' not in vals:
-            base_dt = self[0].create_date if self and self[0].create_date else fields.Datetime.now()
-            vals['deadline'] = self._calculate_deadline(vals['priority'], base_time=base_dt)
+        if recalc_priority_deadlines and len(self) == 1:
+            vals['deadline'] = self._recalc_deadline_for_priority(vals['priority'], now)
         if 'priority' in vals or 'deadline' in vals:
             vals.setdefault('sla_warned_at', False)
             vals.setdefault('sla_escalated_at', False)
@@ -219,6 +224,10 @@ class HelpDeskTicket(models.Model):
         old_assignees = {rec.id: rec.assignee_id for rec in self} if assignee_changed else {}
 
         res = super().write(vals)
+
+        if recalc_priority_deadlines and len(self) > 1:
+            for record in self:
+                record.sudo().write({'deadline': record._recalc_deadline_for_priority(vals['priority'], now)})
 
         if assignee_changed:
             todo_type = self.env.ref('mail.mail_activity_data_todo', raise_if_not_found=False)

@@ -198,6 +198,8 @@
                             <field name="priority" widget="priority" readonly="status in ('closed','canceled') or (not is_officer and author_id != uid)"/>
                             <!-- 처리기한은 사원도 볼 수 있도록 유지 -->
                             <field name="deadline" readonly="status in ('closed','canceled') or not is_officer" force_save="1"/>
+                            <field name="sla_paused_at" readonly="1" invisible="not sla_paused_at"/>
+                            <field name="sla_paused_seconds" readonly="1"/>
                         </group>
     
                         <!-- 오른쪽 열 -->
@@ -268,6 +270,7 @@
                 <filter string="FAQ 지식창고" name="filter_faq" domain="[('is_faq', '=', True)]"/>
                 <!-- 관리자/담당자 전용 필터 -->
                 <filter string="SLA 기한 초과" name="filter_overdue" domain="[('is_overdue', '=', True)]" groups="it_helpdesk.group_helpdesk_officer"/>
+                <filter string="SLA 일시정지(답변 대기)" name="filter_sla_paused" domain="[('sla_state', '=', 'paused')]"/>
                 <filter string="내 문의" name="my_ticket" domain="[('author_id','=',uid)]"/>
                 <separator/>
                 <filter string="배정대기" name="unassigned" domain="[('assignee_id','=',False)]" groups="it_helpdesk.group_helpdesk_officer"/>

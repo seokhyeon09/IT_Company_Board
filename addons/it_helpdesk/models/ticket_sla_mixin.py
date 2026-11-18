@@ -17,6 +17,7 @@ SLA_WARN_HOURS = {
 }
 
 CLOSED_STATUSES = ('resolved', 'closed', 'canceled')
+NON_ACTIVE_STATUSES = CLOSED_STATUSES + ('pending',)
 
 
 class HelpDeskTicketSlaMixin(models.AbstractModel):
@@ -25,7 +26,10 @@ class HelpDeskTicketSlaMixin(models.AbstractModel):
 
     sla_warned_at = fields.Datetime(string="SLA 임박 경고 일시", readonly=True, copy=False)
     sla_escalated_at = fields.Datetime(string="SLA 에스컬레이션 일시", readonly=True, copy=False)
+    sla_paused_at = fields.Datetime(string="SLA 일시정지 시작", readonly=True, copy=False)
+    sla_paused_seconds = fields.Integer(string="SLA 누적 일시정지(초)", readonly=True, copy=False, default=0)
     first_resolved_date = fields.Datetime(string="최초 해결 일시", readonly=True, copy=False)
+    first_resolved_on_time = fields.Boolean(string="최초 해결 SLA 준수", readonly=True, copy=False)
     resolution_hours = fields.Float(
         string="해결 소요시간(시간)",
         compute="_compute_resolution_hours",
@@ -47,11 +51,49 @@ class HelpDeskTicketSlaMixin(models.AbstractModel):
             ("ok", "정상"),
             ("imminent", "임박"),
             ("overdue", "초과"),
+            ("paused", "일시정지"),
         ],
         string="SLA 상태",
         compute="_compute_sla_state",
         search="_search_sla_state",
     )
+
+    def _sla_effective_deadline(self, now=None):
+        """일시정지 중 진행 경과를 반영한 유효 처리 기한을 반환한다."""
+        self.ensure_one()
+        if not self.deadline:
+            return False
+        if self.status == "pending" and self.sla_paused_at:
+            cur_now = now or fields.Datetime.now()
+            elapsed = max(timedelta(0), cur_now - self.sla_paused_at)
+            return self.deadline + elapsed
+        return self.deadline
+
+    def write(self, vals):
+        if not self or "status" not in vals:
+            return super().write(vals)
+        now = fields.Datetime.now()
+        new_status = vals["status"]
+        snapshots = {
+            rec.id: (rec.status, rec.sla_paused_at or rec.write_date)
+            for rec in self
+        }
+        res = super().write(vals)
+        for rec in self:
+            old_status, pause_start = snapshots.get(rec.id, (None, None))
+            if new_status == "pending" and old_status != "pending":
+                if "sla_paused_at" not in vals:
+                    rec.sudo().write({"sla_paused_at": now})
+            elif old_status == "pending" and new_status != "pending":
+                elapsed = max(0, int((now - pause_start).total_seconds())) if pause_start else 0
+                resume_vals = {
+                    "sla_paused_at": False,
+                    "sla_paused_seconds": (rec.sla_paused_seconds or 0) + elapsed,
+                }
+                if rec.deadline:
+                    resume_vals["deadline"] = rec.deadline + timedelta(seconds=elapsed)
+                rec.sudo().write(resume_vals)
+        return res
 
     @api.depends("deadline", "status", "priority")
     def _compute_sla_state(self):
@@ -59,6 +101,9 @@ class HelpDeskTicketSlaMixin(models.AbstractModel):
         for record in self:
             if not record.deadline or record.status in CLOSED_STATUSES:
                 record.sla_state = "none"
+                continue
+            if record.status == "pending":
+                record.sla_state = "paused"
                 continue
             if record.deadline < now:
                 record.sla_state = "overdue"
@@ -73,28 +118,34 @@ class HelpDeskTicketSlaMixin(models.AbstractModel):
         now = fields.Datetime.now()
         if operator not in ("=", "!="):
             return [("id", "=", 0)]
+        def _apply_op(dom):
+            if operator == "=":
+                return dom
+            if len(dom) == 2 and dom[0] not in ("|", "&"):
+                return ["!", "&"] + dom
+            return ["!"] + dom
+
         if value == "overdue":
-            dom = [("deadline", "<", now), ("status", "not in", CLOSED_STATUSES)]
-            return dom if operator == "=" else ["!"] + dom
+            return _apply_op([("deadline", "<", now), ("status", "not in", NON_ACTIVE_STATUSES)])
         if value == "none":
-            dom = ["|", ("deadline", "=", False), ("status", "in", CLOSED_STATUSES)]
-            return dom if operator == "=" else ["!"] + dom
+            return _apply_op(["|", ("deadline", "=", False), ("status", "in", CLOSED_STATUSES)])
+        if value == "paused":
+            return _apply_op([("status", "=", "pending"), ("deadline", "!=", False)])
         if value == "imminent":
             branches = []
             for prio, hrs in SLA_WARN_HOURS.items():
                 branches.append([
                     "&", "&", "&",
                     ("priority", "=", prio),
-                    ("status", "not in", CLOSED_STATUSES),
+                    ("status", "not in", NON_ACTIVE_STATUSES),
                     ("deadline", ">=", now),
                     ("deadline", "<=", now + timedelta(hours=hrs)),
                 ])
-            dom = ["|", "|", "|"] + [ item for sub in branches for item in sub ]
-            return dom if operator == "=" else ["!"] + dom
+            dom = ["|", "|", "|"] + [item for sub in branches for item in sub]
+            return _apply_op(dom)
         if value == "ok":
             max_warn = now + timedelta(hours=max(SLA_WARN_HOURS.values()))
-            dom = [("deadline", ">", max_warn), ("status", "not in", CLOSED_STATUSES)]
-            return dom if operator == "=" else ["!"] + dom
+            return _apply_op([("deadline", ">", max_warn), ("status", "not in", NON_ACTIVE_STATUSES)])
         return [("id", "=", 0)]
 
     @api.model
@@ -103,7 +154,7 @@ class HelpDeskTicketSlaMixin(models.AbstractModel):
         now = fields.Datetime.now()
         max_warn_horizon = now + timedelta(hours=max(SLA_WARN_HOURS.values()))
         candidates = self.search([
-            ("status", "not in", CLOSED_STATUSES),
+            ("status", "not in", NON_ACTIVE_STATUSES),
             ("deadline", "!=", False),
             ("deadline", "<=", max_warn_horizon),
         ], order="deadline asc, id asc", limit=limit)

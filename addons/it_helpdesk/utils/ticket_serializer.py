@@ -186,6 +186,8 @@ def serialize_ticket_detail(ticket, user, req_env) -> dict:
         "deadline": _format_datetime_utc(ticket.deadline),
         "is_overdue": ticket.is_overdue,
         "sla_state": ticket.sla_state or "none",
+        "sla_paused_at": _format_datetime_utc(ticket.sla_paused_at),
+        "sla_paused_seconds": int(ticket.sla_paused_seconds or 0),
         "author_id": ticket.author_id.id if ticket.author_id else None,
         "author_name": ticket.author_id.name if ticket.author_id else None,
         "assignee_id": ticket.assignee_id.id if ticket.assignee_id else None,
