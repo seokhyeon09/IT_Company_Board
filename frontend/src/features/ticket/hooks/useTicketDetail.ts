@@ -12,6 +12,7 @@ export function useTicketDetail(ticketId: number | null, isOpen: boolean) {
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState('');
   const [togglingFaq, setTogglingFaq] = useState(false);
+  const [faqError, setFaqError] = useState('');
 
   const fetchDetail = useCallback(async (id: number) => {
     setLoading(true);
@@ -27,6 +28,7 @@ export function useTicketDetail(ticketId: number | null, isOpen: boolean) {
   }, []);
 
   useEffect(() => {
+    setFaqError('');
     if (isOpen && ticketId) {
       fetchDetail(ticketId);
     } else {
@@ -38,11 +40,12 @@ export function useTicketDetail(ticketId: number | null, isOpen: boolean) {
   const handleToggleFaq = async () => {
     if (!ticket || togglingFaq) return;
     setTogglingFaq(true);
+    setFaqError('');
     try {
       const updated = await workflowApi.toggleFaq(ticket.id);
       setTicket((prev) => (prev ? { ...prev, is_faq: updated.is_faq } : null));
     } catch (err: any) {
-      alert(getErrorMessage(err, 'FAQ 추천 상태 변경에 실패했습니다.'));
+      setFaqError(getErrorMessage(err, 'FAQ 추천 상태 변경에 실패했습니다.'));
     } finally {
       setTogglingFaq(false);
     }
@@ -77,6 +80,7 @@ export function useTicketDetail(ticketId: number | null, isOpen: boolean) {
     loading,
     fetchError,
     faqLoading: togglingFaq,
+    faqError,
     handleToggleFaq,
     reloadTicket: () => ticketId && fetchDetail(ticketId),
     permissions,

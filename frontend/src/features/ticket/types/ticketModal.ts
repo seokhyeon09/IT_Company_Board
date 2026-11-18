@@ -97,6 +97,7 @@ export interface TicketModalStateFacade {
   ticket: TicketDetail | null;
   loading: boolean;
   error: string | null;
+  actionError: string;
   faqLoading: boolean;
   handleToggleFaq: () => Promise<void>;
   permissions: TicketPermissions;

@@ -12,6 +12,7 @@ import { TicketTimeline } from './modal/TicketTimeline';
 import { TicketActionForms } from './modal/TicketActionForms';
 import { TicketOfficerLogs } from './modal/TicketOfficerLogs';
 import { TicketRelatedAndEmails } from './modal/TicketRelatedAndEmails';
+import { InlineErrorNotice } from './modal/InlineErrorNotice';
 
 export interface TicketDetailModalProps {
   isOpen: boolean;
@@ -67,12 +68,10 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
               티켓 상세 정보를 불러오는 중입니다...
             </div>
           ) : s.fetchError ? (
-            <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-center">
-              <p className="font-bold">오류</p>
-              <p className="text-xs mt-1">{s.fetchError}</p>
-            </div>
+            <InlineErrorNotice message={s.fetchError} />
           ) : s.ticket ? (
             <>
+              <InlineErrorNotice title="처리 실패" message={s.actionError} sticky />
               <TicketMainContent
                 ticket={s.ticket}
                 isAuthor={s.isAuthor}

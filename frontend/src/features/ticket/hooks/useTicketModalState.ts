@@ -53,6 +53,7 @@ export function useTicketModalState(
     templateContext: detail.ticket ? buildTemplateContext(detail.ticket) : undefined,
     loading: detail.loading,
     fetchError: detail.fetchError,
+    actionError: workflow.actionError || detail.faqError,
     faqLoading: detail.faqLoading,
     togglingFaq: detail.faqLoading,
     handleToggleFaq: detail.handleToggleFaq,

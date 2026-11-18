@@ -21,6 +21,7 @@ export function useTicketWorkflow({
   reloadTicket,
 }: UseTicketWorkflowProps) {
   const [transitioningStatus, setTransitioningStatus] = useState<string | null>(null);
+  const [actionError, setActionError] = useState('');
 
   // Designation / Reassignment
   const [officers, setOfficers] = useState<OfficerSimpleItem[]>([]);
@@ -43,6 +44,10 @@ export function useTicketWorkflow({
   const [closeError, setCloseError] = useState('');
 
   useEffect(() => {
+    setActionError('');
+  }, [isOpen, ticket?.id]);
+
+  useEffect(() => {
     if (isOpen && (user?.is_officer || user?.is_manager || user?.is_admin)) {
       ticketApi
         .getOfficers()
@@ -57,12 +62,13 @@ export function useTicketWorkflow({
   const onAssignToMe = async () => {
     if (!ticket) return;
     setTransitioningStatus('assign');
+    setActionError('');
     try {
       await workflowApi.assignSelf(ticket.id);
       reloadTicket();
       if (onSuccess) onSuccess();
     } catch (err: any) {
-      alert(getErrorMessage(err, '담당자 배정에 실패했습니다.'));
+      setActionError(getErrorMessage(err, '담당자 배정에 실패했습니다.'));
     } finally {
       setTransitioningStatus(null);
     }
@@ -71,12 +77,13 @@ export function useTicketWorkflow({
   const onStartProgress = async () => {
     if (!ticket) return;
     setTransitioningStatus('start-progress');
+    setActionError('');
     try {
       await workflowApi.startProgress(ticket.id);
       reloadTicket();
       if (onSuccess) onSuccess();
     } catch (err: any) {
-      alert(getErrorMessage(err, '처리 시작 처리에 실패했습니다.'));
+      setActionError(getErrorMessage(err, '처리 시작 처리에 실패했습니다.'));
     } finally {
       setTransitioningStatus(null);
     }
@@ -173,6 +180,7 @@ export function useTicketWorkflow({
 
   return {
     transitioningStatus,
+    actionError,
     officers,
     showDesignateModal,
     setShowDesignateModal,
