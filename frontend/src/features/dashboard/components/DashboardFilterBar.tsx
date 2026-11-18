@@ -67,7 +67,7 @@ export const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
         </div>
 
         {/* Right: Search & Overdue Toggle Switch */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
           {/* Debounced Search Input */}
           <div className="relative">
             <input
