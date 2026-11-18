@@ -113,7 +113,10 @@ class TestTicketExport(TransactionCase):
                 exp_res = self.export_ctrl.export_tickets(**params)
 
             self.assertEqual(exp_res['total'], list_res['total'])
-            self.assertEqual([t['id'] for t in exp_res['data']], [t['id'] for t in list_res['data']])
+            # 목록은 limit=100이므로 라이브 DB의 데이터가 100건을 넘어도 같은 순서의 앞부분이 일치하는지 본다.
+            list_ids = [t['id'] for t in list_res['data']]
+            self.assertEqual([t['id'] for t in exp_res['data']][:len(list_ids)], list_ids)
+            self.assertGreaterEqual(len(exp_res['data']), len(list_ids))
 
         # resolved 티켓의 first_resolved_date 및 author_id [id, name] 확인
         with patch('odoo.addons.it_helpdesk.controllers.main_api.request',
