@@ -12,7 +12,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.config import settings
 from app.core.messages import MSG_INTERNAL_ERROR
 from app.client.odoo_client import odoo_client
-from app.api.v1.endpoints import auth, tickets
+from app.api.v1.endpoints import auth, officer_absence, reply_templates, tickets
 
 _logger = logging.getLogger(__name__)
 
@@ -108,6 +108,8 @@ app.add_middleware(
 # Mount API Routers
 app.include_router(auth.router, prefix=f"{settings.API_V1_PREFIX}/auth", tags=["Authentication"])
 app.include_router(tickets.router, prefix=f"{settings.API_V1_PREFIX}/tickets", tags=["Tickets"])
+app.include_router(reply_templates.router, prefix=f"{settings.API_V1_PREFIX}/reply-templates", tags=["Reply Templates"])
+app.include_router(officer_absence.router, prefix=f"{settings.API_V1_PREFIX}/officers", tags=["Officer Absence"])
 
 @app.get("/health", tags=["Health"])
 async def health_check():

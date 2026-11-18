@@ -5,10 +5,10 @@ import hashlib
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 from jose import jwt, JWTError
-from fastapi import HTTPException, Security, status
+from fastapi import Depends, HTTPException, Security, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.core.config import settings
-from app.core.messages import MSG_AUTH_INVALID
+from app.core.messages import MSG_AUTH_INVALID, MSG_OFFICER_REQUIRED
 
 security_scheme = HTTPBearer()
 
@@ -45,6 +45,22 @@ async def get_current_user_claims(credentials: HTTPAuthorizationCredentials = Se
             detail=MSG_AUTH_INVALID,
             headers={"WWW-Authenticate": "Bearer"},
         )
+    return claims
+
+def require_officer(claims: Dict[str, Any]) -> int:
+    """Verify IT officer role from JWT claims and return user id."""
+    if not claims.get("is_officer", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=MSG_OFFICER_REQUIRED,
+        )
+    return int(claims["sub"])
+
+async def get_current_officer_claims(
+    claims: Dict[str, Any] = Depends(get_current_user_claims),
+) -> Dict[str, Any]:
+    """FastAPI Dependency ensuring current JWT user is an IT officer or admin."""
+    require_officer(claims)
     return claims
 
 def generate_hmac_headers(user_id: int, method: str, path: str, body: bytes = b'') -> Dict[str, str]:

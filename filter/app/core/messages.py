@@ -11,3 +11,5 @@ MSG_BACKEND_TIMEOUT = "백엔드 서버 응답 시간이 초과되었습니다. 
 MSG_CONFLICT_DEFAULT = "다른 사용자가 먼저 수정했습니다. 새로고침 후 다시 시도해 주세요."
 MSG_RPC_ERROR_DEFAULT = "요청을 처리하지 못했습니다."
 MSG_INTERNAL_ERROR = "서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
+MSG_ABSENT_UNTIL_PAST = "부재 종료일은 오늘 이후 날짜여야 합니다."
+MSG_ABSENT_UNTIL_INVALID = "부재 종료일 형식이 올바르지 않습니다. (YYYY-MM-DD)"

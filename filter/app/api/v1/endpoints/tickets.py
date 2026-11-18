@@ -11,15 +11,16 @@ from app.schemas.ticket import (
     TicketListResponseDTO,
 )
 from app.api.v1.endpoints.ticket_insights import router as insights_router
+from app.api.v1.endpoints.ticket_export import router as export_router
 from app.api.v1.endpoints.ticket_attachments import router as attachments_router
 from app.api.v1.endpoints.ticket_workflow import router as workflow_router
 
 router = APIRouter()
 
 # Mount Sub-Routers
-# Notice: insights_router handles /stats, /officer-stats, /officers, /notifications
-# It must be mounted before /{ticket_id} to prevent path conflict!
+# Notice: insights_router and export_router must be mounted before /{ticket_id} to prevent path conflict!
 router.include_router(insights_router)
+router.include_router(export_router)
 router.include_router(attachments_router)
 router.include_router(workflow_router)
 

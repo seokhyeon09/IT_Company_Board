@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 from typing import Optional
-from fastapi import HTTPException, status
 from app.client.odoo_client import odoo_client
-from app.core.messages import MSG_OFFICER_REQUIRED
+from app.core.security import require_officer as _require_officer
 from app.schemas.ticket import (
     TicketAssignDTO,
     TicketResolveDTO,
@@ -14,16 +13,6 @@ from app.schemas.ticket import (
     TicketRateDTO,
     TicketResponseDTO,
 )
-
-def _require_officer(claims: dict) -> int:
-    """Verify IT officer role from JWT claims and return user id."""
-    if not claims.get("is_officer", False):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=MSG_OFFICER_REQUIRED,
-        )
-    return int(claims["sub"])
-
 
 class WorkflowService:
     """Ticket Workflow and State Transition Orchestration Service"""

@@ -7,6 +7,8 @@ class OfficerItemDTO(BaseModel):
     id: int
     name: str
     login: str
+    is_absent: bool = False
+    absent_until: Optional[str] = None
 
 class OfficerListResponseDTO(BaseModel):
     status: str = "success"
