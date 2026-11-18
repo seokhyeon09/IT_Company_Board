@@ -93,7 +93,7 @@ IT_Company_Board/
 │   │   ├── client/odoo_client.py             # [Layer 2] 영속 커넥션 풀(Keep-Alive) 기반 JSON-RPC 클라이언트
 │   │   ├── services/                         # [Layer 3] auth_service.py, ticket_service.py, workflow_service.py, attachment_service.py, insight_service.py
 │   │   └── api/v1/endpoints/                 # [Layer 5] auth.py, tickets.py, ticket_workflow.py, ticket_attachments.py, ticket_insights.py
-│   └── tests/                                # 게이트웨이 단위 + 엔드포인트 테스트 (Pytest 21종)
+│   └── tests/                                # 게이트웨이 단위 + 엔드포인트 테스트 (Pytest 42종)
 └── addons/
     └── it_helpdesk/                          # [Tier 3] Odoo 18 Headless Backend Addon
         ├── models/                           # [Layer 3] ticket.py, ticket_workflow_mixin.py, ticket_rating.py, notification_read.py
@@ -101,7 +101,7 @@ IT_Company_Board/
         ├── controllers/                      # [Layer 5] auth_api.py, ticket_query_api.py, ticket_workflow_api.py, attachment_api.py, insight_api.py
         ├── security/                         # 3계층 RBAC 그룹 및 Record Rules (ir.model.access.csv, it_helpdesk_security.xml)
         ├── data/                             # 자동 채번 시퀀스 및 SLA/자동종결 Cron 스케줄러
-        └── tests/                            # 백엔드 단위, 권한 계층화 및 보안 감사 테스트 (TransactionCase 43종)
+        └── tests/                            # 백엔드 단위, 권한 계층화 및 보안 감사 테스트 (TransactionCase 77종)
 ```
 
 ---
@@ -211,6 +211,10 @@ stateDiagram-v2
   * **IT 관리자(Manager)**: IT 담당자의 모든 권한을 상속받으며, 티켓 완전 삭제(`unlink`), Odoo 관리자 전용 메뉴 열람, 타 담당자 배정 티켓 직권 강제 조치(직권 종결 등) 권한 보유 (보라색 배지).
 * **전문 분야 기반 자동 배정 스위치**:
   * 카테고리별 전문 담당자(HW: 인프라, SW: 소프트웨어 등)를 판별하여 접수 즉시 자동으로 배정하는 자동 배정 엔진 지원 (`scripts/set_auto_assign.py on/off`).
+* **답변 상용구(템플릿)**: 담당자가 자주 쓰는 조치 문구를 분야별/공통으로 저장해 두고, 해결 조치 등록 및 답변 수정 시 선택해 삽입합니다. `{{requester_name}}`, `{{ticket_number}}`, `{{officer_name}}` 변수가 티켓 정보로 자동 치환되며, 본인이 만든 상용구만 수정/삭제할 수 있습니다(관리자는 전체).
+* **담당자 부재(휴가) 설정**: 담당자가 헤더의 `부재 설정`에서 부재와 종료일을 지정하면 자동 배정 대상에서 제외되고, 담당자 인계 목록에 `[부재중]` 표시와 경고가 나타납니다. 종료일이 지나면 별도 작업 없이 자동 해제됩니다.
+* **티켓 목록 CSV 내보내기**: 현재 적용한 필터/검색/정렬 조건 그대로 최대 5,000건을 엑셀에서 바로 열리는 CSV(UTF-8 BOM, 한국 시간, 한글 라벨)로 내려받습니다. 수식 주입(`=`, `+`, `-`, `@` 시작 값)은 자동 무력화합니다.
+* **딥링크 및 화면 상태 보존**: Slack 알림의 `?ticket_id=번호` 링크로 바로 해당 티켓이 열리고(로그인 전이면 로그인 후), 필터/검색/정렬/페이지 상태가 URL에 보존되어 새로고침이나 링크 공유 후에도 유지됩니다.
 * **단계별 워크플로우 제어 바**: 상세 모달 내에서 `[내게 배정]`, `[담당자 지정/인계(사유 필수)]`, `[내가 대신 맡기]`, `[처리 시작]`, `[답변 대기 요청]`, `[직권 종결]`, `[FAQ 지식창고 추천 토글]`을 원클릭으로 수행합니다.
 * **조치 답변 등록 및 인라인 수정(Diff 로그)**: 해결 조치 등록 후 오기재 내용을 인라인으로 수정할 수 있으며, 수정 전/후 비교(Diff) 이력이 담당자/관리자 전용 감사 로그에 자동 기록됩니다.
 * **담당자/관리자 전용 활동/감사 로그(`logs`)**: 상태 전이, 담당자 인계, 답변 수정 전후 내역 등 모든 Chatter 기록을 타임라인으로 열람합니다 (사원 화면에는 원천 비노출).
@@ -285,13 +289,13 @@ python scripts/seed_demo_data.py
 본 프로젝트는 백엔드 단위 테스트, 게이트웨이 테스트, 다중 사용자 E2E 시나리오, 가상 브라우저 UI 자동화 테스트를 모두 갖추고 있습니다.
 
 ```bash
-# 1. Odoo 18 백엔드 단위, 3계층 권한 계층화 및 보안 감사 테스트 (43종)
+# 1. Odoo 18 백엔드 단위, 3계층 권한 계층화 및 보안 감사 테스트 (77종)
 docker exec it_helpdesk_odoo odoo -d helpdesk_db --db_host=db -r odooU -w odooPW --http-port=8070 -u it_helpdesk --test-enable --test-tags=it_helpdesk --stop-after-init
 
-# 2. FastAPI 게이트웨이 단위 및 엔드포인트/에러 핸들링 테스트 (21종)
+# 2. FastAPI 게이트웨이 단위 및 엔드포인트/에러 핸들링 테스트 (42종)
 docker exec it_helpdesk_filter pytest -v
 
-# 3. 프론트엔드 단위 테스트 (Vitest 39종) 및 프로덕션 빌드
+# 3. 프론트엔드 단위 테스트 (Vitest 69종) 및 프로덕션 빌드
 docker exec it_helpdesk_frontend npm run test
 
 # 4. 전체 기능 관통 E2E 시나리오 자동화 테스트 (4개 역할, 5대 시나리오 66개 체크 100% 검증)
