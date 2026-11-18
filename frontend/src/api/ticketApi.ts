@@ -7,6 +7,18 @@ export interface TicketListResponse {
   tickets: Ticket[];
 }
 
+interface RawTicketListResponse {
+  status?: string;
+  total?: number;
+  data?: Ticket[];
+  tickets?: Ticket[];
+}
+
+interface WrappedDataResponse<T> {
+  status?: string;
+  data?: T;
+}
+
 export interface TicketCreatePayload {
   title: string;
   category: string;
@@ -44,13 +56,21 @@ export const ticketApi = {
     if (params.sort_by) queryParams.sort_by = params.sort_by;
     if (params.is_faq) queryParams.is_faq = true;
 
-    const response = await apiClient.get<TicketListResponse>('/tickets', { params: queryParams, ...options });
-    return response.data;
+    const response = await apiClient.get<RawTicketListResponse>('/tickets', { params: queryParams, ...options });
+    const raw = response.data;
+    return {
+      total: raw?.total ?? 0,
+      tickets: raw?.data ?? raw?.tickets ?? [],
+    };
   },
 
   getStats: async (): Promise<TicketStats> => {
-    const response = await apiClient.get<any>('/tickets/stats');
-    return (response.data as any)?.data || response.data;
+    const response = await apiClient.get<WrappedDataResponse<TicketStats> | TicketStats>('/tickets/stats');
+    const body = response.data;
+    if (body && typeof body === 'object' && 'data' in body && body.data) {
+      return body.data;
+    }
+    return body as TicketStats;
   },
 
   getTicketDetail: async (id: number): Promise<TicketDetail> => {

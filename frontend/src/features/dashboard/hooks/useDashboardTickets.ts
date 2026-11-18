@@ -95,7 +95,7 @@ export function useDashboardTickets() {
   const fetchStats = useCallback(async () => {
     try {
       const data = await ticketApi.getStats();
-      setStats((data as any)?.data || data);
+      setStats(data);
     } catch (err) {
       console.error('Failed to fetch ticket stats:', err);
     }
@@ -121,8 +121,8 @@ export function useDashboardTickets() {
       if (activeTab === 'faq') params.is_faq = true;
 
       const res = await ticketApi.getTickets(params, { signal });
-      setTickets(res.tickets || (res as any).data || []);
-      setTotal(res.total || 0);
+      setTickets(res.tickets);
+      setTotal(res.total);
     } catch (err: any) {
       if (err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED') {
         return;
