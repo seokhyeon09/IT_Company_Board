@@ -13,6 +13,7 @@ import { OfficerStatsModal } from '../features/dashboard/components/OfficerStats
 import { EmailNotificationModal } from '../features/notification/components/EmailNotificationModal';
 import { useEmailNotifications } from '../features/notification/hooks/useEmailNotifications';
 import { useDashboardTickets } from '../features/dashboard/hooks/useDashboardTickets';
+import { useTicketExport } from '../features/dashboard/hooks/useTicketExport';
 import {
   buildSearchWithTicketId,
   parseTicketIdFromSearch,
@@ -23,6 +24,7 @@ export const DashboardPage: React.FC = () => {
   const { user } = useAuthStore();
   const mail = useEmailNotifications(user?.uid);
   const dash = useDashboardTickets();
+  const csvExport = useTicketExport(dash.exportParams);
 
   // Modals & deep-link ticket_id state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -51,6 +53,12 @@ export const DashboardPage: React.FC = () => {
       <DashboardHeader
         user={user}
         unreadCount={mail.unreadCount}
+        exportState={{
+          exporting: csvExport.exporting,
+          message: csvExport.message,
+          error: csvExport.error,
+          onExport: csvExport.exportCsv,
+        }}
         onRefresh={handleRefresh}
         onOpenEmailModal={() => setIsEmailModalOpen(true)}
         onOpenOfficerStats={() => setIsOfficerStatsOpen(true)}

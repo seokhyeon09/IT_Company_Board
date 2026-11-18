@@ -4,6 +4,7 @@ import { useTicketInquiryEdit } from './useTicketInquiryEdit';
 import { useTicketWorkflow } from './useTicketWorkflow';
 import { useTicketResolution } from './useTicketResolution';
 import { useTicketAttachments } from './useTicketAttachments';
+import { buildTemplateContext } from '../utils/replyTemplateText';
 
 export function useTicketModalState(
   ticketId: number | null,
@@ -49,6 +50,7 @@ export function useTicketModalState(
   return {
     // Detail & Permissions
     ticket: detail.ticket,
+    templateContext: detail.ticket ? buildTemplateContext(detail.ticket) : undefined,
     loading: detail.loading,
     fetchError: detail.fetchError,
     faqLoading: detail.faqLoading,

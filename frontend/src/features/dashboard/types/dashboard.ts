@@ -20,6 +20,31 @@ export interface TicketListQueryParams {
   is_faq?: boolean;
 }
 
+export type TicketExportQueryParams = Omit<TicketListQueryParams, 'offset' | 'limit'>;
+
+export interface TicketFilterInput {
+  search: string;
+  status: string;
+  category: string;
+  priority: string;
+  isOverdueOnly: boolean;
+  assignedToMe: boolean;
+  sortBy: string;
+  activeTab: DashboardTab;
+}
+
+export interface TicketListFilterInput extends TicketFilterInput {
+  page: number;
+  pageSize: number;
+}
+
+export interface TicketExportState {
+  exporting: boolean;
+  message: string;
+  error: string;
+  onExport: () => void;
+}
+
 export type DashboardTab = 'all' | 'faq';
 
 export type DashboardSortBy =

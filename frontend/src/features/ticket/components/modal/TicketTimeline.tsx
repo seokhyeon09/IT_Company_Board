@@ -8,7 +8,10 @@ import {
   Loader2,
 } from 'lucide-react';
 import { ThreadItem } from '../../types/ticket';
+import { TemplateContext } from '../../types/replyTemplate';
+import { appendText } from '../../utils/replyTemplateText';
 import { formatHtmlContent } from '../../../../shared/utils/htmlUtils';
+import { ReplyTemplatePicker } from './actions/ReplyTemplatePicker';
 
 interface TicketTimelineProps {
   timeline: ThreadItem[] | undefined;
@@ -22,6 +25,7 @@ interface TicketTimelineProps {
   editResolutionError: string;
   onCancelEditResolution: () => void;
   onSubmitEditResolution: (e: React.FormEvent) => void;
+  templateContext?: TemplateContext;
 }
 
 export const TicketTimeline: React.FC<TicketTimelineProps> = ({
@@ -36,6 +40,7 @@ export const TicketTimeline: React.FC<TicketTimelineProps> = ({
   editResolutionError,
   onCancelEditResolution,
   onSubmitEditResolution,
+  templateContext,
 }) => {
   const count = timeline && timeline.length > 0 ? timeline.length : 1;
   const hasResolution = timeline && timeline.some((t) => t.type === 'resolution');
@@ -67,6 +72,15 @@ export const TicketTimeline: React.FC<TicketTimelineProps> = ({
         <div className="p-4 bg-emerald-50/90 border border-emerald-300 rounded-xl shadow-xs animate-in fade-in">
           <div className="text-xs font-bold text-emerald-900 mb-2">최신 조치 내용 수정</div>
           <form onSubmit={onSubmitEditResolution} className="space-y-3">
+            {templateContext && (
+              <ReplyTemplatePicker
+                category={templateContext.category}
+                ticketNumber={templateContext.ticketNumber}
+                requesterName={templateContext.requesterName}
+                currentText={editResolutionNote}
+                onInsert={(text) => setEditResolutionNote(appendText(editResolutionNote, text))}
+              />
+            )}
             <textarea
               rows={3}
               value={editResolutionNote}

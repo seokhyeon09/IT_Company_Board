@@ -1,6 +1,12 @@
 import { apiClient } from './client';
 import { Ticket, TicketDetail, Attachment, OfficerSimpleItem } from '../features/ticket/types/ticket';
-import { TicketStats, OfficerStatsData, TicketListQueryParams } from '../features/dashboard/types/dashboard';
+import {
+  TicketStats,
+  OfficerStatsData,
+  TicketListQueryParams,
+  TicketExportQueryParams,
+} from '../features/dashboard/types/dashboard';
+import { defaultCsvFilename, parseContentDispositionFilename } from '../shared/utils/contentDisposition';
 
 export interface TicketListResponse {
   total: number;
@@ -41,20 +47,30 @@ export interface AttachmentUploadPayload {
   mimetype?: string;
 }
 
+function buildTicketQueryRecord(
+  params: TicketExportQueryParams,
+  pagination?: { offset: number; limit: number }
+): Record<string, any> {
+  const queryParams: Record<string, any> = pagination
+    ? { offset: pagination.offset, limit: pagination.limit }
+    : {};
+  if (params.status) queryParams.status = params.status;
+  if (params.category) queryParams.category = params.category;
+  if (params.priority) queryParams.priority = params.priority;
+  if (params.search) queryParams.search = params.search;
+  if (params.is_overdue) queryParams.is_overdue = true;
+  if (params.assigned_to_me) queryParams.assigned_to_me = true;
+  if (params.sort_by) queryParams.sort_by = params.sort_by;
+  if (params.is_faq) queryParams.is_faq = true;
+  return queryParams;
+}
+
 export const ticketApi = {
   getTickets: async (params: TicketListQueryParams, options?: { signal?: AbortSignal }): Promise<TicketListResponse> => {
-    const queryParams: Record<string, any> = {
+    const queryParams = buildTicketQueryRecord(params, {
       offset: params.offset,
       limit: params.limit,
-    };
-    if (params.status) queryParams.status = params.status;
-    if (params.category) queryParams.category = params.category;
-    if (params.priority) queryParams.priority = params.priority;
-    if (params.search) queryParams.search = params.search;
-    if (params.is_overdue) queryParams.is_overdue = true;
-    if (params.assigned_to_me) queryParams.assigned_to_me = true;
-    if (params.sort_by) queryParams.sort_by = params.sort_by;
-    if (params.is_faq) queryParams.is_faq = true;
+    });
 
     const response = await apiClient.get<RawTicketListResponse>('/tickets', { params: queryParams, ...options });
     const raw = response.data;
@@ -62,6 +78,39 @@ export const ticketApi = {
       total: raw?.total ?? 0,
       tickets: raw?.data ?? raw?.tickets ?? [],
     };
+  },
+
+  exportTickets: async (
+    params: TicketExportQueryParams
+  ): Promise<{ blob: Blob; filename: string; truncated: boolean }> => {
+    const queryParams = buildTicketQueryRecord(params);
+    try {
+      const response = await apiClient.get<Blob>('/tickets/export', {
+        params: queryParams,
+        responseType: 'blob',
+      });
+      const headers = response.headers || {};
+      const filename =
+        parseContentDispositionFilename(headers['content-disposition']) ||
+        defaultCsvFilename();
+      const truncated = String(headers['x-export-truncated'] || '').toLowerCase() === 'true';
+      return {
+        blob: response.data,
+        filename,
+        truncated,
+      };
+    } catch (err: any) {
+      const resData = err?.response?.data;
+      if (resData && typeof resData.text === 'function') {
+        try {
+          const text = await resData.text();
+          err.response.data = JSON.parse(text);
+        } catch {
+          // Keep original error if blob response is not valid JSON
+        }
+      }
+      throw err;
+    }
   },
 
   getStats: async (): Promise<TicketStats> => {

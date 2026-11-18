@@ -1,5 +1,8 @@
 import React from 'react';
 import { ShieldCheck, CheckCircle2, Loader2 } from 'lucide-react';
+import { TemplateContext } from '../../../types/replyTemplate';
+import { appendText } from '../../../utils/replyTemplateText';
+import { ReplyTemplatePicker } from './ReplyTemplatePicker';
 
 interface ResolutionFormProps {
   canResolve: boolean;
@@ -8,6 +11,7 @@ interface ResolutionFormProps {
   submittingResolve: boolean;
   resolveError: string;
   onSubmitResolve: (e: React.FormEvent) => void;
+  templateContext?: TemplateContext;
 }
 
 export const ResolutionForm: React.FC<ResolutionFormProps> = ({
@@ -17,6 +21,7 @@ export const ResolutionForm: React.FC<ResolutionFormProps> = ({
   submittingResolve,
   resolveError,
   onSubmitResolve,
+  templateContext,
 }) => {
   if (!canResolve) {
     return null;
@@ -32,6 +37,16 @@ export const ResolutionForm: React.FC<ResolutionFormProps> = ({
       </div>
 
       <form onSubmit={onSubmitResolve} className="space-y-3">
+        {templateContext && (
+          <ReplyTemplatePicker
+            category={templateContext.category}
+            ticketNumber={templateContext.ticketNumber}
+            requesterName={templateContext.requesterName}
+            currentText={resolutionNote}
+            onInsert={(text) => setResolutionNote(appendText(resolutionNote, text))}
+          />
+        )}
+
         <textarea
           rows={3}
           value={resolutionNote}

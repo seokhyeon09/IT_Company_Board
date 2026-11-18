@@ -1,6 +1,7 @@
 import React from 'react';
 import { PauseCircle, Clock } from 'lucide-react';
 import { TicketDetail } from '../../types/ticket';
+import { buildTemplateContext } from '../../utils/replyTemplateText';
 import { ResolutionForm } from './actions/ResolutionForm';
 import { RestartInquiryForm } from './actions/RestartInquiryForm';
 import { RatingForm } from './actions/RatingForm';
@@ -86,6 +87,7 @@ export const TicketActionForms: React.FC<TicketActionFormsProps> = (props) => {
         submittingResolve={props.submittingResolve}
         resolveError={props.resolveError}
         onSubmitResolve={props.onSubmitResolve}
+        templateContext={buildTemplateContext(ticket)}
       />
 
       {/* 4. Regular User In-Progress / Pending Message */}

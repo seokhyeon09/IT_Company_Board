@@ -176,6 +176,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 timeline={s.ticket.timeline}
                 fallbackContent={s.ticket.content}
                 isOfficer={s.isOfficer}
+                templateContext={s.templateContext}
                 isEditingResolution={s.isEditingResolution}
                 onStartEditResolution={() => {
                   const resolutionItems = s.ticket?.timeline?.filter((t) => t.type === 'resolution') || [];

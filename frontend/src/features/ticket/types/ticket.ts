@@ -90,6 +90,8 @@ export interface OfficerSimpleItem {
   id: number;
   name: string;
   login: string;
+  is_absent?: boolean;
+  absent_until?: string | null;
 }
 
 export interface TicketDetail extends Ticket {

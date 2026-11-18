@@ -1,6 +1,7 @@
 import React from 'react';
 import { UserCheck, Loader2 } from 'lucide-react';
 import { OfficerSimpleItem } from '../../../types/ticket';
+import { formatShortMonthDay } from '../../../../../shared/utils/absenceUtils';
 
 interface DesignateOfficerFormProps {
   isSubmitted: boolean;
@@ -28,6 +29,7 @@ export const DesignateOfficerForm: React.FC<DesignateOfficerFormProps> = ({
   onSubmit,
 }) => {
   const isReassign = !isSubmitted;
+  const selectedOfficer = officers.find((o) => o.id === selectedOfficerId);
   const canSubmit =
     Boolean(selectedOfficerId) &&
     (!isReassign || Boolean(assignReason.trim())) &&
@@ -59,10 +61,19 @@ export const DesignateOfficerForm: React.FC<DesignateOfficerFormProps> = ({
             <option value="">담당자를 선택하세요</option>
             {officers.map((officer) => (
               <option key={officer.id} value={officer.id}>
-                {officer.name} ({officer.login})
+                {officer.name} ({officer.login}){officer.is_absent ? ' [부재중]' : ''}
               </option>
             ))}
           </select>
+          {selectedOfficer?.is_absent && (
+            <p className="mt-1 text-[11px] text-amber-700 font-medium">
+              선택한 담당자는 부재 중입니다
+              {selectedOfficer.absent_until
+                ? `(~${formatShortMonthDay(selectedOfficer.absent_until)})`
+                : ''}
+              . 인계는 가능하지만 처리가 지연될 수 있습니다.
+            </p>
+          )}
         </div>
 
         {isReassign && (

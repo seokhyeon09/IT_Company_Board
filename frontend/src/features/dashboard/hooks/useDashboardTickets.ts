@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { ticketApi } from '../../../api/ticketApi';
 import { getErrorMessage } from '../../../api/client';
 import { Ticket } from '../../ticket/types/ticket';
 import {
   DashboardSortBy,
   DashboardTab,
-  TicketListQueryParams,
   TicketStats,
   VALID_DASHBOARD_SORTS,
 } from '../types/dashboard';
@@ -14,6 +13,7 @@ import {
   replaceUrlSearch,
   serializeDashboardQuery,
 } from '../utils/dashboardQuery';
+import { buildTicketExportParams, buildTicketListParams } from '../utils/listParams';
 
 const PAGE_SIZE = 12;
 
@@ -106,19 +106,18 @@ export function useDashboardTickets() {
     setLoading(true);
     setError(null);
     try {
-      const params: TicketListQueryParams = {
-        offset: (page - 1) * PAGE_SIZE,
-        limit: PAGE_SIZE,
-      };
-
-      if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
-      if (statusFilter) params.status = statusFilter;
-      if (categoryFilter) params.category = categoryFilter;
-      if (priorityFilter) params.priority = priorityFilter;
-      if (isOverdueOnly) params.is_overdue = true;
-      if (assignedToMe) params.assigned_to_me = true;
-      if (sortBy) params.sort_by = sortBy;
-      if (activeTab === 'faq') params.is_faq = true;
+      const params = buildTicketListParams({
+        page,
+        pageSize: PAGE_SIZE,
+        search: debouncedSearch,
+        status: statusFilter,
+        category: categoryFilter,
+        priority: priorityFilter,
+        isOverdueOnly,
+        assignedToMe,
+        sortBy,
+        activeTab,
+      });
 
       const res = await ticketApi.getTickets(params, { signal });
       setTickets(res.tickets);
@@ -132,6 +131,21 @@ export function useDashboardTickets() {
       setLoading(false);
     }
   }, [page, debouncedSearch, statusFilter, categoryFilter, priorityFilter, isOverdueOnly, assignedToMe, sortBy, activeTab]);
+
+  const exportParams = useMemo(
+    () =>
+      buildTicketExportParams({
+        search,
+        status: statusFilter,
+        category: categoryFilter,
+        priority: priorityFilter,
+        isOverdueOnly,
+        assignedToMe,
+        sortBy,
+        activeTab,
+      }),
+    [search, statusFilter, categoryFilter, priorityFilter, isOverdueOnly, assignedToMe, sortBy, activeTab]
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -202,6 +216,7 @@ export function useDashboardTickets() {
     handleStatsCardClick,
     resetFilters,
     hasActiveFilters,
+    exportParams,
     refreshAll: () => {
       fetchStats();
       fetchTickets();
