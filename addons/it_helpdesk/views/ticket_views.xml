@@ -271,6 +271,8 @@
                 <!-- 관리자/담당자 전용 필터 -->
                 <filter string="SLA 기한 초과" name="filter_overdue" domain="[('is_overdue', '=', True)]" groups="it_helpdesk.group_helpdesk_officer"/>
                 <filter string="SLA 일시정지(답변 대기)" name="filter_sla_paused" domain="[('sla_state', '=', 'paused')]"/>
+                <filter string="SLA 준수 해결" name="filter_sla_on_time" domain="[('first_resolved_date','!=',False),('first_resolved_on_time','=',True)]"/>
+                <filter string="SLA 해결 지연" name="filter_sla_breached" domain="[('first_resolved_date','!=',False),('first_resolved_on_time','=',False)]"/>
                 <filter string="내 문의" name="my_ticket" domain="[('author_id','=',uid)]"/>
                 <separator/>
                 <filter string="배정대기" name="unassigned" domain="[('assignee_id','=',False)]" groups="it_helpdesk.group_helpdesk_officer"/>
@@ -284,6 +286,7 @@
                     <filter string="담당자별" name="group_assignee" context="{'group_by':'assignee_id'}" groups="it_helpdesk.group_helpdesk_officer"/>
                     <filter string="긴급도별" name="group_priority" context="{'group_by':'priority'}"/>
                     <filter string="만족도별" name="group_rating" context="{'group_by':'rating'}"/>
+                    <filter string="접수 월" name="group_create_month" context="{'group_by':'create_date:month'}"/>
                 </group>
             </search>
         </field>
@@ -299,6 +302,8 @@
                 <field name="status" type="col"/>
                 <field name="category" type="row"/>
                 <field name="priority" type="row"/>
+                <field name="create_date" interval="month" type="row"/>
+                <field name="resolution_hours" type="measure"/>
             </pivot>
         </field>
     </record>
@@ -312,6 +317,7 @@
             <graph string="문의 현황 통계 차트" type="bar" sample="1">
                 <field name="category"/>
                 <field name="status"/>
+                <field name="create_date" interval="month"/>
             </graph>
         </field>
     </record>

@@ -10,6 +10,7 @@ import { DashboardFilterBar } from '../features/dashboard/components/DashboardFi
 import { DashboardTicketList } from '../features/dashboard/components/DashboardTicketList';
 import { DashboardPagination } from '../features/dashboard/components/DashboardPagination';
 import { OfficerStatsModal } from '../features/dashboard/components/OfficerStatsModal';
+import { SlaReportModal } from '../features/dashboard/components/SlaReportModal';
 import { EmailNotificationModal } from '../features/notification/components/EmailNotificationModal';
 import { useEmailNotifications } from '../features/notification/hooks/useEmailNotifications';
 import { useDashboardTickets } from '../features/dashboard/hooks/useDashboardTickets';
@@ -32,6 +33,7 @@ export const DashboardPage: React.FC = () => {
     parseTicketIdFromSearch(typeof window !== 'undefined' ? window.location.search : '')
   );
   const [isOfficerStatsOpen, setIsOfficerStatsOpen] = useState(false);
+  const [isSlaReportOpen, setIsSlaReportOpen] = useState(false);
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
 
   // Sync selectedTicketId to URL query (?ticket_id=...) without touching filter params
@@ -62,6 +64,7 @@ export const DashboardPage: React.FC = () => {
         onRefresh={handleRefresh}
         onOpenEmailModal={() => setIsEmailModalOpen(true)}
         onOpenOfficerStats={() => setIsOfficerStatsOpen(true)}
+        onOpenSlaReport={() => setIsSlaReportOpen(true)}
         onOpenCreateModal={() => setIsModalOpen(true)}
       />
 
@@ -144,6 +147,11 @@ export const DashboardPage: React.FC = () => {
       <OfficerStatsModal
         isOpen={isOfficerStatsOpen}
         onClose={() => setIsOfficerStatsOpen(false)}
+      />
+
+      <SlaReportModal
+        isOpen={isSlaReportOpen}
+        onClose={() => setIsSlaReportOpen(false)}
       />
 
       <EmailNotificationModal

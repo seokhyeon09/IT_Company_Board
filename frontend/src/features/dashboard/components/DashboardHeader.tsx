@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, RefreshCw, BarChart3, Mail, Download, Loader2 } from 'lucide-react';
+import { Plus, RefreshCw, BarChart3, Mail, Download, Loader2, FileBarChart2 } from 'lucide-react';
 import { UserProfile } from '../../../stores/authStore';
 import { TicketExportState } from '../types/dashboard';
 import { OfficerAbsenceControl } from './OfficerAbsenceControl';
@@ -11,6 +11,7 @@ interface DashboardHeaderProps {
   onRefresh: () => void;
   onOpenEmailModal: () => void;
   onOpenOfficerStats: () => void;
+  onOpenSlaReport?: () => void;
   onOpenCreateModal: () => void;
 }
 
@@ -21,6 +22,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   onRefresh,
   onOpenEmailModal,
   onOpenOfficerStats,
+  onOpenSlaReport,
   onOpenCreateModal,
 }) => {
   return (
@@ -86,6 +88,17 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             >
               <BarChart3 className="w-3.5 h-3.5 mr-1.5" />
               담당자별 실적 통계
+            </button>
+          )}
+
+          {user?.is_officer && onOpenSlaReport && (
+            <button
+              type="button"
+              onClick={onOpenSlaReport}
+              className="flex items-center whitespace-nowrap text-xs font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3 py-2 rounded-xl transition-all shadow-xs cursor-pointer"
+            >
+              <FileBarChart2 className="w-3.5 h-3.5 mr-1.5" />
+              SLA 리포트
             </button>
           )}
 
