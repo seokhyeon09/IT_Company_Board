@@ -10,3 +10,4 @@ from . import test_mttr
 from . import test_reply_template
 from . import test_officer_absence
 from . import test_ticket_export
+from . import test_gateway_secret

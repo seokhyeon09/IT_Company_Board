@@ -12,7 +12,7 @@ services:
       - FRONTEND_BASE_URL=${FRONTEND_BASE_URL:-http://localhost:3000}
       - USER=${DB_USER}
       - PASSWORD=${DB_PASSWORD}
-      - GATEWAY_SHARED_SECRET=secure_inter_tier_hmac_secret_key_32_chars
+      - GATEWAY_SHARED_SECRET=${GATEWAY_SHARED_SECRET:?.env에 GATEWAY_SHARED_SECRET(32자 이상 무작위 값)을 설정하세요}
     volumes:
       - odoo-web-data:/var/lib/odoo
       - ./addons:/mnt/extra-addons
@@ -42,8 +42,8 @@ services:
     environment:
       - ODOO_RPC_URL=http://web:8069
       - ODOO_DB=helpdesk_db
-      - GATEWAY_SHARED_SECRET=secure_inter_tier_hmac_secret_key_32_chars
-      - JWT_SECRET_KEY=it_company_board_super_secret_jwt_key_2026_xyz
+      - GATEWAY_SHARED_SECRET=${GATEWAY_SHARED_SECRET:?.env에 GATEWAY_SHARED_SECRET(32자 이상 무작위 값)을 설정하세요}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?.env에 JWT_SECRET_KEY(32자 이상 무작위 값)을 설정하세요}
       - TRUST_PROXY_HEADERS=${TRUST_PROXY_HEADERS:-false}
     restart: unless-stopped
 

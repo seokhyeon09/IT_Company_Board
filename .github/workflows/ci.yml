@@ -45,6 +45,6 @@ jobs:
         env:
           ODOO_RPC_URL: http://localhost:8069
           ODOO_DB: test_helpdesk_db
-          GATEWAY_SHARED_SECRET: ci_test_shared_secret_dummy_value
-          JWT_SECRET_KEY: ci_test_jwt_secret_dummy_value
+          GATEWAY_SHARED_SECRET: ci_test_hmac_key_dummy_value_0123456789abcdef
+          JWT_SECRET_KEY: ci_test_jwt_key_dummy_value_0123456789abcdef
         run: pytest -q
