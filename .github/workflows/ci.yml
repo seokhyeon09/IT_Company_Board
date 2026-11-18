@@ -1,0 +1,50 @@
+# Odoo 테스트(addons/it_helpdesk/tests)는 실행에 Docker와 PostgreSQL/Odoo 컨테이너가 필요하므로 본 CI에서 제외한다.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Type check
+        working-directory: frontend
+        run: npx tsc --noEmit
+      - name: Run unit tests
+        working-directory: frontend
+        run: npx vitest run
+      - name: Build production bundle
+        working-directory: frontend
+        run: npx vite build
+
+  gateway:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: filter/requirements.txt
+      - name: Install dependencies
+        working-directory: filter
+        run: pip install -r requirements.txt
+      - name: Run gateway tests
+        working-directory: filter
+        env:
+          ODOO_RPC_URL: http://localhost:8069
+          ODOO_DB: test_helpdesk_db
+          GATEWAY_SHARED_SECRET: ci_test_shared_secret_dummy_value
+          JWT_SECRET_KEY: ci_test_jwt_secret_dummy_value
+        run: pytest -q
