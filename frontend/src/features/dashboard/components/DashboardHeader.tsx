@@ -31,11 +31,11 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             : '사원 전용: 내 문의 내역 및 사내 FAQ 지식창고를 확인합니다.'}
         </p>
       </div>
-      <div className="flex items-center space-x-2 shrink-0">
+      <div className="flex flex-wrap items-center gap-2 md:shrink-0">
         <button
           type="button"
           onClick={onRefresh}
-          className="flex items-center text-xs font-semibold text-slate-600 bg-white hover:bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl transition-all shadow-xs cursor-pointer"
+          className="flex items-center whitespace-nowrap text-xs font-semibold text-slate-600 bg-white hover:bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl transition-all shadow-xs cursor-pointer"
         >
           <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
           새로고침
@@ -44,7 +44,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         <button
           type="button"
           onClick={onOpenEmailModal}
-          className="relative flex items-center text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl transition-all shadow-xs cursor-pointer"
+          className="relative flex items-center whitespace-nowrap text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl transition-all shadow-xs cursor-pointer"
         >
           <Mail className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
           이메일 알림함
@@ -59,7 +59,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           <button
             type="button"
             onClick={onOpenOfficerStats}
-            className="flex items-center text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-3 py-2 rounded-xl transition-all shadow-xs cursor-pointer"
+            className="flex items-center whitespace-nowrap text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-3 py-2 rounded-xl transition-all shadow-xs cursor-pointer"
           >
             <BarChart3 className="w-3.5 h-3.5 mr-1.5" />
             담당자별 실적 통계
@@ -69,7 +69,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         <button
           type="button"
           onClick={onOpenCreateModal}
-          className="flex items-center text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-xl transition-all shadow-xs cursor-pointer"
+          className="flex items-center whitespace-nowrap text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-xl transition-all shadow-xs cursor-pointer"
         >
           <Plus className="w-4 h-4 mr-1.5" />
           문의 등록
