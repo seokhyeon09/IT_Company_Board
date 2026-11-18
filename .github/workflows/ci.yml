@@ -1,4 +1,4 @@
-# Odoo 테스트(addons/it_helpdesk/tests)는 실행에 Docker와 PostgreSQL/Odoo 컨테이너가 필요하므로 본 CI에서 제외한다.
+# Odoo 테스트(addons/it_helpdesk/tests)는 빈 PostgreSQL DB에 모듈을 설치하면서 odoo:18.0 컨테이너로 실행한다(odoo 잡).
 name: CI
 
 on:
@@ -48,3 +48,50 @@ jobs:
           GATEWAY_SHARED_SECRET: ci_test_hmac_key_dummy_value_0123456789abcdef
           JWT_SECRET_KEY: ci_test_jwt_key_dummy_value_0123456789abcdef
         run: pytest -q
+
+  odoo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: odoo
+          POSTGRES_PASSWORD: odoo
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U odoo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pull Odoo image
+        run: docker pull odoo:18.0
+      - name: Install module and run Odoo tests
+        env:
+          GATEWAY_SHARED_SECRET: ci_test_hmac_key_dummy_value_0123456789abcdef
+        run: |
+          set -o pipefail
+          # odoo 이미지의 entrypoint는 DB 접속 정보를 환경변수(HOST/USER/PASSWORD)로만 받는다.
+          docker run --rm --network host \
+            -e HOST=127.0.0.1 -e USER=odoo -e PASSWORD=odoo \
+            -e GATEWAY_SHARED_SECRET \
+            -v "${{ github.workspace }}/addons:/mnt/extra-addons:ro" \
+            odoo:18.0 odoo -d ci_helpdesk_db \
+              -i it_helpdesk --without-demo=all \
+              --test-enable --test-tags=it_helpdesk \
+              --stop-after-init --http-port=8070 \
+            2>&1 | tee odoo-test.log
+      - name: Verify test summary
+        run: |
+          # Odoo는 테스트가 실패해도 종료 코드가 0일 수 있으므로 요약 줄을 직접 검사한다.
+          grep -E "0 failed, 0 error\(s\) of [1-9][0-9]* tests" odoo-test.log
+      - name: Upload Odoo test log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: odoo-test-log
+          path: odoo-test.log
