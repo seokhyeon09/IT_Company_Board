@@ -93,7 +93,7 @@ IT_Company_Board/
 │   │   ├── client/odoo_client.py             # [Layer 2] 영속 커넥션 풀(Keep-Alive) 기반 JSON-RPC 클라이언트
 │   │   ├── services/                         # [Layer 3] auth_service.py, ticket_service.py, workflow_service.py, attachment_service.py, insight_service.py
 │   │   └── api/v1/endpoints/                 # [Layer 5] auth.py, tickets.py, ticket_workflow.py, ticket_attachments.py, ticket_insights.py
-│   └── tests/                                # 게이트웨이 단위 + 엔드포인트 테스트 (Pytest 95종)
+│   └── tests/                                # 게이트웨이 단위 + 엔드포인트 테스트 (Pytest 104종)
 └── addons/
     └── it_helpdesk/                          # [Tier 3] Odoo 18 Headless Backend Addon
         ├── models/                           # [Layer 3] ticket.py, ticket_workflow_mixin.py, ticket_rating.py, notification_read.py
@@ -101,7 +101,7 @@ IT_Company_Board/
         ├── controllers/                      # [Layer 5] auth_api.py, ticket_query_api.py, ticket_workflow_api.py, attachment_api.py, insight_api.py
         ├── security/                         # 3계층 RBAC 그룹 및 Record Rules (ir.model.access.csv, it_helpdesk_security.xml)
         ├── data/                             # 자동 채번 시퀀스 및 SLA/자동종결 Cron 스케줄러
-        └── tests/                            # 백엔드 단위, 권한 계층화 및 보안 감사 테스트 (TransactionCase 106종)
+        └── tests/                            # 백엔드 단위, 권한 계층화 및 보안 감사 테스트 (TransactionCase 136종)
 ```
 
 ---
@@ -220,6 +220,14 @@ stateDiagram-v2
 * **담당자/관리자 전용 활동/감사 로그(`logs`)**: 상태 전이, 담당자 인계, 답변 수정 전후 내역 등 모든 Chatter 기록을 타임라인으로 열람합니다 (사원 화면에는 원천 비노출).
 * **복합 필터링 및 '내 담당만' 토글**: 상단 6개 KPI 빠른 필터 카드(`전체`, `접수/배정`, `처리중`, `답변대기`, `해결완료`, `기한초과`), 검색창 300ms 디바운싱, `내 담당만` 슬라이드 토글, `기한 초과만` 슬라이드 토글, 5종 다중 정렬을 지원합니다.
 * **담당자별 실적 통계 모달 및 MTTR(평균 해결 시간) 지표**: 담당자별 배정/처리중/해결/종결 건수, 완료율, 카테고리별 처리 비중 및 조직 전체 평균 MTTR(Mean Time to Resolve) 지표를 시각화합니다.
+* **SLA 일시정지(답변 대기)**: 담당자가 `답변 대기`를 요청하면 SLA 시계가 멈추고(카드/배너에 `SLA 일시정지` 표시), 처리를 재개하면 대기한 시간만큼 처리 기한이 자동 연장됩니다. 누적 일시정지 시간이 기록되며, 일시정지 중인 건은 기한 초과 집계와 자동 에스컬레이션 대상에서 제외됩니다. 최초 해결 시점의 SLA 준수 여부는 스냅샷(`first_resolved_on_time`)으로 남깁니다.
+* **기간별 SLA 리포트**: 헤더의 `SLA 리포트`에서 기간(최근 4주~1년)과 주/월 단위, 분야를 골라 접수/해결 추이, SLA 준수율, 평균 해결 시간, 분야별/긴급도별 현황, 현재 기한 초과/일시정지 건수를 확인하고 CSV로 내보냅니다(집계는 한국 시간 기준, 월요일 시작 주). 담당자별 통계의 준수율도 최초 해결 시점 기준으로 계산합니다.
+* **일괄 처리**: 목록에서 최대 50건을 선택해 `담당자 지정/인계`, `처리 시작`, `직권 종결`을 한 번에 실행합니다. 건별로 격리되어 일부가 실패해도 나머지는 처리되고, 실패 사유가 건별로 표시됩니다.
+* **부재 연계 재배정**: 부재를 설정하면 내게 배정된 미처리 문의를 자동 배정(분야별 담당자, 부재자 제외) 또는 지정 담당자에게 일괄 인계할지 묻습니다.
+* **담당자 내부 메모**: 담당자/관리자끼리만 보는 비공개 메모입니다. 사원 타임라인, 이메일 알림함, 관련 문의 요약, 상세 응답 어디에도 노출되지 않으며(위장 문구 포함 회귀 테스트), 팔로워에게 메일도 나가지 않습니다.
+* **중복 문의 병합**: 같은 분야의 최근 30일 문의 중 제목이 비슷한 후보를 추천하고, 선택해 병합하면 원본은 취소 상태가 되어 SLA 통계에서 제외됩니다. 병합 대상 문의의 내용은 원본 작성자에게 노출되지 않고 번호만 안내됩니다.
+* **자동 에스컬레이션 규칙(Odoo 백오피스)**: `IT 헬프데스크 > 관리자 설정 > 에스컬레이션 규칙`에서 "마감 임박 또는 기한 초과 N시간 후, 분야/긴급도 조건 -> 알림(할 일 생성) 또는 자동 재배정"을 설정합니다. 규칙은 티켓당 1회만 실행되고 이력이 남으며, 시드 규칙 2종은 비활성 상태입니다. 활성화하면 이미 조건에 해당하는 기존 티켓에도 한 번 적용되니 유의하세요.
+* **실제 메일 알림(기본 꺼짐)**: 모의 이메일 알림함과 같은 이벤트/수신자 규칙으로 실제 메일을 발송합니다. 시스템 파라미터 `it_helpdesk.send_real_mail`을 `True`로 바꾸면 1분 주기 크론이 새 이벤트만 발송하며(켠 시점 이전 이력은 보내지 않음, 이벤트별 중복 발송 차단), 내부 메모는 포함되지 않습니다. 개발 환경에서는 Mailpit(http://localhost:8025)이 받습니다. 발송 대상을 제한하려면 `it_helpdesk.real_mail_allowed_domains`(쉼표 구분 도메인)를 설정하세요. 발송 이력은 `관리자 설정 > 메일 발송 이력`에서 확인합니다.
 * **역할 기반 모의 이메일 알림함(DB 읽음 동기화 및 수신자 격리)**:
   * 수신자 역할별 맞춤 알림 발송: 요청 사원(배정/대기요청/조치완료), 담당자(본인 배정/재문의/평가), 신규 미배정 티켓(담당자/관리자 공통), 관리자 전용(SLA 에스컬레이션).
   * 미확인 배지 카운트 및 DB 영구 읽음 처리(`it.helpdesk.notification.read`)를 지원합니다.
@@ -271,7 +279,7 @@ JWT_SECRET_KEY=<로그인 토큰 서명 키>
 값을 바꾸면 기존 로그인 토큰이 모두 무효가 되어 재로그인이 필요합니다.
 
 ```bash
-# 4개 컨테이너(frontend, filter, web, db) 빌드 및 백그라운드 기동
+# 5개 컨테이너(frontend, filter, web, db, mailpit) 빌드 및 백그라운드 기동
 docker compose up -d --build
 ```
 
@@ -287,6 +295,7 @@ python scripts/seed_demo_data.py
 * **프론트엔드 웹 포털 (React SPA)**: http://localhost:3000
 * **필터 게이트웨이 Swagger UI (FastAPI)**: http://localhost:8000/docs
 * **Odoo 백오피스 (Headless Admin)**: http://localhost:8069
+* **Mailpit (개발용 수신 메일함)**: http://localhost:8025 (실제 메일 알림을 켠 경우 발송 메일이 여기에 쌓이며 외부로는 나가지 않습니다)
 
 | 역할 구분 | 로그인 이메일 (ID) | 비밀번호 | 권한 및 특징 | UI 배지 |
 | :--- | :--- | :--- | :--- | :--- |
@@ -303,13 +312,13 @@ python scripts/seed_demo_data.py
 본 프로젝트는 백엔드 단위 테스트, 게이트웨이 테스트, 다중 사용자 E2E 시나리오, 가상 브라우저 UI 자동화 테스트를 모두 갖추고 있습니다.
 
 ```bash
-# 1. Odoo 18 백엔드 단위, 3계층 권한 계층화 및 보안 감사 테스트 (106종)
+# 1. Odoo 18 백엔드 단위, 3계층 권한 계층화 및 보안 감사 테스트 (136종)
 docker exec it_helpdesk_odoo odoo -d helpdesk_db --db_host=db -r odooU -w odooPW --http-port=8070 -u it_helpdesk --test-enable --test-tags=it_helpdesk --stop-after-init
 
-# 2. FastAPI 게이트웨이 단위 및 엔드포인트/에러 핸들링 테스트 (95종)
+# 2. FastAPI 게이트웨이 단위 및 엔드포인트/에러 핸들링 테스트 (104종)
 docker exec it_helpdesk_filter pytest -v
 
-# 3. 프론트엔드 단위 테스트 (Vitest 88종) 및 프로덕션 빌드
+# 3. 프론트엔드 단위 테스트 (Vitest 92종) 및 프로덕션 빌드
 docker exec it_helpdesk_frontend npm run test
 
 # 4. 전체 기능 관통 E2E 시나리오 자동화 테스트 (4개 역할, 5대 시나리오 66개 체크 100% 검증)

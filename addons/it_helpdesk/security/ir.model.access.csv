@@ -16,3 +16,4 @@ access_it_helpdesk_escalation_rule_officer,it.helpdesk.escalation.rule.officer,m
 access_it_helpdesk_escalation_rule_manager,it.helpdesk.escalation.rule.manager,model_it_helpdesk_escalation_rule,it_helpdesk.group_helpdesk_manager,1,1,1,1
 access_it_helpdesk_escalation_log_officer,it.helpdesk.escalation.log.officer,model_it_helpdesk_escalation_log,it_helpdesk.group_helpdesk_officer,1,0,0,0
 access_it_helpdesk_escalation_log_manager,it.helpdesk.escalation.log.manager,model_it_helpdesk_escalation_log,it_helpdesk.group_helpdesk_manager,1,0,0,1
+access_it_helpdesk_mail_dispatch_manager,it.helpdesk.mail.dispatch.manager,model_it_helpdesk_mail_dispatch,it_helpdesk.group_helpdesk_manager,1,0,0,1

@@ -221,6 +221,11 @@ def _collect_events(ticket):
     return events
 
 
+def collect_outgoing_events(ticket):
+    """실제 메일 발송기에서 재사용하기 위한 이벤트 후보 공개 래퍼."""
+    return _collect_events(ticket)
+
+
 def build_mock_emails(ticket, user, is_officer, read_ids=None):
     """로그인 사용자 본인이 수신자인 모의 이메일만 반환 (최신순).
     read_ids: it.helpdesk.notification.read 모델에서 조회된 해당 사용자의 읽은 메일 ID 집합

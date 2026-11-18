@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_helpdesk_mail_dispatch_log_list" model="ir.ui.view">
+        <field name="name">it.helpdesk.mail.dispatch.list</field>
+        <field name="model">it.helpdesk.mail.dispatch</field>
+        <field name="arch" type="xml">
+            <list string="메일 발송 이력" create="0" edit="0">
+                <field name="dispatched_at"/>
+                <field name="ticket_id"/>
+                <field name="event_key"/>
+                <field name="recipient_id"/>
+                <field name="email_to"/>
+                <field name="subject"/>
+                <field name="state" widget="badge" decoration-success="state == 'sent'" decoration-danger="state == 'failed'" decoration-muted="state == 'skipped'"/>
+                <field name="attempts"/>
+                <field name="error"/>
+                <field name="mail_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_helpdesk_mail_dispatch_log" model="ir.actions.act_window">
+        <field name="name">메일 발송 이력</field>
+        <field name="res_model">it.helpdesk.mail.dispatch</field>
+        <field name="view_mode">list</field>
+    </record>
+
+    <menuitem id="menu_helpdesk_mail_dispatch_log"
+        name="메일 발송 이력"
+        parent="menu_helpdesk_manager_root"
+        action="action_helpdesk_mail_dispatch_log"
+        sequence="40"
+        groups="it_helpdesk.group_helpdesk_manager"
+    />
+</odoo>

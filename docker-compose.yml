@@ -4,6 +4,9 @@ services:
     container_name: it_helpdesk_odoo
     depends_on:
       - db
+      - mailpit
+    # 개발/검증용 SMTP 싱크(Mailpit)로 발송한다. 실제 SMTP를 쓰려면 이 command를 제거하고 Odoo에서 발신 메일 서버를 설정한다.
+    command: ["odoo", "--smtp=mailpit", "--smtp-port=1025", "--email-from=it-helpdesk-noreply@company.com"]
     ports:
       - "8069:8069"
     environment:
@@ -28,6 +31,15 @@ services:
       - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
       - odoo-db-data:/var/lib/postgresql/data/pgdata
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: it_helpdesk_mailpit
+    environment:
+      - MP_MAX_MESSAGES=500
+    ports:
+      - "8025:8025"   # 수신 메일 확인 화면 (http://localhost:8025), SMTP(1025)는 내부 네트워크 전용
     restart: unless-stopped
 
   filter:
