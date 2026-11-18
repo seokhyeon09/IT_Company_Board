@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """중복 문의 병합 및 후보 추천 API (담당자/관리자 전용)."""
 from odoo import http
-from odoo.exceptions import UserError
 
 from ..utils import (
+    NotFoundError,
     check_optimistic_lock,
     ensure_officer,
     find_merge_candidates,
@@ -15,13 +15,13 @@ from ..utils import (
 
 def _parse_positive_id(raw_id, error_msg: str) -> int:
     if raw_id is None or isinstance(raw_id, bool):
-        raise UserError(error_msg)
+        raise NotFoundError(error_msg)
     try:
         val = int(raw_id)
     except (TypeError, ValueError) as exc:
-        raise UserError(error_msg) from exc
+        raise NotFoundError(error_msg) from exc
     if val <= 0:
-        raise UserError(error_msg)
+        raise NotFoundError(error_msg)
     return val
 
 
@@ -48,10 +48,10 @@ class TicketMergeAPIController(http.Controller):
         ticket_env = req_env['it.helpdesk.ticket'].with_user(user)
         source = ticket_env.browse(src_id)
         if not source.exists():
-            raise UserError("문의를 찾을 수 없습니다.")
+            raise NotFoundError("문의를 찾을 수 없습니다.")
         target = ticket_env.browse(tgt_id)
         if not target.exists():
-            raise UserError("병합 대상 문의를 찾을 수 없습니다.")
+            raise NotFoundError("병합 대상 문의를 찾을 수 없습니다.")
 
         check_optimistic_lock(source, if_match_write_date)
         merge_tickets(user, source, target, reason=reason)
@@ -77,7 +77,7 @@ class TicketMergeAPIController(http.Controller):
         req_env = get_current_request().env
         ticket = req_env['it.helpdesk.ticket'].with_user(user).browse(src_id)
         if not ticket.exists():
-            raise UserError("문의를 찾을 수 없습니다.")
+            raise NotFoundError("문의를 찾을 수 없습니다.")
 
         candidates = find_merge_candidates(user, ticket, limit=limit)
         return {

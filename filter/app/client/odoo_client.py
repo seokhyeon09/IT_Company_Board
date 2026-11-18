@@ -84,14 +84,19 @@ class OdooClient:
 
             # Handle JSON-RPC errors
             if "error" in data:
-                err_data = data["error"].get("data", {})
+                err_data = data["error"].get("data") or {}
+                if not isinstance(err_data, dict):
+                    err_data = {}
                 message = err_data.get("message") or data["error"].get("message") or MSG_RPC_ERROR_DEFAULT
-                name = err_data.get("name", "")
+                raw_name = err_data.get("name")
+                name = raw_name if isinstance(raw_name, str) else ""
 
                 if "AccessError" in name:
                     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=message)
                 if "ConcurrencyError" in name:
                     raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=message)
+                if name.endswith("NotFoundError"):
+                    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=message)
                 if "UserError" in name and ("찾을 수 없" in str(message) or "not found" in str(message).lower()):
                     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=message)
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)

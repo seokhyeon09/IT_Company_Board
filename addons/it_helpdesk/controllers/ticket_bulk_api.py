@@ -10,6 +10,7 @@ from ..utils import (
     do_assign,
     do_start_progress,
     do_close,
+    NotFoundError,
 )
 from ..utils.auto_assign import pick_officer
 
@@ -51,10 +52,10 @@ class TicketBulkAPIController(http.Controller):
         target_user = None
         if action == 'assign':
             if not officer_id or isinstance(officer_id, bool):
-                raise UserError("지정한 담당자를 찾을 수 없습니다.")
+                raise NotFoundError("지정한 담당자를 찾을 수 없습니다.")
             target_user = req_env['res.users'].browse(int(officer_id))
             if not target_user.exists():
-                raise UserError("지정한 담당자를 찾을 수 없습니다.")
+                raise NotFoundError("지정한 담당자를 찾을 수 없습니다.")
 
         ticket_env = req_env['it.helpdesk.ticket'].with_user(user)
         results = []

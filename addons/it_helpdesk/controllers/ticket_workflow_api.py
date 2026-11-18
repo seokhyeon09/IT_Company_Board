@@ -17,6 +17,7 @@ from ..utils import (
     do_assign,
     do_start_progress,
     do_close,
+    NotFoundError,
 )
 
 _logger = logging.getLogger(__name__)
@@ -25,7 +26,7 @@ _logger = logging.getLogger(__name__)
 def _get_ticket(ticket_id: int, user):
     ticket = get_current_request().env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
     if not ticket.exists():
-        raise UserError("문의를 찾을 수 없습니다.")
+        raise NotFoundError("문의를 찾을 수 없습니다.")
     return ticket
 
 

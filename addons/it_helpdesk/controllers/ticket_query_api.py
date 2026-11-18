@@ -12,6 +12,7 @@ from ..utils import (
     serialize_ticket_detail, create_ticket_with_auto_assign,
     ALLOWED_SORTS,
     build_ticket_domain,
+    NotFoundError,
 )
 
 _logger = logging.getLogger(__name__)
@@ -100,7 +101,7 @@ class TicketQueryAPIController(http.Controller):
         user = verify_gateway_request()
         ticket = req_env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
         if not ticket.exists():
-            raise UserError("문의를 찾을 수 없습니다.")
+            raise NotFoundError("문의를 찾을 수 없습니다.")
 
         is_officer = user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()
         if not is_officer and ticket.author_id.id != user.id and not ticket.is_faq:
@@ -167,7 +168,7 @@ class TicketQueryAPIController(http.Controller):
         user = verify_gateway_request()
         ticket = req_env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
         if not ticket.exists():
-            raise UserError("문의를 찾을 수 없습니다.")
+            raise NotFoundError("문의를 찾을 수 없습니다.")
 
         is_officer = user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()
         if not is_officer and ticket.author_id.id != user.id:

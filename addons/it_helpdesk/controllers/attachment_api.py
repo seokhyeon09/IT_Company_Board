@@ -10,6 +10,7 @@ from ..utils import (
     _format_datetime_utc,
     verify_gateway_request,
     get_current_request,
+    NotFoundError,
 )
 
 _logger = logging.getLogger(__name__)
@@ -25,7 +26,7 @@ class AttachmentAPIController(http.Controller):
             raise UserError("첨부 파일 크기는 5MB를 초과할 수 없습니다.")
         ticket = get_current_request().env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
         if not ticket.exists():
-            raise UserError("문의를 찾을 수 없습니다.")
+            raise NotFoundError("문의를 찾을 수 없습니다.")
 
         is_officer = user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()
         if not is_officer and ticket.author_id.id != user.id:
@@ -62,7 +63,7 @@ class AttachmentAPIController(http.Controller):
         user = verify_gateway_request()
         ticket = get_current_request().env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
         if not ticket.exists():
-            raise UserError("문의를 찾을 수 없습니다.")
+            raise NotFoundError("문의를 찾을 수 없습니다.")
 
         is_officer = user.has_group('it_helpdesk.group_helpdesk_officer') or user._is_admin()
         if not is_officer and ticket.author_id.id != user.id and not ticket.is_faq:
@@ -70,7 +71,7 @@ class AttachmentAPIController(http.Controller):
 
         attachment = get_current_request().env['ir.attachment'].sudo().browse(int(attachment_id))
         if not attachment.exists() or attachment.res_model != 'it.helpdesk.ticket' or attachment.res_id != ticket.id:
-            raise UserError("첨부 파일을 찾을 수 없습니다.")
+            raise NotFoundError("첨부 파일을 찾을 수 없습니다.")
 
         raw_datas = attachment.datas
         data_str = raw_datas.decode('utf-8') if isinstance(raw_datas, bytes) else (raw_datas or "")

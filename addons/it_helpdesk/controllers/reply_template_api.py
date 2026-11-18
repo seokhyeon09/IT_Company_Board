@@ -8,6 +8,7 @@ from ..utils import (
     verify_gateway_request,
     get_current_request,
     ensure_officer,
+    NotFoundError,
 )
 
 VALID_CATEGORIES = ('hw', 'sw', 'network', 'account', 'etc')
@@ -73,11 +74,11 @@ class ReplyTemplateAPIController(http.Controller):
         user = verify_gateway_request()
         ensure_officer(user)
         if not template_id:
-            raise UserError("답변 상용구를 찾을 수 없습니다.")
+            raise NotFoundError("답변 상용구를 찾을 수 없습니다.")
 
         rec = get_current_request().env['it.helpdesk.reply.template'].with_user(user).browse(int(template_id))
         if not rec.exists():
-            raise UserError("답변 상용구를 찾을 수 없습니다.")
+            raise NotFoundError("답변 상용구를 찾을 수 없습니다.")
 
         clean_name = str(name).strip() if name is not None else ""
         clean_body = str(body).strip() if body is not None else ""
@@ -95,11 +96,11 @@ class ReplyTemplateAPIController(http.Controller):
         user = verify_gateway_request()
         ensure_officer(user)
         if not template_id:
-            raise UserError("답변 상용구를 찾을 수 없습니다.")
+            raise NotFoundError("답변 상용구를 찾을 수 없습니다.")
 
         rec = get_current_request().env['it.helpdesk.reply.template'].with_user(user).browse(int(template_id))
         if not rec.exists():
-            raise UserError("답변 상용구를 찾을 수 없습니다.")
+            raise NotFoundError("답변 상용구를 찾을 수 없습니다.")
 
         rec.unlink()
         return {"status": "success"}

@@ -9,6 +9,7 @@ from ..utils import (
     verify_gateway_request,
     get_current_request,
     ensure_officer,
+    NotFoundError,
 )
 
 MAX_INTERNAL_NOTE_LENGTH = 2000
@@ -24,12 +25,12 @@ class TicketNoteAPIController(http.Controller):
         ensure_officer(user)
 
         if not ticket_id or isinstance(ticket_id, bool):
-            raise UserError("문의를 찾을 수 없습니다.")
+            raise NotFoundError("문의를 찾을 수 없습니다.")
 
         req_env = get_current_request().env
         ticket = req_env['it.helpdesk.ticket'].with_user(user).browse(int(ticket_id))
         if not ticket.exists():
-            raise UserError("문의를 찾을 수 없습니다.")
+            raise NotFoundError("문의를 찾을 수 없습니다.")
 
         clean = str(content).strip() if content is not None else ""
         if not clean:

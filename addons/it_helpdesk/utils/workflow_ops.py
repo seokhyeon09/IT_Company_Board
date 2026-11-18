@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """단건 및 일괄 티켓 워크플로우 공통 실행 유틸."""
 import html
-from odoo.exceptions import UserError
 
+from .errors import NotFoundError
 from .text_utils import _safe_html_text
 from .validators import ensure_officer, ensure_assignee_or_admin
 
@@ -11,7 +11,7 @@ def do_assign(ticket, user, target_user, reason=None):
     """담당자 배정 및 인계 실행 (권한 검증 + 상태 전이 + 채터 기록)."""
     ensure_officer(user)
     if not target_user or not target_user.exists():
-        raise UserError("지정한 담당자를 찾을 수 없습니다.")
+        raise NotFoundError("지정한 담당자를 찾을 수 없습니다.")
 
     old_assignee_name = ticket.assignee_name
     ticket.action_assign_to_user(target_user)

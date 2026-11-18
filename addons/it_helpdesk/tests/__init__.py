@@ -19,3 +19,4 @@ from . import test_absence_reassign
 from . import test_escalation_rules
 from . import test_ticket_merge
 from . import test_real_mail
+from . import test_not_found_error
