@@ -10,6 +10,28 @@ export type TicketStatus =
   | 'canceled';
 export type TicketStatusFilter = TicketStatus | 'waiting' | 'overdue' | '';
 
+export const VALID_TICKET_CATEGORIES: readonly TicketCategory[] = [
+  'hw',
+  'sw',
+  'network',
+  'account',
+  'etc',
+];
+
+export const VALID_TICKET_PRIORITIES: readonly TicketPriority[] = ['0', '1', '2', '3'];
+
+export const VALID_TICKET_STATUS_FILTERS: readonly Exclude<TicketStatusFilter, ''>[] = [
+  'submitted',
+  'assigned',
+  'in_progress',
+  'pending',
+  'resolved',
+  'closed',
+  'canceled',
+  'waiting',
+  'overdue',
+];
+
 export interface BadgeStyle {
   label: string;
   color: string;

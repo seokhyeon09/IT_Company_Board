@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { apiClient, getErrorMessage } from '../api/client';
-import { Layers, Lock, User, AlertCircle, ArrowRight } from 'lucide-react';
+import { Layers, Lock, User, AlertCircle, AlertTriangle, ArrowRight } from 'lucide-react';
 
 const TEST_ACCOUNTS = [
   { role: 'IT 관리자', name: '최관리', email: 'admin@helpdesk.com', pw: 'admin', color: 'text-purple-600', badge: 'bg-purple-100 text-purple-700' },
@@ -19,6 +19,23 @@ export const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionExpired, setSessionExpired] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem('session_expired') === '1';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem('session_expired')) {
+        sessionStorage.removeItem('session_expired');
+      }
+    } catch {
+      // Ignore storage errors
+    }
+  }, []);
 
   const setAuth = useAuthStore((state) => state.setAuth);
 
@@ -26,6 +43,7 @@ export const LoginPage: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setSessionExpired(false);
 
     try {
       const res = await apiClient.post('/auth/login', {
@@ -52,6 +70,16 @@ export const LoginPage: React.FC = () => {
           <h2 className="text-2xl font-black text-slate-900 tracking-tight">IT 헬프데스크 로그인</h2>
           <p className="text-xs text-slate-500 mt-1">3-Tier Decoupled Architecture</p>
         </div>
+
+        {sessionExpired && (
+          <div
+            data-testid="session-expired-banner"
+            className="mb-6 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center text-amber-800 text-xs"
+          >
+            <AlertTriangle className="w-4 h-4 mr-2 flex-shrink-0 text-amber-600" />
+            세션이 만료되었습니다. 다시 로그인해 주세요.
+          </div>
+        )}
 
         {error && (
           <div className="mb-6 p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center text-rose-700 text-xs">

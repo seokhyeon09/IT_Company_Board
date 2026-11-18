@@ -1,6 +1,7 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 import { formatHtmlContent } from '../../../shared/utils/htmlUtils';
+import { useModalBehavior } from '../../../shared/hooks/useModalBehavior';
 import { useTicketModalState } from '../hooks/useTicketModalState';
 
 import { TicketHeader } from './modal/TicketHeader';
@@ -28,11 +29,26 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   onSelectTicket,
 }) => {
   const s = useTicketModalState(ticketId, isOpen, onSuccess);
+  const hasOpenSubForm =
+    s.showCancelModal ||
+    s.showPendingModal ||
+    s.showCloseModal ||
+    s.showDesignateModal ||
+    s.showPendingReplyForm ||
+    s.showRestartForm ||
+    s.isEditingTicket ||
+    s.isEditingResolution;
+
+  useModalBehavior({ isOpen, onClose, closeOnEscape: !hasOpenSubForm });
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+    >
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-100">
         {/* Header */}
         <TicketHeader
@@ -62,14 +78,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 isAuthor={s.isAuthor}
                 isOfficer={s.isOfficer}
                 isEditingTicket={s.isEditingTicket}
-                onStartEditTicket={() => {
-                  s.setEditTitle(s.ticket?.title || '');
-                  s.setEditCategory(s.ticket?.category || 'sw');
-                  s.setEditPriority(s.ticket?.priority || '1');
-                  s.setEditContent(s.ticket?.content || '');
-                  s.setIsEditingTicket(true);
-                  s.setEditTicketError('');
-                }}
+                onStartEditTicket={s.onStartEditTicket}
                 editTitle={s.editTitle}
                 setEditTitle={s.setEditTitle}
                 editCategory={s.editCategory}
@@ -80,27 +89,19 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 setEditContent={s.setEditContent}
                 submittingEditTicket={s.submittingEditTicket}
                 editTicketError={s.editTicketError}
-                onCancelEditTicket={() => s.setIsEditingTicket(false)}
+                onCancelEditTicket={s.onCancelEditTicket}
                 onSubmitEditTicket={s.handleUpdateTicketSubmit}
                 showCancelModal={s.showCancelModal}
-                onOpenCancelModal={() => {
-                  s.setShowCancelModal(true);
-                  s.setCancelReason('');
-                  s.setCancelError('');
-                }}
-                onCloseCancelModal={() => s.setShowCancelModal(false)}
+                onOpenCancelModal={s.onOpenCancelModal}
+                onCloseCancelModal={s.onCloseCancelModal}
                 cancelReason={s.cancelReason}
                 setCancelReason={s.setCancelReason}
                 submittingCancel={s.submittingCancel}
                 cancelError={s.cancelError}
                 onSubmitCancel={s.handleCancelSubmit}
                 showPendingReplyForm={s.showPendingReplyForm}
-                onOpenPendingReply={() => {
-                  s.setShowPendingReplyForm(true);
-                  s.setPendingReplyText('');
-                  s.setPendingReplyError('');
-                }}
-                onClosePendingReply={() => s.setShowPendingReplyForm(false)}
+                onOpenPendingReply={s.onOpenPendingReply}
+                onClosePendingReply={s.onClosePendingReply}
                 pendingReplyText={s.pendingReplyText}
                 setPendingReplyText={s.setPendingReplyText}
                 submittingPendingReply={s.submittingPendingReply}

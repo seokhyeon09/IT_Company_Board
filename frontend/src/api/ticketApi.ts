@@ -35,22 +35,14 @@ export const ticketApi = {
       offset: params.offset,
       limit: params.limit,
     };
-    const statusVal = params.statusFilter || params.status;
-    if (statusVal) queryParams.status = statusVal;
-
-    const categoryVal = params.categoryFilter || params.category;
-    if (categoryVal) queryParams.category = categoryVal;
-
-    const priorityVal = params.priorityFilter || params.priority;
-    if (priorityVal) queryParams.priority = priorityVal;
-
-    const searchVal = params.searchQuery || params.search;
-    if (searchVal) queryParams.search = searchVal;
-
-    if (params.isOverdueOnly || params.is_overdue) queryParams.is_overdue = true;
-    if (params.assignedToMe || params.assigned_to_me) queryParams.assigned_to_me = true;
-    if (params.sortBy || params.sort_by) queryParams.sort_by = params.sortBy || params.sort_by;
-    if (params.isFaq || params.is_faq) queryParams.is_faq = true;
+    if (params.status) queryParams.status = params.status;
+    if (params.category) queryParams.category = params.category;
+    if (params.priority) queryParams.priority = params.priority;
+    if (params.search) queryParams.search = params.search;
+    if (params.is_overdue) queryParams.is_overdue = true;
+    if (params.assigned_to_me) queryParams.assigned_to_me = true;
+    if (params.sort_by) queryParams.sort_by = params.sort_by;
+    if (params.is_faq) queryParams.is_faq = true;
 
     const response = await apiClient.get<TicketListResponse>('/tickets', { params: queryParams, ...options });
     return response.data;

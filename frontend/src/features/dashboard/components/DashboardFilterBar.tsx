@@ -7,50 +7,34 @@ import {
   AlertTriangle,
   UserCheck,
 } from 'lucide-react';
+import {
+  DashboardFilterHandlers,
+  DashboardFilterValues,
+} from '../types/dashboard';
 
 interface DashboardFilterBarProps {
   isOfficer: boolean;
-  activeTab: 'all' | 'faq';
-  onTabChange: (tab: 'all' | 'faq') => void;
-  search: string;
-  onSearchChange: (val: string) => void;
-  isOverdueOnly: boolean;
-  onToggleOverdue: () => void;
-  assignedToMe?: boolean;
-  onToggleAssignedToMe?: () => void;
-  statusFilter: string;
-  onStatusChange: (val: string) => void;
-  categoryFilter: string;
-  onCategoryChange: (val: string) => void;
-  priorityFilter: string;
-  onPriorityChange: (val: string) => void;
-  sortBy: string;
-  onSortByChange: (val: string) => void;
-  hasActiveFilters: boolean;
-  onResetFilters: () => void;
+  filters: DashboardFilterValues;
+  handlers: DashboardFilterHandlers;
 }
 
 export const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
   isOfficer,
-  activeTab,
-  onTabChange,
-  search,
-  onSearchChange,
-  isOverdueOnly,
-  onToggleOverdue,
-  assignedToMe = false,
-  onToggleAssignedToMe,
-  statusFilter,
-  onStatusChange,
-  categoryFilter,
-  onCategoryChange,
-  priorityFilter,
-  onPriorityChange,
-  sortBy,
-  onSortByChange,
-  hasActiveFilters,
-  onResetFilters,
+  filters,
+  handlers,
 }) => {
+  const {
+    activeTab,
+    search,
+    isOverdueOnly,
+    assignedToMe,
+    statusFilter,
+    categoryFilter,
+    priorityFilter,
+    sortBy,
+    hasActiveFilters,
+  } = filters;
+
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-4 mb-6 shadow-xs space-y-3.5">
       {/* Row 1: Left Tabs & Right Search/Overdue */}
@@ -59,7 +43,7 @@ export const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
         <div className="flex space-x-2">
           <button
             type="button"
-            onClick={() => onTabChange('all')}
+            onClick={() => handlers.onTabChange('all')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'all'
                 ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-xs'
@@ -70,7 +54,7 @@ export const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => onTabChange('faq')}
+            onClick={() => handlers.onTabChange('faq')}
             className={`flex items-center px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'faq'
                 ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-xs'
@@ -89,7 +73,7 @@ export const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
             <input
               type="text"
               value={search}
-              onChange={(e) => onSearchChange(e.target.value)}
+              onChange={(e) => handlers.onSearchChange(e.target.value)}
               placeholder="접수번호, 제목 실시간 검색..."
               className="pl-8 pr-7 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 w-44 sm:w-56 transition-all bg-white"
             />
@@ -97,7 +81,7 @@ export const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
             {search && (
               <button
                 type="button"
-                onClick={() => onSearchChange('')}
+                onClick={() => handlers.onSearchChange('')}
                 className="absolute right-2 top-2.5 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
@@ -111,7 +95,7 @@ export const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
               type="button"
               role="switch"
               aria-checked={assignedToMe}
-              onClick={onToggleAssignedToMe}
+              onClick={handlers.onToggleAssignedToMe}
               className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                 assignedToMe
                   ? 'bg-indigo-50 border-indigo-300 text-indigo-700 shadow-xs'
@@ -143,7 +127,7 @@ export const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
             type="button"
             role="switch"
             aria-checked={isOverdueOnly}
-            onClick={onToggleOverdue}
+            onClick={handlers.onToggleOverdue}
             className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer whitespace-nowrap shrink-0 ${
               isOverdueOnly
                 ? 'bg-rose-50 border-rose-300 text-rose-700 shadow-xs'
@@ -177,7 +161,7 @@ export const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
           {/* Status Dropdown */}
           <select
             value={statusFilter === 'overdue' ? '' : statusFilter}
-            onChange={(e) => onStatusChange(e.target.value)}
+            onChange={(e) => handlers.onStatusChange(e.target.value)}
             className="text-xs border border-slate-300 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
           >
             <option value="">전체 상태</option>
@@ -194,7 +178,7 @@ export const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
           {/* Category Dropdown */}
           <select
             value={categoryFilter}
-            onChange={(e) => onCategoryChange(e.target.value)}
+            onChange={(e) => handlers.onCategoryChange(e.target.value)}
             className="text-xs border border-slate-300 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
           >
             <option value="">전체 카테고리</option>
@@ -208,7 +192,7 @@ export const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
           {/* Priority Dropdown */}
           <select
             value={priorityFilter}
-            onChange={(e) => onPriorityChange(e.target.value)}
+            onChange={(e) => handlers.onPriorityChange(e.target.value)}
             className="text-xs border border-slate-300 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
           >
             <option value="">전체 우선순위</option>
@@ -221,7 +205,7 @@ export const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
           {/* Sort Dropdown */}
           <select
             value={sortBy}
-            onChange={(e) => onSortByChange(e.target.value)}
+            onChange={(e) => handlers.onSortByChange(e.target.value)}
             className="text-xs border border-slate-300 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer font-medium text-slate-700"
           >
             <option value="id desc">최신 등록순</option>
@@ -236,7 +220,7 @@ export const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
         {hasActiveFilters && (
           <button
             type="button"
-            onClick={onResetFilters}
+            onClick={handlers.onResetFilters}
             className="text-xs font-semibold text-slate-500 hover:text-slate-800 flex items-center px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-all cursor-pointer shrink-0 ml-auto"
           >
             <RotateCcw className="w-3.5 h-3.5 mr-1" />

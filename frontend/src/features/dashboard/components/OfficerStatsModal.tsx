@@ -12,6 +12,7 @@ import {
 import { useOfficerStats } from '../hooks/useOfficerStats';
 import { OfficerStatItem } from '../types/dashboard';
 import { formatResolutionHours } from '../../../shared/utils/durationUtils';
+import { useModalBehavior } from '../../../shared/hooks/useModalBehavior';
 import { MttrSummarySection } from './MttrSummarySection';
 
 export interface OfficerStatsModalProps {
@@ -21,11 +22,16 @@ export interface OfficerStatsModalProps {
 
 export const OfficerStatsModal: React.FC<OfficerStatsModalProps> = ({ isOpen, onClose }) => {
   const { data, loading, error } = useOfficerStats(isOpen);
+  useModalBehavior({ isOpen, onClose });
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+    >
       <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-100">
         {/* Header */}
         <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">

@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Send, AlertCircle, FileSpreadsheet, AlignLeft } from 'lucide-react';
+import { useModalBehavior } from '../../../shared/hooks/useModalBehavior';
 import { useSimilarFaqs } from '../hooks/useSimilarFaqs';
 import { useTicketCreateForm } from '../hooks/useTicketCreateForm';
 import { CreateAttachmentField } from './create/CreateAttachmentField';
@@ -21,13 +22,18 @@ export const TicketCreateModal: React.FC<TicketCreateModalProps> = ({
 }) => {
   const form = useTicketCreateForm({ onSuccess, onClose });
   const { suggestedFaqs } = useSimilarFaqs(isOpen, form.category, form.title);
+  useModalBehavior({ isOpen, onClose });
 
   if (!isOpen) return null;
 
   const hasCategoryTemplate = form.currentTemplate.fields.length > 0;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4"
+    >
       <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between pb-4 border-b border-slate-100">
           <div>

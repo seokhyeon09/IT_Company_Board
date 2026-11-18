@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { X, Mail, Loader2, Inbox } from 'lucide-react';
 import { EmailNotificationItem } from '../../ticket/types/ticket';
+import { useModalBehavior } from '../../../shared/hooks/useModalBehavior';
 import { getEmailCategories, ReadFilter } from '../emailCategories';
 import { EmailFilterBar } from './EmailFilterBar';
 import { EmailList } from './EmailList';
@@ -36,6 +37,7 @@ export const EmailNotificationModal: React.FC<EmailNotificationModalProps> = ({
   const [readFilter, setReadFilter] = useState<ReadFilter>('all');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [selected, setSelected] = useState<EmailNotificationItem | null>(null);
+  useModalBehavior({ isOpen, onClose });
 
   useEffect(() => {
     if (isOpen) onRefresh();
@@ -65,7 +67,11 @@ export const EmailNotificationModal: React.FC<EmailNotificationModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+    >
       <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[88vh] flex flex-col overflow-hidden border border-slate-100">
         <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center space-x-2.5">

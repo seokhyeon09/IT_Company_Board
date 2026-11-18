@@ -1,12 +1,27 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ticketApi } from '../../../api/ticketApi';
 import { getErrorMessage } from '../../../api/client';
 import { Ticket } from '../../ticket/types/ticket';
-import { TicketStats } from '../types/dashboard';
+import {
+  DashboardSortBy,
+  DashboardTab,
+  TicketListQueryParams,
+  TicketStats,
+  VALID_DASHBOARD_SORTS,
+} from '../types/dashboard';
+import {
+  parseDashboardQuery,
+  replaceUrlSearch,
+  serializeDashboardQuery,
+} from '../utils/dashboardQuery';
 
 const PAGE_SIZE = 12;
 
 export function useDashboardTickets() {
+  const [initialQuery] = useState(() =>
+    parseDashboardQuery(typeof window !== 'undefined' ? window.location.search : '')
+  );
+
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -14,27 +29,67 @@ export function useDashboardTickets() {
   const [stats, setStats] = useState<TicketStats | null>(null);
 
   // Filters
-  const [activeTab, setActiveTab] = useState<'all' | 'faq'>('all');
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
-  const [priorityFilter, setPriorityFilter] = useState('');
-  const [sortBy, setSortBy] = useState('id desc');
-  const [isOverdueOnly, setIsOverdueOnly] = useState(false);
-  const [assignedToMe, setAssignedToMe] = useState(false);
+  const [activeTab, setActiveTab] = useState<DashboardTab>(initialQuery.tab);
+  const [search, setSearch] = useState(initialQuery.search);
+  const [debouncedSearch, setDebouncedSearch] = useState(initialQuery.search);
+  const [statusFilter, setStatusFilter] = useState(initialQuery.status);
+  const [categoryFilter, setCategoryFilter] = useState(initialQuery.category);
+  const [priorityFilter, setPriorityFilter] = useState(initialQuery.priority);
+  const [sortBy, setSortByState] = useState<DashboardSortBy>(initialQuery.sort);
+  const [isOverdueOnly, setIsOverdueOnly] = useState(initialQuery.overdue);
+  const [assignedToMe, setAssignedToMe] = useState(initialQuery.mine);
 
   // Pagination
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(initialQuery.page);
 
-  // Debounce search input (300ms)
+  const prevSearchRef = useRef(search);
+
+  const setSortBy = useCallback((val: string) => {
+    const nextSort: DashboardSortBy = (VALID_DASHBOARD_SORTS as readonly string[]).includes(val)
+      ? (val as DashboardSortBy)
+      : 'id desc';
+    setSortByState(nextSort);
+  }, []);
+
+  // Debounce search input (300ms) without resetting URL-initialized page on first mount
   useEffect(() => {
+    if (prevSearchRef.current === search) return;
+    prevSearchRef.current = search;
     const handler = setTimeout(() => {
       setDebouncedSearch(search);
       setPage(1);
     }, 300);
     return () => clearTimeout(handler);
   }, [search]);
+
+  // Sync filter state to URL query (preserving ticket_id and other unrelated params)
+  useEffect(() => {
+    const nextSearch = serializeDashboardQuery(
+      {
+        tab: activeTab,
+        search,
+        status: statusFilter,
+        category: categoryFilter,
+        priority: priorityFilter,
+        sort: sortBy,
+        overdue: isOverdueOnly,
+        mine: assignedToMe,
+        page,
+      },
+      typeof window !== 'undefined' ? window.location.search : ''
+    );
+    replaceUrlSearch(nextSearch);
+  }, [
+    activeTab,
+    search,
+    statusFilter,
+    categoryFilter,
+    priorityFilter,
+    sortBy,
+    isOverdueOnly,
+    assignedToMe,
+    page,
+  ]);
 
   // Fetch KPI Stats
   const fetchStats = useCallback(async () => {
@@ -51,43 +106,19 @@ export function useDashboardTickets() {
     setLoading(true);
     setError(null);
     try {
-      const params: any = {
+      const params: TicketListQueryParams = {
         offset: (page - 1) * PAGE_SIZE,
         limit: PAGE_SIZE,
       };
 
-      if (debouncedSearch.trim()) {
-        params.search = debouncedSearch.trim();
-        params.searchQuery = debouncedSearch.trim();
-      }
-      if (statusFilter) {
-        params.status = statusFilter;
-        params.statusFilter = statusFilter;
-      }
-      if (categoryFilter) {
-        params.category = categoryFilter;
-        params.categoryFilter = categoryFilter;
-      }
-      if (priorityFilter) {
-        params.priority = priorityFilter;
-        params.priorityFilter = priorityFilter;
-      }
-      if (isOverdueOnly) {
-        params.is_overdue = true;
-        params.isOverdueOnly = true;
-      }
-      if (assignedToMe) {
-        params.assigned_to_me = true;
-        params.assignedToMe = true;
-      }
-      if (sortBy) {
-        params.sort_by = sortBy;
-        params.sortBy = sortBy;
-      }
-      if (activeTab === 'faq') {
-        params.is_faq = true;
-        params.isFaq = true;
-      }
+      if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
+      if (statusFilter) params.status = statusFilter;
+      if (categoryFilter) params.category = categoryFilter;
+      if (priorityFilter) params.priority = priorityFilter;
+      if (isOverdueOnly) params.is_overdue = true;
+      if (assignedToMe) params.assigned_to_me = true;
+      if (sortBy) params.sort_by = sortBy;
+      if (activeTab === 'faq') params.is_faq = true;
 
       const res = await ticketApi.getTickets(params, { signal });
       setTickets(res.tickets || (res as any).data || []);
@@ -117,7 +148,7 @@ export function useDashboardTickets() {
   const handleStatsCardClick = (targetStatus: string) => {
     setActiveTab('all');
     setPage(1);
-    setSortBy('id desc');
+    setSortByState('id desc');
     if (targetStatus === '') {
       setStatusFilter('');
     } else {
@@ -126,6 +157,7 @@ export function useDashboardTickets() {
   };
 
   const resetFilters = () => {
+    prevSearchRef.current = '';
     setSearch('');
     setDebouncedSearch('');
     setStatusFilter('');
@@ -133,7 +165,7 @@ export function useDashboardTickets() {
     setPriorityFilter('');
     setIsOverdueOnly(false);
     setAssignedToMe(false);
-    setSortBy('id desc');
+    setSortByState('id desc');
     setActiveTab('all');
     setPage(1);
   };

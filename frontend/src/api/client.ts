@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8000/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -24,14 +24,20 @@ let isLoggingOut = false;
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
+    const requestUrl = String(error.config?.url || '');
+    const isLoginRequest = requestUrl.includes('/auth/login');
+
+    if (error.response && error.response.status === 401 && !isLoginRequest) {
       localStorage.removeItem('access_token');
       localStorage.removeItem('user_info');
+      try {
+        sessionStorage.setItem('session_expired', '1');
+      } catch {
+        // Ignore storage errors in restricted environments
+      }
       if (!isLoggingOut) {
         isLoggingOut = true;
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
-        }
+        window.location.reload();
         setTimeout(() => {
           isLoggingOut = false;
         }, 1000);

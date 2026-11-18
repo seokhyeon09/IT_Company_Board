@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   X,
   HelpCircle,
   BookmarkPlus,
   BookmarkCheck,
   Loader2,
+  Link2,
+  Check,
 } from 'lucide-react';
 import { TicketDetail } from '../../types/ticket';
 import { statusMap, priorityMap } from '../../../../shared/types/common';
@@ -24,6 +26,42 @@ export const TicketHeader: React.FC<TicketHeaderProps> = ({
   onToggleFaq,
   onClose,
 }) => {
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
+  const copyTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    setCopyState('idle');
+    return () => {
+      if (copyTimerRef.current !== null) {
+        window.clearTimeout(copyTimerRef.current);
+        copyTimerRef.current = null;
+      }
+    };
+  }, [ticket?.id]);
+
+  const handleCopyLink = async () => {
+    if (!ticket) return;
+    if (copyTimerRef.current !== null) {
+      window.clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = null;
+    }
+
+    const shareUrl = `${window.location.origin}/?ticket_id=${ticket.id}`;
+    if (!navigator.clipboard?.writeText) {
+      setCopyState('failed');
+      copyTimerRef.current = window.setTimeout(() => setCopyState('idle'), 2000);
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopyState('copied');
+    } catch {
+      setCopyState('failed');
+    }
+    copyTimerRef.current = window.setTimeout(() => setCopyState('idle'), 2000);
+  };
+
   const statusInfo = ticket
     ? statusMap[ticket.status] || {
         label: ticket.status,
@@ -64,6 +102,38 @@ export const TicketHeader: React.FC<TicketHeaderProps> = ({
       </div>
 
       <div className="flex items-center space-x-2">
+        {ticket && (
+          <button
+            type="button"
+            onClick={handleCopyLink}
+            className={`flex items-center px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+              copyState === 'copied'
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                : copyState === 'failed'
+                ? 'bg-rose-50 text-rose-700 border-rose-300'
+                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+            }`}
+            title="티켓 바로가기 링크 복사"
+          >
+            {copyState === 'copied' ? (
+              <>
+                <Check className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+                복사됨
+              </>
+            ) : copyState === 'failed' ? (
+              <>
+                <Link2 className="w-3.5 h-3.5 mr-1 text-rose-600" />
+                복사 실패
+              </>
+            ) : (
+              <>
+                <Link2 className="w-3.5 h-3.5 mr-1 text-slate-400" />
+                링크 복사
+              </>
+            )}
+          </button>
+        )}
+
         {isOfficer && ticket && ticket.resolution_note && (
           <button
             type="button"
